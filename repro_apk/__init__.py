@@ -9,7 +9,7 @@ from . import fix_newlines as _fix_newlines, sort_apk as _sort_apk
 
 import click
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 NAME = "repro-apk"
 
 
