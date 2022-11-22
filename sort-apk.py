@@ -5,11 +5,10 @@
 
 import os
 import struct
-import sys
 import zipfile
 
 from collections import namedtuple
-from typing import Any, BinaryIO, Dict
+from typing import BinaryIO
 
 ZipData = namedtuple("ZipData", ("cd_offset", "eocd_offset", "cd_and_eocd"))
 
@@ -121,17 +120,14 @@ def zip_data(apkfile: str, count: int = 1024) -> ZipData:
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if "--help" in args:
-        print("Usage: sort-apk.py [--no-realign] [--no-force-align] INPUT_APK OUTPUT_APK")
-    else:
-        kwargs: Dict[str, Any] = {}
-        if "--no-realign" in args:
-            args.remove("--no-realign")
-            kwargs["realign"] = False
-        if "--no-force-align" in args:
-            args.remove("--no-force-align")
-            kwargs["force_align"] = False
-        sort_apk(*args, **kwargs)
+    import argparse
+    parser = argparse.ArgumentParser(prog="sort-apk.py")
+    parser.add_argument("--no-realign", dest="realign", action="store_false")
+    parser.add_argument("--no-force-align", dest="force_align", action="store_false")
+    parser.add_argument("input_apk", metavar="INPUT_APK")
+    parser.add_argument("output_apk", metavar="OUTPUT_APK")
+    args = parser.parse_args()
+    sort_apk(args.input_apk, args.output_apk, realign=args.realign,
+             force_align=args.force_align)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

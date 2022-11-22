@@ -3,7 +3,6 @@
 # SPDX-FileCopyrightText: 2022 FC Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-import sys
 import zipfile
 import zlib
 
@@ -96,22 +95,17 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns,
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if "--help" in args:
-        print("Usage: fix-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK PATTERN...")
-    else:
-        kwargs: Dict[str, Any] = {}
-        if "--from-crlf" in args:
-            args.remove("--from-crlf")
-            kwargs["replace"] = ("\r\n", "\n")
-        if "--to-crlf" in args:
-            args.remove("--to-crlf")
-        if "--verbose" in args:
-            args.remove("--verbose")
-            kwargs["verbose"] = True
-        if "-v" in args:
-            args.remove("-v")
-            kwargs["verbose"] = True
-        fix_newlines(*args, **kwargs)
+    import argparse
+    parser = argparse.ArgumentParser(prog="fix-newlines.py")
+    parser.add_argument("--from-crlf", action="store_true")
+    parser.add_argument("--to-crlf", dest="from_crlf", action="store_false")
+    parser.add_argument("-v", "--verbose", action="store_true")
+    parser.add_argument("input_apk", metavar="INPUT_APK")
+    parser.add_argument("output_apk", metavar="OUTPUT_APK")
+    parser.add_argument("patterns", metavar="PATTERN", nargs="+")
+    args = parser.parse_args()
+    replace = ("\r\n", "\n") if args.from_crlf else ("\n", "\r\n")
+    fix_newlines(args.input_apk, args.output_apk, *args.patterns,
+                 replace=replace, verbose=args.verbose)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

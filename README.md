@@ -28,7 +28,8 @@ LF line endings, this script may help.
 
 ```bash
 $ fix-newlines.py --help
-Usage: fix-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK PATTERN...
+usage: fix-newlines.py [-h] [--from-crlf] [--to-crlf] [-v] INPUT_APK OUTPUT_APK PATTERN [PATTERN ...]
+[...]
 $ apksigcopier compare signed.apk --unsigned unsigned.apk
 DOES NOT VERIFY
 [...]
@@ -46,7 +47,8 @@ Sorts (and w/o `--no-realign` also realigns) the ZIP entries of an APK.
 
 ```bash
 $ sort-apk.py --help
-Usage: sort-apk.py [--no-realign] [--no-force-align] INPUT_APK OUTPUT_APK
+usage: sort-apk.py [-h] [--no-realign] [--no-force-align] INPUT_APK OUTPUT_APK
+[...]
 $ unzip -l some.apk
 Archive:  some.apk
   Length      Date    Time    Name
