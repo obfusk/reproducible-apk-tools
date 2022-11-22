@@ -101,7 +101,7 @@ $ pip install -e .
 ```
 
 NB: you may need to add e.g. `~/.local/bin` to your `$PATH` in order
-to run `apksigcopier`.
+to run `repro-apk`.
 
 To update to the latest development version:
 
