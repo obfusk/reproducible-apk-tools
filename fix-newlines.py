@@ -8,7 +8,7 @@ import zipfile
 import zlib
 
 from fnmatch import fnmatch
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 
 ATTRS = ("compress_type", "create_system", "create_version", "date_time",
@@ -43,7 +43,7 @@ class ReproducibleZipInfo(zipfile.ZipInfo):
 
 
 def fix_newlines(input_apk: str, output_apk: str, *patterns,
-                 replace=("\n", "\r\n"), verbose=False) -> None:
+                 replace: Tuple[str, str] = ("\n", "\r\n"), verbose: bool = False) -> None:
     if not patterns:
         raise ValueError("No patterns")
     with zipfile.ZipFile(input_apk) as zf_in:
