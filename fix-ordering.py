@@ -30,7 +30,7 @@ def sort_apk(apk_in: str, apk_out: str, *, realign: bool = True) -> None:
             if info.filename in offsets:
                 raise RuntimeError(f"Duplicate ZIP entry: {info.filename!r}")
             offsets[info.filename] = off_o = fho.tell()
-            if realign and info.compress_type == 0 and off_o != info.header_offset:
+            if realign and info.compress_type == 0:
                 hdr = _realign_zip_entry(info, hdr, n, m, off_o)
             fho.write(hdr)
             _copy_bytes(fhi, fho, info.compress_size)
