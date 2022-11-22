@@ -13,7 +13,7 @@ __version__ = "0.1.1"
 NAME = "repro-apk"
 
 
-def main():
+def main() -> None:
     @click.group(help="""
         repro-apk - scripts to make apks reproducible
     """)
