@@ -37,10 +37,10 @@ class ReproducibleZipInfo(zipfile.ZipInfo):
         return object.__getattribute__(self, name)
 
 
-def fix_services_newlines(file_in, file_out, *, prefix="META-INF/services/",
+def fix_services_newlines(apk_in, apk_out, *, prefix="META-INF/services/",
                           replace=("\n", "\r\n"), verbose=False):
-    with zipfile.ZipFile(file_in) as zf_in:
-        with zipfile.ZipFile(file_out, "w") as zf_out:
+    with zipfile.ZipFile(apk_in) as zf_in:
+        with zipfile.ZipFile(apk_out, "w") as zf_out:
             for info in zf_in.infolist():
                 attrs = {attr: getattr(info, attr) for attr in ATTRS}
                 zinfo = ReproducibleZipInfo(info, **attrs)
@@ -91,7 +91,8 @@ def fix_services_newlines(file_in, file_out, *, prefix="META-INF/services/",
 if __name__ == "__main__":
     args = sys.argv[1:]
     verbose = "--verbose" in args or "-v" in args
-    args = [a for a in args if a not in ("--verbose", "-v")]
-    fix_services_newlines(*args, verbose=verbose)
+    replace = ("\r\n", "\n") if "--from-crlf" in args else ("\n", "\r\n")
+    args = [a for a in args if not a.startswith("-")]
+    fix_services_newlines(*args, replace=replace, verbose=verbose)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
