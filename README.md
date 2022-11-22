@@ -71,7 +71,20 @@ Archive:  sorted.apk
 ## CLI
 
 NB: you can just use the scripts stand-alone; alternatively, you can install the
-`repro-apk` Python package and use them as subcommands of `repro-apk`.
+`repro-apk` Python package and use them as subcommands of `repro-apk`:
+
+```bash
+$ repro-apk fix-newlines unsigned.apk fixed.apk 'META-INF/services/*'
+$ repro-apk sort-apk some.apk sorted.apk
+```
+
+### Help
+
+```bash
+$ repro-apk --help
+$ repro-apk fix-newlines --help
+$ repro-apk sort-apk --help
+```
 
 ## Installing
 
