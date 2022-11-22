@@ -1,3 +1,24 @@
+<!--
+[![GitHub Release](https://img.shields.io/github/release/obfusk/reproducible-apk-tools.svg?logo=github)](https://github.com/obfusk/reproducible-apk-tools/releases)
+[![PyPI Version](https://img.shields.io/pypi/v/repro-apk.svg)](https://pypi.python.org/pypi/repro-apk)
+[![Python Versions](https://img.shields.io/pypi/pyversions/repro-apk.svg)](https://pypi.python.org/pypi/repro-apk)
+-->
+
+[![CI](https://github.com/obfusk/reproducible-apk-tools/workflows/CI/badge.svg)](https://github.com/obfusk/reproducible-apk-tools/actions?query=workflow%3ACI)
+[![GPLv3+](https://img.shields.io/badge/license-GPLv3+-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+
+<!--
+<a href="https://repology.org/project/repro-apk/versions">
+  <img src="https://repology.org/badge/vertical-allrepos/repro-apk.svg?header="
+    alt="Packaging status" align="right" />
+</a>
+
+<a href="https://repology.org/project/python:repro-apk/versions">
+  <img src="https://repology.org/badge/vertical-allrepos/python:repro-apk.svg?header="
+    alt="Packaging status" align="right" />
+</a>
+-->
+
 # reproducible-apk-tools
 
 ## scripts to make apks reproducible
@@ -49,3 +70,59 @@ Archive:  sorted.apk
 ---------                     -------
      4110                     4 files
 ```
+
+## CLI
+
+NB: you can just use the scripts stand-alone; alternatively, you can install the
+`repro-apk` Python package and use them as subcommands of `repro-apk`.
+
+## Installing
+
+<!--
+### Using pip
+
+```bash
+$ pip install repro-apk
+```
+
+NB: depending on your system you may need to use e.g. `pip3 --user`
+instead of just `pip`.
+-->
+
+### From git
+
+NB: this installs the latest development version, not the latest
+release.
+
+```bash
+$ git clone https://github.com/obfusk/reproducible-apk-tools.git
+$ cd reproducible-apk-tools
+$ pip install -e .
+```
+
+NB: you may need to add e.g. `~/.local/bin` to your `$PATH` in order
+to run `apksigcopier`.
+
+To update to the latest development version:
+
+```bash
+$ cd reproducible-apk-tools
+$ git pull --rebase
+```
+
+## Dependencies
+
+* Python >= 3.8 + click (`repro-apk` package only, the stand-alone scripts have
+  no dependencies besides Python).
+
+### Debian/Ubuntu
+
+```bash
+$ apt install python3-click
+```
+
+## License
+
+[![GPLv3+](https://www.gnu.org/graphics/gplv3-127x51.png)](https://www.gnu.org/licenses/gpl-3.0.html)
+
+<!-- vim: set tw=70 sw=2 sts=2 et fdm=marker : -->

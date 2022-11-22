@@ -16,6 +16,10 @@ ATTRS = ("compress_type", "create_system", "create_version", "date_time",
 LEVELS = (9, 6, 4, 1)
 
 
+class Error(RuntimeError):
+    pass
+
+
 # FIXME: is there a better alternative?
 class ReproducibleZipInfo(zipfile.ZipInfo):
     """Reproducible ZipInfo hack."""
@@ -38,7 +42,8 @@ class ReproducibleZipInfo(zipfile.ZipInfo):
         return object.__getattribute__(self, name)
 
 
-def fix_newlines(input_apk: str, output_apk: str, *patterns, replace=("\n", "\r\n"), verbose=False):
+def fix_newlines(input_apk: str, output_apk: str, *patterns,
+                 replace=("\n", "\r\n"), verbose=False) -> None:
     if not patterns:
         raise ValueError("No patterns")
     with zipfile.ZipFile(input_apk) as zf_in:
@@ -56,9 +61,9 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns, replace=("\n", "\r\
                                 zinfo._compresslevel = lvl      # type: ignore
                                 break
                         else:
-                            raise RuntimeError(f"Unable to determine compresslevel for {info.filename!r}")
+                            raise Error(f"Unable to determine compresslevel for {info.filename!r}")
                     elif info.compress_type != 0:
-                        raise RuntimeError(f"Unsupported compress_type {info.compress_type}")
+                        raise Error(f"Unsupported compress_type {info.compress_type}")
                     zf_out.writestr(zinfo, data.decode().replace(*replace))
                 else:
                     if verbose:
@@ -78,9 +83,9 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns, replace=("\n", "\r\
                                     zinfo._compresslevel = lvl  # type: ignore
                                     break
                             else:
-                                raise RuntimeError(f"Unable to determine compresslevel for {info.filename!r}")
+                                raise Error(f"Unable to determine compresslevel for {info.filename!r}")
                     elif info.compress_type != 0:
-                        raise RuntimeError(f"Unsupported compress_type {info.compress_type}")
+                        raise Error(f"Unsupported compress_type {info.compress_type}")
                     with zf_in.open(info) as fh_in:
                         with zf_out.open(zinfo, "w") as fh_out:
                             while True:

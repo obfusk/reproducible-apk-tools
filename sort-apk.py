@@ -14,6 +14,10 @@ from typing import Any, BinaryIO, Dict
 ZipData = namedtuple("ZipData", ("cd_offset", "eocd_offset", "cd_and_eocd"))
 
 
+class Error(RuntimeError):
+    pass
+
+
 def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True) -> None:
     with zipfile.ZipFile(input_apk, "r") as zf:
         infos = zf.infolist()
@@ -24,11 +28,11 @@ def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True) -> None:
             fhi.seek(info.header_offset)
             hdr = fhi.read(30)
             if hdr[:4] != b"\x50\x4b\x03\x04":
-                raise RuntimeError("Expected local file header signature")
+                raise Error("Expected local file header signature")
             n, m = struct.unpack("<HH", hdr[26:30])
             hdr += fhi.read(n + m)
             if info.filename in offsets:
-                raise RuntimeError(f"Duplicate ZIP entry: {info.filename!r}")
+                raise Error(f"Duplicate ZIP entry: {info.filename!r}")
             offsets[info.filename] = off_o = fho.tell()
             if realign and info.compress_type == 0:
                 hdr = _realign_zip_entry(info, hdr, n, m, off_o)
@@ -45,7 +49,7 @@ def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True) -> None:
         for info in infos:
             hdr = fhi.read(46)
             if hdr[:4] != b"\x50\x4b\x01\x02":
-                raise RuntimeError("Expected central directory file header signature")
+                raise Error("Expected central directory file header signature")
             n, m, k = struct.unpack("<HHH", hdr[28:34])
             hdr += fhi.read(n + m + k)
             off = int.to_bytes(offsets[info.filename], 4, "little")
@@ -94,7 +98,7 @@ def _copy_bytes(fhi: BinaryIO, fho: BinaryIO, size: int, blocksize: int = 4096) 
         size -= len(data)
         fho.write(data)
     if size != 0:
-        raise RuntimeError("Unexpected EOF")
+        raise Error("Unexpected EOF")
 
 
 def zip_data(apkfile: str, count: int = 1024) -> ZipData:
@@ -103,7 +107,7 @@ def zip_data(apkfile: str, count: int = 1024) -> ZipData:
         data = fh.read()
         pos = data.rfind(b"\x50\x4b\x05\x06")
         if pos == -1:
-            raise RuntimeError("Expected end of central directory record (EOCD)")
+            raise Error("Expected end of central directory record (EOCD)")
         fh.seek(pos - len(data), os.SEEK_CUR)
         eocd_offset = fh.tell()
         fh.seek(16, os.SEEK_CUR)
