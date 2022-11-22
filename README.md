@@ -75,7 +75,6 @@ NB: you can just use the scripts stand-alone; alternatively, you can install the
 
 ## Installing
 
-<!--
 ### Using pip
 
 ```bash
@@ -84,7 +83,6 @@ $ pip install repro-apk
 
 NB: depending on your system you may need to use e.g. `pip3 --user`
 instead of just `pip`.
--->
 
 ### From git
 
