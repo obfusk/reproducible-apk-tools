@@ -33,6 +33,8 @@ $ apksigcopier compare signed.apk --unsigned unsigned.apk
 DOES NOT VERIFY
 [...]
 $ fix-newlines.py unsigned.apk fixed.apk 'META-INF/services/*'
+fixing 'META-INF/services/foo'...
+fixing 'META-INF/services/bar'...
 $ zipalign -f 4 fixed.apk fixed-aligned.apk
 $ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
 OK
