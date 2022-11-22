@@ -7,6 +7,7 @@ import sys
 import zipfile
 import zlib
 
+from fnmatch import fnmatch
 from typing import Any, Dict
 
 
@@ -37,21 +38,22 @@ class ReproducibleZipInfo(zipfile.ZipInfo):
         return object.__getattribute__(self, name)
 
 
-def fix_services_newlines(apk_in, apk_out, *, prefix="META-INF/services/",
-                          replace=("\n", "\r\n"), verbose=False):
-    with zipfile.ZipFile(apk_in) as zf_in:
-        with zipfile.ZipFile(apk_out, "w") as zf_out:
+def fix_newlines(input_apk: str, output_apk: str, *patterns, replace=("\n", "\r\n"), verbose=False):
+    if not patterns:
+        raise ValueError("No patterns")
+    with zipfile.ZipFile(input_apk) as zf_in:
+        with zipfile.ZipFile(output_apk, "w") as zf_out:
             for info in zf_in.infolist():
                 attrs = {attr: getattr(info, attr) for attr in ATTRS}
                 zinfo = ReproducibleZipInfo(info, **attrs)
-                if info.filename.startswith(prefix):
+                if any(fnmatch(info.filename, p) for p in patterns):
                     print(f"fixing {info.filename!r}...")
                     data = zf_in.read(info)
                     if info.compress_type == 8:
                         for lvl in LEVELS:
                             comp = zlib.compressobj(lvl, 8, -15)
                             if len(comp.compress(data) + comp.flush()) == info.compress_size:
-                                zinfo._compresslevel = lvl
+                                zinfo._compresslevel = lvl      # type: ignore
                                 break
                         else:
                             raise RuntimeError(f"Unable to determine compresslevel for {info.filename!r}")
@@ -73,7 +75,7 @@ def fix_services_newlines(apk_in, apk_out, *, prefix="META-INF/services/",
                                     clens[lvl] += len(comps[lvl].compress(data))
                             for lvl in LEVELS:
                                 if clens[lvl] + len(comps[lvl].flush()) == info.compress_size:
-                                    zinfo._compresslevel = lvl
+                                    zinfo._compresslevel = lvl  # type: ignore
                                     break
                             else:
                                 raise RuntimeError(f"Unable to determine compresslevel for {info.filename!r}")
@@ -91,11 +93,18 @@ def fix_services_newlines(apk_in, apk_out, *, prefix="META-INF/services/",
 if __name__ == "__main__":
     args = sys.argv[1:]
     if "--help" in args:
-        print("Usage: fix-services-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK")
+        print("Usage: fix-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK PATTERN...")
     else:
-        replace = ("\r\n", "\n") if "--from-crlf" in args else ("\n", "\r\n")
-        verbose = "--verbose" in args or "-v" in args
-        args = [a for a in args if not a.startswith("-")]
-        fix_services_newlines(*args, replace=replace, verbose=verbose)
+        kwargs: Dict[str, Any] = {}
+        if "--from-crlf" in args:
+            args.remove("--from-crlf")
+            kwargs["replace"] = ("\r\n", "\n")
+        if "--verbose" in args:
+            args.remove("--verbose")
+            kwargs["verbose"] = True
+        if "-v" in args:
+            args.remove("-v")
+            kwargs["verbose"] = True
+        fix_newlines(*args, **kwargs)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

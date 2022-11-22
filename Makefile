@@ -1,7 +1,7 @@
 SHELL   := /bin/bash
 PYTHON  ?= python3
 
-SCRIPTS := fix-services-newlines.py sort-apk.py
+SCRIPTS := fix-newlines.py sort-apk.py
 
 export PYTHONWARNINGS := default
 

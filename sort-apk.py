@@ -9,17 +9,17 @@ import sys
 import zipfile
 
 from collections import namedtuple
-from typing import BinaryIO
+from typing import Any, BinaryIO, Dict
 
 ZipData = namedtuple("ZipData", ("cd_offset", "eocd_offset", "cd_and_eocd"))
 
 
-def sort_apk(apk_in: str, apk_out: str, *, realign: bool = True) -> None:
-    with zipfile.ZipFile(apk_in, "r") as zf:
+def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True) -> None:
+    with zipfile.ZipFile(input_apk, "r") as zf:
         infos = zf.infolist()
-    zdata = zip_data(apk_in)
+    zdata = zip_data(input_apk)
     offsets = {}
-    with open(apk_in, "rb") as fhi, open(apk_out, "w+b") as fho:
+    with open(input_apk, "rb") as fhi, open(output_apk, "w+b") as fho:
         for info in sorted(infos, key=lambda info: info.filename):
             fhi.seek(info.header_offset)
             hdr = fhi.read(30)
@@ -118,8 +118,10 @@ if __name__ == "__main__":
     if "--help" in args:
         print("Usage: sort-apk.py [--no-realign] INPUT_APK OUTPUT_APK")
     else:
-        realign = "--no-realign" not in args
-        args = [a for a in args if not a.startswith("-")]
-        sort_apk(*args, realign=realign)
+        kwargs: Dict[str, Any] = {}
+        if "--no-realign" in args:
+            args.remove("--no-realign")
+            kwargs["realign"] = False
+        sort_apk(*args, **kwargs)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

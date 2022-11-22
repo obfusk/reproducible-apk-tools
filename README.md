@@ -2,19 +2,19 @@
 
 ## scripts to make apks reproducible
 
-### fix-services-newlines.py
+### fix-newlines.py
 
-If the signed APK was built on Windows and has `META-INF/services/` files with
-CRLF line endings whereas the unsigned APK was build on Linux/macOS and has LF
-line endings, this script may help.
+If the signed APK was built on Windows and has e.g. `META-INF/services/` files
+with CRLF line endings whereas the unsigned APK was build on Linux/macOS and has
+LF line endings, this script may help.
 
 ```bash
-$ fix-services-newlines.py --help
-Usage: fix-services-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK
+$ fix-newlines.py --help
+Usage: fix-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK PATTERN...
 $ apksigcopier compare signed.apk --unsigned unsigned.apk
 DOES NOT VERIFY
 [...]
-$ fix-services-newlines.py unsigned.apk fixed.apk
+$ fix-newlines.py unsigned.apk fixed.apk 'META-INF/services/*'
 $ zipalign -f 4 fixed.apk fixed-aligned.apk
 $ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
 OK
