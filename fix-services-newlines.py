@@ -90,9 +90,12 @@ def fix_services_newlines(apk_in, apk_out, *, prefix="META-INF/services/",
 
 if __name__ == "__main__":
     args = sys.argv[1:]
-    verbose = "--verbose" in args or "-v" in args
-    replace = ("\r\n", "\n") if "--from-crlf" in args else ("\n", "\r\n")
-    args = [a for a in args if not a.startswith("-")]
-    fix_services_newlines(*args, replace=replace, verbose=verbose)
+    if "--help" in args:
+        print("Usage: fix-services-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK")
+    else:
+        replace = ("\r\n", "\n") if "--from-crlf" in args else ("\n", "\r\n")
+        verbose = "--verbose" in args or "-v" in args
+        args = [a for a in args if not a.startswith("-")]
+        fix_services_newlines(*args, replace=replace, verbose=verbose)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

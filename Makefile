@@ -1,7 +1,7 @@
 SHELL   := /bin/bash
 PYTHON  ?= python3
 
-SCRIPTS := fix-services-newlines.py
+SCRIPTS := fix-services-newlines.py fix-ordering.py
 
 export PYTHONWARNINGS := default
 
