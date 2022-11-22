@@ -18,7 +18,8 @@ class Error(RuntimeError):
     pass
 
 
-def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True) -> None:
+def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True,
+             force_align: bool = True) -> None:
     with zipfile.ZipFile(input_apk, "r") as zf:
         infos = zf.infolist()
     zdata = zip_data(input_apk)
@@ -35,7 +36,7 @@ def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True) -> None:
                 raise Error(f"Duplicate ZIP entry: {info.filename!r}")
             offsets[info.filename] = off_o = fho.tell()
             if realign and info.compress_type == 0:
-                hdr = _realign_zip_entry(info, hdr, n, m, off_o)
+                hdr = _realign_zip_entry(info, hdr, n, m, off_o, force=force_align)
             fho.write(hdr)
             _copy_bytes(fhi, fho, info.compress_size)
             if info.flag_bits & 0x08:
@@ -64,8 +65,10 @@ def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True) -> None:
                               eocd_offset - cd_offset, cd_offset))
 
 
+# FIXME
 # NB: doesn't sync local & CD headers!
-def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int, off_o: int) -> bytes:
+def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int,
+                       off_o: int, *, force: bool = False) -> bytes:
     align = 4096 if info.filename.endswith(".so") else 4
     old_off = 30 + n + m + info.header_offset
     new_off = 30 + n + m + off_o
@@ -82,7 +85,7 @@ def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int, off_o:
             else:
                 new_xtr += old_xtr[:size + 4]
         old_xtr = old_xtr[size + 4:]
-    if old_off % align == 0 and new_off % align != 0:
+    if old_off % align == 0 and (force or new_off % align != 0):
         pad = (align - (new_off - m + len(new_xtr) + 6) % align) % align
         xtr = new_xtr + struct.pack("<HHH", 0xd935, 2 + pad, align) + pad * b"\x00"
         m_b = int.to_bytes(len(xtr), 2, "little")
@@ -120,12 +123,15 @@ def zip_data(apkfile: str, count: int = 1024) -> ZipData:
 if __name__ == "__main__":
     args = sys.argv[1:]
     if "--help" in args:
-        print("Usage: sort-apk.py [--no-realign] INPUT_APK OUTPUT_APK")
+        print("Usage: sort-apk.py [--no-realign] [--no-force-align] INPUT_APK OUTPUT_APK")
     else:
         kwargs: Dict[str, Any] = {}
         if "--no-realign" in args:
             args.remove("--no-realign")
             kwargs["realign"] = False
+        if "--no-force-align" in args:
+            args.remove("--no-force-align")
+            kwargs["force_align"] = False
         sort_apk(*args, **kwargs)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

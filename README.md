@@ -46,7 +46,7 @@ Sorts (and w/o `--no-realign` also realigns) the ZIP entries of an APK.
 
 ```bash
 $ sort-apk.py --help
-Usage: sort-apk.py [--no-realign] INPUT_APK OUTPUT_APK
+Usage: sort-apk.py [--no-realign] [--no-force-align] INPUT_APK OUTPUT_APK
 $ unzip -l some.apk
 Archive:  some.apk
   Length      Date    Time    Name

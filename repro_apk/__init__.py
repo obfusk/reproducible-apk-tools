@@ -42,10 +42,12 @@ def main():
         Sort (and realign) the ZIP entries of an APK.
     """)
     @click.option("--no-realign", is_flag=True, help="Do not realign.")
+    @click.option("--no-force-align", is_flag=True, help="Do not force recreating alignment.")
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
-    def sort_apk(input_apk, output_apk, no_realign):
-        _sort_apk.sort_apk(input_apk, output_apk, realign=not no_realign)
+    def sort_apk(input_apk, output_apk, no_realign, no_force_align):
+        _sort_apk.sort_apk(input_apk, output_apk, realign=not no_realign,
+                           force_align=not no_force_align)
 
     try:
         cli(prog_name=NAME)
