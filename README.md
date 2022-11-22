@@ -9,6 +9,8 @@ CRLF line endings whereas the unsigned APK was build on Linux/macOS and has LF
 line endings, this script may help.
 
 ```bash
+$ fix-services-newlines.py --help
+Usage: fix-services-newlines.py [--from-crlf] [--verbose] INPUT_APK OUTPUT_APK
 $ apksigcopier compare signed.apk --unsigned unsigned.apk
 DOES NOT VERIFY
 [...]
@@ -23,6 +25,8 @@ OK
 Sorts (and w/o `--no-realign` also realigns) the ZIP entries of an APK.
 
 ```bash
+$ fix-ordering.py --help
+Usage: fix-ordering.py [--no-realign] INPUT_APK OUTPUT_APK
 $ unzip -l some.apk
 Archive:  some.apk
   Length      Date    Time    Name
