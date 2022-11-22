@@ -27,7 +27,8 @@ def main():
         Specify which files to change by providing at least one fnmatch-style
         PATTERN, e.g. 'META-INF/services/*'.
     """)
-    @click.option("--from-crlf", is_flag=True, help="Change from CRLF to LF.")
+    @click.option("--from-crlf/--to-crlf", is_flag=True,
+                  help="Change from CRLF to LF.  [default: LF to CRLF]")
     @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))

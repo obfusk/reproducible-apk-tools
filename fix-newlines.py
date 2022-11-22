@@ -104,6 +104,8 @@ if __name__ == "__main__":
         if "--from-crlf" in args:
             args.remove("--from-crlf")
             kwargs["replace"] = ("\r\n", "\n")
+        if "--to-crlf" in args:
+            args.remove("--to-crlf")
         if "--verbose" in args:
             args.remove("--verbose")
             kwargs["verbose"] = True
