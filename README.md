@@ -20,13 +20,13 @@ $ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
 OK
 ```
 
-### fix-ordering.py
+### sort-apk.py
 
 Sorts (and w/o `--no-realign` also realigns) the ZIP entries of an APK.
 
 ```bash
-$ fix-ordering.py --help
-Usage: fix-ordering.py [--no-realign] INPUT_APK OUTPUT_APK
+$ sort-apk.py --help
+Usage: sort-apk.py [--no-realign] INPUT_APK OUTPUT_APK
 $ unzip -l some.apk
 Archive:  some.apk
   Length      Date    Time    Name
@@ -37,7 +37,7 @@ Archive:  some.apk
      1536  2009-01-01 00:00   classes.dex
 ---------                     -------
      4110                     4 files
-$ fix-ordering.py some.apk sorted.apk
+$ sort-apk.py some.apk sorted.apk
 $ unzip -l sorted.apk
 Archive:  sorted.apk
   Length      Date    Time    Name

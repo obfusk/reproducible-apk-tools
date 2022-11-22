@@ -116,7 +116,7 @@ def zip_data(apkfile: str, count: int = 1024) -> ZipData:
 if __name__ == "__main__":
     args = sys.argv[1:]
     if "--help" in args:
-        print("Usage: fix-ordering.py [--no-realign] INPUT_APK OUTPUT_APK")
+        print("Usage: sort-apk.py [--no-realign] INPUT_APK OUTPUT_APK")
     else:
         realign = "--no-realign" not in args
         args = [a for a in args if not a.startswith("-")]
