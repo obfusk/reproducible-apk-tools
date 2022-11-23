@@ -5,6 +5,8 @@
 
 import sys
 
+from typing import Tuple
+
 from . import fix_newlines as _fix_newlines, sort_apk as _sort_apk
 
 import click
@@ -18,7 +20,7 @@ def main() -> None:
         repro-apk - scripts to make apks reproducible
     """)
     @click.version_option(__version__)
-    def cli():
+    def cli() -> None:
         pass
 
     @cli.command(help="""
@@ -33,7 +35,8 @@ def main() -> None:
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
-    def fix_newlines(input_apk, output_apk, patterns, from_crlf, verbose):
+    def fix_newlines(input_apk: str, output_apk: str, patterns: Tuple[str],
+                     from_crlf: bool, verbose: bool) -> None:
         replace = ("\r\n", "\n") if from_crlf else ("\n", "\r\n")
         _fix_newlines.fix_newlines(input_apk, output_apk, *patterns,
                                    replace=replace, verbose=verbose)
@@ -45,7 +48,8 @@ def main() -> None:
     @click.option("--no-force-align", is_flag=True, help="Do not force recreating alignment.")
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
-    def sort_apk(input_apk, output_apk, no_realign, no_force_align):
+    def sort_apk(input_apk: str, output_apk: str, no_realign: bool,
+                 no_force_align: bool) -> None:
         _sort_apk.sort_apk(input_apk, output_apk, realign=not no_realign,
                            force_align=not no_force_align)
 
