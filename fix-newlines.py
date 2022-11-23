@@ -25,14 +25,15 @@ class ReproducibleZipInfo(zipfile.ZipInfo):
 
     _override: Dict[str, Any] = {}
 
-    def __init__(self, zinfo, **override):  # pylint: disable=W0231
+    def __init__(self, zinfo: zipfile.ZipInfo, **override: Any) -> None:
+        # pylint: disable=W0231
         if override:
             self._override = {**self._override, **override}
         for k in self.__slots__:
             if hasattr(zinfo, k):
                 setattr(self, k, getattr(zinfo, k))
 
-    def __getattribute__(self, name):
+    def __getattribute__(self, name: str) -> Any:
         if name != "_override":
             try:
                 return self._override[name]
@@ -41,7 +42,7 @@ class ReproducibleZipInfo(zipfile.ZipInfo):
         return object.__getattribute__(self, name)
 
 
-def fix_newlines(input_apk: str, output_apk: str, *patterns,
+def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
                  replace: Tuple[str, str] = ("\n", "\r\n"), verbose: bool = False) -> None:
     if not patterns:
         raise ValueError("No patterns")
