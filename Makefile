@@ -21,7 +21,7 @@ lint:
 	set -x; pylint repro_apk/*.py
 
 lint-extra:
-	set -x; mypy --strict repro_apk/*.py
+	set -x; mypy --strict --disallow-any-unimported repro_apk/*.py
 
 clean: cleanup
 	rm -fr repro_apk.egg-info/
