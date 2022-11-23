@@ -23,6 +23,7 @@ class Error(RuntimeError):
 class ReproducibleZipInfo(zipfile.ZipInfo):
     """Reproducible ZipInfo hack."""
 
+    _compresslevel: int
     _override: Dict[str, Any] = {}
 
     def __init__(self, zinfo: zipfile.ZipInfo, **override: Any) -> None:
@@ -58,7 +59,7 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
                         for lvl in LEVELS:
                             comp = zlib.compressobj(lvl, 8, -15)
                             if len(comp.compress(data) + comp.flush()) == info.compress_size:
-                                zinfo._compresslevel = lvl      # type: ignore
+                                zinfo._compresslevel = lvl
                                 break
                         else:
                             raise Error(f"Unable to determine compresslevel for {info.filename!r}")
@@ -80,7 +81,7 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
                                     clens[lvl] += len(comps[lvl].compress(data))
                             for lvl in LEVELS:
                                 if clens[lvl] + len(comps[lvl].flush()) == info.compress_size:
-                                    zinfo._compresslevel = lvl  # type: ignore
+                                    zinfo._compresslevel = lvl
                                     break
                             else:
                                 raise Error(f"Unable to determine compresslevel for {info.filename!r}")
