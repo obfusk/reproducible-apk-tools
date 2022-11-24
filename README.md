@@ -57,7 +57,7 @@ is deterministic but not sorted; see also the alignment CAVEAT.
 
 ```bash
 $ sort-apk.py --help
-usage: sort-apk.py [-h] [--no-realign] [--no-force-align] INPUT_APK OUTPUT_APK
+usage: sort-apk.py [-h] [--no-realign] [--no-force-align] [--clear-lh-extra] INPUT_APK OUTPUT_APK
 [...]
 $ unzip -l some.apk
 Archive:  some.apk
