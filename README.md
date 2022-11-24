@@ -41,9 +41,19 @@ $ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
 OK
 ```
 
+NB: this builds a new ZIP file, preserving most ZIP metadata (and recompressing
+using the same compression level) but not everything: e.g. copying the existing
+local header extra fields which contain padding for alignment is not supported
+by Python's `ZipFile`, which is why `zipalign` is usually needed.
+
 ### sort-apk.py
 
 Sorts (and w/o `--no-realign` also realigns) the ZIP entries of an APK.
+
+If the ordering of the ZIP entries in an APK is not deterministic/reproducible,
+this script may help.  You'll almost certainly need to use it for all builds
+though, since it can only sort the APK, not recreate a different ordering that
+is deterministic but not sorted; see also the alignment CAVEAT.
 
 ```bash
 $ sort-apk.py --help
@@ -71,6 +81,29 @@ Archive:  sorted.apk
 ---------                     -------
      4110                     4 files
 ```
+
+NB: this directly copies the (bytes of the) original ZIP entries from the
+original file, thus preserving all ZIP metadata.
+
+#### CAVEAT: alignment
+
+Unfortunately, the padding added to ZIP local header extra fields for alignment
+makes it hard to make sorting deterministic: unless the original APK was not
+aligned at all, the padding is often different when the APK entries had a
+different order (and thus a different offset) before sorting.
+
+Because of this, `sort-apk` forcefully recreates the padding even if the entry
+is already aligned (since that doesn't mean the padding is identical) to make
+its output as deterministic as possible.
+
+You can disable this using `--no-force-align` or skip realignment completely
+using `--no-realign`; you can also choose to clear the local header extra fields
+instead with `--clear-lh-extra`, after which you'll probably need `zipalign`.
+
+NB: the alignment padding used by `sort-apk` is the same as that used by
+`apksigner` (a `0xd935` "Android ZIP Alignment Extra Field" which stores the
+alignment itself as well as zero padding), which differs from that used by
+`zipalign` (just zero padding).
 
 ## CLI
 

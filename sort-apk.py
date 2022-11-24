@@ -18,7 +18,7 @@ class Error(RuntimeError):
 
 
 def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True,
-             force_align: bool = True) -> None:
+             force_align: bool = True, clear_lh_extra: bool = False) -> None:
     with zipfile.ZipFile(input_apk, "r") as zf:
         infos = zf.infolist()
     zdata = zip_data(input_apk)
@@ -34,7 +34,9 @@ def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True,
             if info.filename in offsets:
                 raise Error(f"Duplicate ZIP entry: {info.filename!r}")
             offsets[info.filename] = off_o = fho.tell()
-            if realign and info.compress_type == 0:
+            if clear_lh_extra:
+                hdr = hdr[:28] + int.to_bytes(0, 2, "little") + hdr[30:30 + n]
+            elif realign and info.compress_type == 0:
                 hdr = _realign_zip_entry(info, hdr, n, m, off_o, force=force_align)
             fho.write(hdr)
             _copy_bytes(fhi, fho, info.compress_size)
@@ -124,10 +126,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="sort-apk.py")
     parser.add_argument("--no-realign", dest="realign", action="store_false")
     parser.add_argument("--no-force-align", dest="force_align", action="store_false")
+    parser.add_argument("--clear-lh-extra", dest="clear_lh_extra", action="store_true")
     parser.add_argument("input_apk", metavar="INPUT_APK")
     parser.add_argument("output_apk", metavar="OUTPUT_APK")
     args = parser.parse_args()
     sort_apk(args.input_apk, args.output_apk, realign=args.realign,
-             force_align=args.force_align)
+             force_align=args.force_align, clear_lh_extra=args.clear_lh_extra)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
