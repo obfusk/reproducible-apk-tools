@@ -46,13 +46,13 @@ def main() -> None:
     """)
     @click.option("--no-realign", is_flag=True, help="Do not realign.")
     @click.option("--no-force-align", is_flag=True, help="Do not force recreating alignment.")
-    @click.option("--clear-lh-extra", is_flag=True, help="Clear ZIP local header extra fields.")
+    @click.option("--reset-lh-extra", is_flag=True, help="Reset ZIP LH extra fields using CD.")
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     def sort_apk(input_apk: str, output_apk: str, no_realign: bool,
-                 no_force_align: bool, clear_lh_extra: bool) -> None:
+                 no_force_align: bool, reset_lh_extra: bool) -> None:
         _sort_apk.sort_apk(input_apk, output_apk, realign=not no_realign,
-                           force_align=not no_force_align, clear_lh_extra=clear_lh_extra)
+                           force_align=not no_force_align, reset_lh_extra=reset_lh_extra)
 
     try:
         cli(prog_name=NAME)

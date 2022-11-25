@@ -18,7 +18,7 @@ class Error(RuntimeError):
 
 
 def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True,
-             force_align: bool = True, clear_lh_extra: bool = False) -> None:
+             force_align: bool = True, reset_lh_extra: bool = False) -> None:
     with zipfile.ZipFile(input_apk, "r") as zf:
         infos = zf.infolist()
     zdata = zip_data(input_apk)
@@ -34,10 +34,13 @@ def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True,
             if info.filename in offsets:
                 raise Error(f"Duplicate ZIP entry: {info.filename!r}")
             offsets[info.filename] = off_o = fho.tell()
-            if clear_lh_extra:
-                hdr = hdr[:28] + int.to_bytes(0, 2, "little") + hdr[30:30 + n]
-            elif realign and info.compress_type == 0:
-                hdr = _realign_zip_entry(info, hdr, n, m, off_o, force=force_align)
+            m_old = m
+            if reset_lh_extra:
+                m = len(info.extra)
+                m_b = int.to_bytes(m, 2, "little")
+                hdr = hdr[:28] + m_b + hdr[30:30 + n] + info.extra
+            if realign and info.compress_type == 0:
+                hdr = _realign_zip_entry(info, hdr, n, m_old, m, off_o, force=force_align)
             fho.write(hdr)
             _copy_bytes(fhi, fho, info.compress_size)
             if info.flag_bits & 0x08:
@@ -68,10 +71,10 @@ def sort_apk(input_apk: str, output_apk: str, *, realign: bool = True,
 
 # FIXME
 # NB: doesn't sync local & CD headers!
-def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int,
-                       off_o: int, *, force: bool = False) -> bytes:
+def _realign_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m_old: int,
+                       m: int, off_o: int, *, force: bool = False) -> bytes:
     align = 4096 if info.filename.endswith(".so") else 4
-    old_off = 30 + n + m + info.header_offset
+    old_off = 30 + n + m_old + info.header_offset
     new_off = 30 + n + m + off_o
     old_xtr = hdr[30 + n:30 + n + m]
     new_xtr = b""
@@ -126,11 +129,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="sort-apk.py")
     parser.add_argument("--no-realign", dest="realign", action="store_false")
     parser.add_argument("--no-force-align", dest="force_align", action="store_false")
-    parser.add_argument("--clear-lh-extra", dest="clear_lh_extra", action="store_true")
+    parser.add_argument("--reset-lh-extra", dest="reset_lh_extra", action="store_true")
     parser.add_argument("input_apk", metavar="INPUT_APK")
     parser.add_argument("output_apk", metavar="OUTPUT_APK")
     args = parser.parse_args()
     sort_apk(args.input_apk, args.output_apk, realign=args.realign,
-             force_align=args.force_align, clear_lh_extra=args.clear_lh_extra)
+             force_align=args.force_align, reset_lh_extra=args.reset_lh_extra)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

@@ -57,7 +57,7 @@ is deterministic but not sorted; see also the alignment CAVEAT.
 
 ```bash
 $ sort-apk.py --help
-usage: sort-apk.py [-h] [--no-realign] [--no-force-align] [--clear-lh-extra] INPUT_APK OUTPUT_APK
+usage: sort-apk.py [-h] [--no-realign] [--no-force-align] [--reset-lh-extra] INPUT_APK OUTPUT_APK
 [...]
 $ unzip -l some.apk
 Archive:  some.apk
@@ -94,16 +94,22 @@ different order (and thus a different offset) before sorting.
 
 Because of this, `sort-apk` forcefully recreates the padding even if the entry
 is already aligned (since that doesn't mean the padding is identical) to make
-its output as deterministic as possible.
+its output as deterministic as possible.  The downside is that it'll often add
+"unnecessary" 8-byte padding to entries that didn't need alignment.
 
-You can disable this using `--no-force-align` or skip realignment completely
-using `--no-realign`; you can also choose to clear the local header extra fields
-instead with `--clear-lh-extra`, after which you'll probably need `zipalign`.
+You can disable this using `--no-force-align`, or skip realignment completely
+using `--no-realign`.  If you're certain you don't need to keep the old values,
+you can also choose to reset the local header extra fields to the values from
+the central directory entries with `--reset-lh-extra`.
+
+If you use `--reset-lh-extra`, you'll probably want to combine it with either
+`--no-force-align` (which should prevent the "unnecessary" 8-byte padding) or
+`--no-realign` + `zipalign` (which uses smaller padding).
 
 NB: the alignment padding used by `sort-apk` is the same as that used by
 `apksigner` (a `0xd935` "Android ZIP Alignment Extra Field" which stores the
-alignment itself as well as zero padding), which differs from that used by
-`zipalign` (just zero padding).
+alignment itself plus zero padding and is thus always at least 6 bytes), whereas
+`zipalign` just uses plain zero padding.
 
 ## CLI
 
