@@ -22,6 +22,11 @@
 
 ### fix-newlines.py
 
+Change line endings from LF to CRLF (or vice versa w/ `--from-crlf`).
+
+Specify which files to change by providing at least one fnmatch-style pattern,
+e.g. `'META-INF/services/*'`.
+
 If the signed APK was built on Windows and has e.g. `META-INF/services/` files
 with CRLF line endings whereas the unsigned APK was build on Linux/macOS and has
 LF line endings, this script may help.
@@ -48,7 +53,7 @@ by Python's `ZipFile`, which is why `zipalign` is usually needed.
 
 ### sort-apk.py
 
-Sorts (and w/o `--no-realign` also realigns) the ZIP entries of an APK.
+Sort (and w/o `--no-realign` also realign) the ZIP entries of an APK.
 
 If the ordering of the ZIP entries in an APK is not deterministic/reproducible,
 this script may help.  You'll almost certainly need to use it for all builds
