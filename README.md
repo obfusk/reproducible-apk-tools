@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2022 FC Stegerman <flx@obfusk.net> -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+
 [![GitHub Release](https://img.shields.io/github/release/obfusk/reproducible-apk-tools.svg?logo=github)](https://github.com/obfusk/reproducible-apk-tools/releases)
 [![PyPI Version](https://img.shields.io/pypi/v/repro-apk.svg)](https://pypi.python.org/pypi/repro-apk)
 [![Python Versions](https://img.shields.io/pypi/pyversions/repro-apk.svg)](https://pypi.python.org/pypi/repro-apk)
