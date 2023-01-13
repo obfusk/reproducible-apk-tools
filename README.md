@@ -1,4 +1,4 @@
-<!-- SPDX-FileCopyrightText: 2022 FC Stegerman <flx@obfusk.net> -->
+<!-- SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 [![GitHub Release](https://img.shields.io/github/release/obfusk/reproducible-apk-tools.svg?logo=github)](https://github.com/obfusk/reproducible-apk-tools/releases)
@@ -119,6 +119,25 @@ NB: the alignment padding used by `sort-apk` is the same as that used by
 alignment itself plus zero padding and is thus always at least 6 bytes), whereas
 `zipalign` just uses plain zero padding.
 
+## scripts to dump info from apks and related file formats
+
+### dump-arsc.py
+
+Dump `resources.arsc` (extracted or inside an APK) using `aapt2`.
+
+```bash
+$ dump-arsc.py --help
+usage: dump-arsc.py [-h] [--apk] ARSC_OR_APK
+$ dump-arsc.py resources.arsc
+Binary APK
+Package name=com.example.app id=7f
+[...]
+$ dump-arsc.py --apk some.apk
+Binary APK
+Package name=com.example.app id=7f
+[...]
+```
+
 ## CLI
 
 NB: you can just use the scripts stand-alone; alternatively, you can install the
@@ -174,10 +193,14 @@ $ git pull --rebase
 * Python >= 3.8 + click (`repro-apk` package only, the stand-alone scripts have
   no dependencies besides Python).
 
+* The `dump-arsc.py` script requires `aapt2`.
+
 ### Debian/Ubuntu
 
 ```bash
 $ apt install python3-click
+$ apt install aapt      # for dump-arsc.py
+$ apt install zipalign  # for realignment; see examples
 ```
 
 ## License

@@ -1,18 +1,22 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2022 FC Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import sys
 
 from typing import Tuple
 
-from . import fix_newlines as _fix_newlines, sort_apk as _sort_apk
+from . import dump_arsc as _dump_arsc
+from . import fix_newlines as _fix_newlines
+from . import sort_apk as _sort_apk
 
 import click
 
 __version__ = "0.1.1"
 NAME = "repro-apk"
+
+ERRORS = (_dump_arsc.Error, _fix_newlines.Error, _sort_apk.Error)
 
 
 def main() -> None:
@@ -22,6 +26,18 @@ def main() -> None:
     @click.version_option(__version__)
     def cli() -> None:
         pass
+
+    @cli.command(help="""
+        Dump resources.arsc (extracted or inside an APK) using aapt2.
+    """)
+    @click.option("--apk", is_flag=True,
+                  help="ARSC_OR_APK is an APK, not an extracted resources.arsc.")
+    @click.argument("arsc_or_apk", type=click.Path(exists=True, dir_okay=False))
+    def dump_arsc(arsc_or_apk: str, apk: bool) -> None:
+        if apk:
+            _dump_arsc.dump_arsc_apk(arsc_or_apk)
+        else:
+            _dump_arsc.dump_arsc(arsc_or_apk)
 
     @cli.command(help="""
         Change line endings from LF to CRLF (or vice versa).
@@ -56,7 +72,7 @@ def main() -> None:
 
     try:
         cli(prog_name=NAME)
-    except (_fix_newlines.Error, _sort_apk.Error) as e:
+    except ERRORS as e:
         click.echo(f"Error: {e}.", err=True)
         sys.exit(1)
 
