@@ -198,7 +198,11 @@ NB: you can just use the scripts stand-alone; alternatively, you can install the
 `repro-apk` Python package and use them as subcommands of `repro-apk`:
 
 ```bash
+$ repro-apk dump-arsc resources.arsc
+$ repro-apk dump-arsc --apk some.apk
+$ repro-apk fix-compresslevel unsigned.apk fixed.apk 6 assets/foo/bar.js
 $ repro-apk fix-newlines unsigned.apk fixed.apk 'META-INF/services/*'
+$ repro-apk list-compresslevel some.apk
 $ repro-apk sort-apk some.apk sorted.apk
 ```
 
