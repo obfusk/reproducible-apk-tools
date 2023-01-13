@@ -152,6 +152,7 @@ $ repro-apk sort-apk some.apk sorted.apk
 
 ```bash
 $ repro-apk --help
+$ repro-apk dump-arsc --help
 $ repro-apk fix-newlines --help
 $ repro-apk sort-apk --help
 ```
