@@ -8,17 +8,27 @@ import sys
 from typing import Tuple
 
 from . import dump_arsc as _dump_arsc
+from . import dump_baseline as _dump_baseline
 from . import fix_compresslevel as _fix_compresslevel
 from . import fix_newlines as _fix_newlines
 from . import list_compresslevel as _list_compresslevel
 from . import sort_apk as _sort_apk
+from . import sort_baseline as _sort_baseline
 
 import click
 
 __version__ = "0.1.1"
 NAME = "repro-apk"
 
-ERRORS = (_dump_arsc.Error, _fix_newlines.Error, _sort_apk.Error)
+ERRORS = (
+    _dump_arsc.Error,
+    _dump_baseline.Error,
+    _fix_compresslevel.Error,
+    _fix_newlines.Error,
+    _list_compresslevel.Error,
+    _sort_apk.Error,
+    _sort_baseline.Error,
+)
 
 
 def main() -> None:
@@ -40,6 +50,19 @@ def main() -> None:
             _dump_arsc.dump_arsc_apk(arsc_or_apk)
         else:
             _dump_arsc.dump_arsc(arsc_or_apk)
+
+    @cli.command(help="""
+        Dump baseline.prof/baseline.profm (extracted or inside an APK).
+    """)
+    @click.option("--apk", is_flag=True,
+                  help="PROF_OR_APK is an APK, not an extracted .prof/.profm.")
+    @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
+    @click.argument("prof_or_apk", type=click.Path(exists=True, dir_okay=False))
+    def dump_baseline(prof_or_apk: str, apk: bool, verbose: bool) -> None:
+        if apk:
+            _dump_baseline.dump_baseline_apk(prof_or_apk, verbose=verbose)
+        else:
+            _dump_baseline.dump_baseline(prof_or_apk, verbose=verbose)
 
     @cli.command(help="""
         Recompress with different compression level.
@@ -94,6 +117,19 @@ def main() -> None:
                  no_force_align: bool, reset_lh_extra: bool) -> None:
         _sort_apk.sort_apk(input_apk, output_apk, realign=not no_realign,
                            force_align=not no_force_align, reset_lh_extra=reset_lh_extra)
+
+    @cli.command(help="""
+        Sort baseline.profm (extracted or inside an APK).
+    """)
+    @click.option("--apk", is_flag=True,
+                  help="PROF_OR_APK is an APK, not an extracted .profm.")
+    @click.argument("input_prof_or_apk", type=click.Path(exists=True, dir_okay=False))
+    @click.argument("output_prof_or_apk", type=click.Path(dir_okay=False))
+    def sort_baseline(input_prof_or_apk: str, output_prof_or_apk: str, apk: bool) -> None:
+        if apk:
+            _sort_baseline.sort_baseline_apk(input_prof_or_apk, output_prof_or_apk)
+        else:
+            _sort_baseline.sort_baseline(input_prof_or_apk, output_prof_or_apk)
 
     try:
         cli(prog_name=NAME)

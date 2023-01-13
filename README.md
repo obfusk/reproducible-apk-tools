@@ -150,6 +150,28 @@ NB: the alignment padding used by `sort-apk` is the same as that used by
 alignment itself plus zero padding and is thus always at least 6 bytes), whereas
 `zipalign` just uses plain zero padding.
 
+### sort-baseline.py
+
+Sort `baseline.profm` (extracted or inside an APK).
+
+```bash
+$ sort-baseline.py --help
+usage: sort-baseline.py [-h] [--apk] INPUT_PROF_OR_APK OUTPUT_PROF_OR_APK
+[...]
+$ diff -qs a/baseline.profm b/baseline.profm
+Files a/baseline.profm and b/baseline.profm differ
+$ sort-baseline.py a/baseline.profm a/baseline-sorted.profm
+$ sort-baseline.py b/baseline.profm b/baseline-sorted.profm
+$ diff -qs a/baseline-sorted.profm b/baseline-sorted.profm
+Files a/baseline-sorted.profm and b/baseline-sorted.profm are identical
+```
+
+```bash
+$ sort-baseline.py --apk some.apk sorted-baseline.apk
+```
+
+NB: does not support all file format versions yet.
+
 ## scripts to dump info from apks and related file formats
 
 ### dump-arsc.py
@@ -169,6 +191,35 @@ Binary APK
 Package name=com.example.app id=7f
 [...]
 ```
+
+### dump-baseline.py
+
+Dump `baseline.prof`/`baseline.profm` (extracted or inside an APK).
+
+```bash
+$ dump-baseline.py --help
+usage: dump-baseline.py [-h] [--apk] [-v] PROF_OR_APK
+[...]
+$ dump-baseline.py baseline.prof
+prof version=010 P
+num_dex_files=4
+[...]
+$ dump-baseline.py baseline.profm
+profm version=002
+num_dex_files=4
+[...]
+$ dump-baseline.py some.apk
+entry=assets/dexopt/baseline.prof
+prof version=010 P
+num_dex_files=4
+[...]
+entry=assets/dexopt/baseline.profm
+profm version=002
+num_dex_files=4
+[...]
+```
+
+NB: does not support all file format versions yet.
 
 ### list-compresslevel.py
 
@@ -200,10 +251,15 @@ NB: you can just use the scripts stand-alone; alternatively, you can install the
 ```bash
 $ repro-apk dump-arsc resources.arsc
 $ repro-apk dump-arsc --apk some.apk
+$ repro-apk dump-baseline baseline.prof
+$ repro-apk dump-baseline baseline.profm
+$ repro-apk dump-baseline --apk some.apk
 $ repro-apk fix-compresslevel unsigned.apk fixed.apk 6 assets/foo/bar.js
 $ repro-apk fix-newlines unsigned.apk fixed.apk 'META-INF/services/*'
 $ repro-apk list-compresslevel some.apk
 $ repro-apk sort-apk some.apk sorted.apk
+$ repro-apk sort-baseline baseline.profm baseline-sorted.profm
+$ repro-apk sort-baseline --apk some.apk sorted-baseline.apk
 ```
 
 ### Help
@@ -211,10 +267,12 @@ $ repro-apk sort-apk some.apk sorted.apk
 ```bash
 $ repro-apk --help
 $ repro-apk dump-arsc --help
+$ repro-apk dump-baseline --help
 $ repro-apk fix-compresslevel --help
 $ repro-apk fix-newlines --help
 $ repro-apk list-compresslevel --help
 $ repro-apk sort-apk --help
+$ repro-apk sort-baseline --help
 ```
 
 ## Installing
