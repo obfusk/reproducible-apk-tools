@@ -28,7 +28,7 @@ clean: cleanup
 
 cleanup:
 	find -name '*~' -delete -print
-	rm -fr __pycache__/ .mypy_cache/
+	rm -fr repro_apk/__pycache__/ .mypy_cache/
 	rm -fr build/ dist/
 	rm -fr .coverage htmlcov/
 
