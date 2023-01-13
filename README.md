@@ -168,9 +168,15 @@ Files a/baseline-sorted.profm and b/baseline-sorted.profm are identical
 
 ```bash
 $ sort-baseline.py --apk some.apk sorted-baseline.apk
+$ zipalign -f 4 sorted-baseline.apk sorted-baseline-aligned.apk
 ```
 
 NB: does not support all file format versions yet.
+
+NB: with `--apk`, this builds a new ZIP file, preserving most ZIP metadata (and
+recompressing using the same compression level) but not everything: e.g. copying
+the existing local header extra fields which contain padding for alignment is
+not supported by Python's `ZipFile`, which is why `zipalign` is usually needed.
 
 ## scripts to dump info from apks and related file formats
 

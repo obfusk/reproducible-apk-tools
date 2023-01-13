@@ -78,8 +78,8 @@ def dump_baseline(file: str, verbose: bool = False) -> None:
         _dump_baseline(fh.read(), verbose)
 
 
-def dump_baseline_apk(file: str, verbose: bool = False) -> None:
-    with zipfile.ZipFile(file) as zf:
+def dump_baseline_apk(apk: str, verbose: bool = False) -> None:
+    with zipfile.ZipFile(apk) as zf:
         if ASSET_PROF in zf.namelist():
             print(f"entry={ASSET_PROF}")
             with zf.open(ASSET_PROF) as fh:
