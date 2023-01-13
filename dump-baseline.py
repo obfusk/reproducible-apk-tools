@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import dataclasses
 import struct
 import zipfile
 import zlib
@@ -93,8 +94,7 @@ def dump_baseline_apk(apk: str, verbose: bool = False) -> None:
 # FIXME
 # Supported .prof: 010 P
 # Unsupported .prof: 001 N, 005 O, 009 O MR1, 015 S
-# Supported .profm: 002
-# Unsupported .profm: 001 N
+# Supported .profm: 001 N, 002
 def _dump_baseline(data: bytes, verbose: bool) -> None:
     magic, data = _split(data, 4)
     version, data = _split(data, 4)
@@ -105,7 +105,10 @@ def _dump_baseline(data: bytes, verbose: bool) -> None:
         else:
             raise Error(f"Unsupported prof version {version!r}")
     elif magic == PROFM_MAGIC:
-        if version == PROFM_002:
+        if version == PROFM_001_N:
+            print("profm version=001 N")
+            dump_profm(*parse_profm_001_N(data), verbose=verbose)
+        elif version == PROFM_002:
             print("profm version=002")
             dump_profm(*parse_profm_002(data), verbose=verbose)
         else:
@@ -209,6 +212,42 @@ def parse_prof_010_p(data: bytes) \
     if data:
         raise Error("Expected end of data")
     return header, tuple(dex_data_headers), tuple(dex_data_infos)
+
+
+def parse_profm_001_N(data: bytes) -> Tuple[ProfHeader, Tuple[ProfileInfo, ...]]:
+    num_dex_files, uncompressed_data_size, compressed_data_size, data = _unpack("<BII", data)
+    header = ProfHeader(num_dex_files, uncompressed_data_size, compressed_data_size)
+    nums_class_ids = []
+    profile_infos = []
+    if len(data) != compressed_data_size:
+        raise Error("Compressed data size does not match")
+    data = zlib.decompress(data)
+    if len(data) != uncompressed_data_size:
+        raise Error("Uncompressed data size does not match")
+    if not data:
+        return header, ()
+    for i in range(num_dex_files):
+        class_ids = []
+        profile_key_size, num_class_ids, data = _unpack("<HH", data)
+        profile_key, data = _split(data, profile_key_size)
+        nums_class_ids.append(num_class_ids)
+        profile_infos.append(ProfileInfo(
+            profile_idx=i,
+            profile_key=profile_key.decode(),
+            num_type_ids=0,
+            class_ids=(),
+        ))
+    for i in range(num_dex_files):
+        ci_delta = 0
+        for _ in range(nums_class_ids[i]):
+            class_id, data = _unpack("<H", data)
+            class_id += ci_delta
+            ci_delta = class_id
+            class_ids.append(class_id)
+        profile_infos[i] = dataclasses.replace(profile_infos[i], class_ids=tuple(class_ids))
+    if data:
+        raise Error("Expected end of data")
+    return header, tuple(profile_infos)
 
 
 def parse_profm_002(data: bytes) -> Tuple[ProfHeader, Tuple[ProfileInfo, ...]]:

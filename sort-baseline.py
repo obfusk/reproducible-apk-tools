@@ -106,7 +106,6 @@ def sort_baseline_apk(input_apk: str, output_apk: str) -> None:
 
 # FIXME
 # Supported .prof: none
-# Unsupported .prof: all
 # Supported .profm: 002
 # Unsupported .profm: 001 N
 def _sort_baseline(data: bytes) -> bytes:
