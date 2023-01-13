@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2022 FC Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import zipfile
@@ -52,41 +52,30 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
             for info in zf_in.infolist():
                 attrs = {attr: getattr(info, attr) for attr in ATTRS}
                 zinfo = ReproducibleZipInfo(info, **attrs)
-                if any(fnmatch(info.filename, p) for p in patterns):
-                    print(f"fixing {info.filename!r}...")
-                    data = zf_in.read(info)
-                    if info.compress_type == 8:
+                if info.compress_type == 8:
+                    with zf_in.open(info) as fh_in:
+                        comps = {lvl: zlib.compressobj(lvl, 8, -15) for lvl in LEVELS}
+                        clens = {lvl: 0 for lvl in LEVELS}
+                        while True:
+                            data = fh_in.read(4096)
+                            if not data:
+                                break
+                            for lvl in LEVELS:
+                                clens[lvl] += len(comps[lvl].compress(data))
                         for lvl in LEVELS:
-                            comp = zlib.compressobj(lvl, 8, -15)
-                            if len(comp.compress(data) + comp.flush()) == info.compress_size:
+                            if clens[lvl] + len(comps[lvl].flush()) == info.compress_size:
                                 zinfo._compresslevel = lvl
                                 break
                         else:
                             raise Error(f"Unable to determine compresslevel for {info.filename!r}")
-                    elif info.compress_type != 0:
-                        raise Error(f"Unsupported compress_type {info.compress_type}")
-                    zf_out.writestr(zinfo, data.decode().replace(*replace))
+                elif info.compress_type != 0:
+                    raise Error(f"Unsupported compress_type {info.compress_type}")
+                if any(fnmatch(info.filename, p) for p in patterns):
+                    print(f"fixing {info.filename!r}...")
+                    zf_out.writestr(zinfo, zf_in.read(info).decode().replace(*replace))
                 else:
                     if verbose:
                         print(f"copying {info.filename!r}...")
-                    if info.compress_type == 8:
-                        with zf_in.open(info) as fh_in:
-                            comps = {lvl: zlib.compressobj(lvl, 8, -15) for lvl in LEVELS}
-                            clens = {lvl: 0 for lvl in LEVELS}
-                            while True:
-                                data = fh_in.read(4096)
-                                if not data:
-                                    break
-                                for lvl in LEVELS:
-                                    clens[lvl] += len(comps[lvl].compress(data))
-                            for lvl in LEVELS:
-                                if clens[lvl] + len(comps[lvl].flush()) == info.compress_size:
-                                    zinfo._compresslevel = lvl
-                                    break
-                            else:
-                                raise Error(f"Unable to determine compresslevel for {info.filename!r}")
-                    elif info.compress_type != 0:
-                        raise Error(f"Unsupported compress_type {info.compress_type}")
                     with zf_in.open(info) as fh_in:
                         with zf_out.open(zinfo, "w") as fh_out:
                             while True:
