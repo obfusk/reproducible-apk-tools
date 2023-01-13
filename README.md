@@ -23,6 +23,37 @@
 
 ## scripts to make apks reproducible
 
+### fix-compresslevel.py
+
+Recompress with different compression level.
+
+Specify which files to change by providing at least one fnmatch-style pattern,
+e.g. `'assets/foo/*.bar'`.
+
+If two APKs have identical contents but some ZIP entries are compressed with a
+different compression level, thus making the APKs not bit-by-bit identical, this
+script may help.
+
+```bash
+$ fix-compresslevel.py --help
+usage: fix-compresslevel.py [-h] [-v] INPUT_APK OUTPUT_APK COMPRESSLEVEL PATTERN [PATTERN ...]
+[...]
+$ apksigcopier compare signed.apk --unsigned unsigned.apk
+DOES NOT VERIFY
+[...]
+$ fix-compresslevel.py unsigned.apk fixed.apk 6 assets/foo/bar.js
+fixing 'assets/foo/bar.js'...
+$ zipalign -f 4 fixed.apk fixed-aligned.apk
+$ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
+OK
+```
+
+NB: this builds a new ZIP file, preserving most ZIP metadata (and recompressing
+entries not matching the pattern using the same compression level as in the
+original APK) but not everything: e.g. copying the existing local header extra
+fields which contain padding for alignment is not supported by Python's
+`ZipFile`, which is why `zipalign` is usually needed.
+
 ### fix-newlines.py
 
 Change line endings from LF to CRLF (or vice versa w/ `--from-crlf`).
@@ -128,6 +159,7 @@ Dump `resources.arsc` (extracted or inside an APK) using `aapt2`.
 ```bash
 $ dump-arsc.py --help
 usage: dump-arsc.py [-h] [--apk] ARSC_OR_APK
+[...]
 $ dump-arsc.py resources.arsc
 Binary APK
 Package name=com.example.app id=7f
@@ -137,6 +169,28 @@ Binary APK
 Package name=com.example.app id=7f
 [...]
 ```
+
+### list-compresslevel.py
+
+List ZIP entries with compression level.
+
+```bash
+$ list-compresslevel.py --help
+usage: list-compresslevel.py [-h] APK
+[...]
+$ list-compresslevel.py some.apk
+filename='AndroidManifest.xml' compresslevel=9
+filename='classes.dex' compresslevel=None
+filename='resources.arsc' compresslevel=None
+[...]
+filename='META-INF/CERT.SF' compresslevel=9
+filename='META-INF/CERT.RSA' compresslevel=9
+filename='META-INF/MANIFEST.MF' compresslevel=9
+```
+
+NB: the compression level is not actually stored anywhere in the ZIP file, and
+is thus calculated by recompressing the data with different compression levels
+and checking the compressed size of the result against the original.
 
 ## CLI
 
@@ -153,7 +207,9 @@ $ repro-apk sort-apk some.apk sorted.apk
 ```bash
 $ repro-apk --help
 $ repro-apk dump-arsc --help
+$ repro-apk fix-compresslevel --help
 $ repro-apk fix-newlines --help
+$ repro-apk list-compresslevel --help
 $ repro-apk sort-apk --help
 ```
 

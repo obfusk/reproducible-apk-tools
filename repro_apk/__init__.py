@@ -8,7 +8,9 @@ import sys
 from typing import Tuple
 
 from . import dump_arsc as _dump_arsc
+from . import fix_compresslevel as _fix_compresslevel
 from . import fix_newlines as _fix_newlines
+from . import list_compresslevel as _list_compresslevel
 from . import sort_apk as _sort_apk
 
 import click
@@ -40,6 +42,22 @@ def main() -> None:
             _dump_arsc.dump_arsc(arsc_or_apk)
 
     @cli.command(help="""
+        Recompress with different compression level.
+
+        Specify which files to change by providing at least one fnmatch-style
+        pattern, e.g. 'assets/foo/*.bar'.
+    """)
+    @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
+    @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
+    @click.argument("output_apk", type=click.Path(dir_okay=False))
+    @click.argument("compresslevel", type=click.INT)
+    @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
+    def fix_compresslevel(input_apk: str, output_apk: str, compresslevel: int,
+                          patterns: Tuple[str], verbose: bool) -> None:
+        _fix_compresslevel.fix_compresslevel(input_apk, output_apk, compresslevel,
+                                             *patterns, verbose=verbose)
+
+    @cli.command(help="""
         Change line endings from LF to CRLF (or vice versa).
 
         Specify which files to change by providing at least one fnmatch-style
@@ -56,6 +74,13 @@ def main() -> None:
         replace = ("\r\n", "\n") if from_crlf else ("\n", "\r\n")
         _fix_newlines.fix_newlines(input_apk, output_apk, *patterns,
                                    replace=replace, verbose=verbose)
+
+    @cli.command(help="""
+        List ZIP entries with compression level.
+    """)
+    @click.argument("apk", type=click.Path(exists=True, dir_okay=False))
+    def list_compresslevel(apk: str) -> None:
+        _list_compresslevel.list_compresslevel(apk)
 
     @cli.command(help="""
         Sort (and realign) the ZIP entries of an APK.
