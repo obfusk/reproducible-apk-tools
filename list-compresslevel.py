@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import struct
 import zipfile
 import zlib
 
@@ -15,28 +16,37 @@ class Error(RuntimeError):
 
 
 def list_compresslevel(apk: str) -> None:
-    with zipfile.ZipFile(apk) as zf:
-        for info in zf.infolist():
-            level = None
-            if info.compress_type == 8:
-                with zf.open(info) as fh:
-                    comps = {lvl: zlib.compressobj(lvl, 8, -15) for lvl in LEVELS}
-                    clens = {lvl: 0 for lvl in LEVELS}
-                    while True:
-                        data = fh.read(4096)
-                        if not data:
-                            break
+    with open(apk, "rb") as fh_raw:
+        with zipfile.ZipFile(apk) as zf:
+            for info in zf.infolist():
+                levels = []
+                if info.compress_type == 8:
+                    fh_raw.seek(info.header_offset)
+                    n, m = struct.unpack("<HH", fh_raw.read(30)[26:30])
+                    fh_raw.seek(info.header_offset + 30 + m + n)
+                    ccrc = 0
+                    size = info.compress_size
+                    while size > 0:
+                        ccrc = zlib.crc32(fh_raw.read(min(size, 4096)), ccrc)
+                        size -= 4096
+                    with zf.open(info) as fh:
+                        comps = {lvl: zlib.compressobj(lvl, 8, -15) for lvl in LEVELS}
+                        ccrcs = {lvl: 0 for lvl in LEVELS}
+                        while True:
+                            data = fh.read(4096)
+                            if not data:
+                                break
+                            for lvl in LEVELS:
+                                ccrcs[lvl] = zlib.crc32(comps[lvl].compress(data), ccrcs[lvl])
                         for lvl in LEVELS:
-                            clens[lvl] += len(comps[lvl].compress(data))
-                    for lvl in LEVELS:
-                        if clens[lvl] + len(comps[lvl].flush()) == info.compress_size:
-                            level = lvl
-                            break
-                    else:
-                        raise Error(f"Unable to determine compresslevel for {info.filename!r}")
-            elif info.compress_type != 0:
-                raise Error(f"Unsupported compress_type {info.compress_type}")
-            print(f"filename={info.filename!r} compresslevel={level}")
+                            if ccrc == zlib.crc32(comps[lvl].flush(), ccrcs[lvl]):
+                                levels.append(lvl)
+                        if not levels:
+                            raise Error(f"Unable to determine compresslevel for {info.filename!r}")
+                elif info.compress_type != 0:
+                    raise Error(f"Unsupported compress_type {info.compress_type}")
+                result = "|".join(map(str, levels)) if levels else None
+                print(f"filename={info.filename!r} compresslevel={result}")
 
 
 if __name__ == "__main__":

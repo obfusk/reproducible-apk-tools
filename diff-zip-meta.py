@@ -11,7 +11,7 @@ import zipfile
 import zlib
 
 from dataclasses import dataclass
-from typing import BinaryIO, Dict, List, Optional, Tuple, Union
+from typing import BinaryIO, Dict, List, Optional, Tuple
 
 
 CDH_ATTRS = (
@@ -129,8 +129,8 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, offsets: bool = False,
                     if v1 != v2:
                         diff.append((f"{a} (cd header)", v1, v2))
                 if verbose:
-                    cl1 = get_compresslevel(zf1, ftoi1[n])
-                    cl2 = get_compresslevel(zf2, ftoi2[n])
+                    cl1 = get_compresslevel(fh1, zf1, ftoi1[n])
+                    cl2 = get_compresslevel(fh2, zf2, ftoi2[n])
                     if cl1 != cl2:
                         diff.append(("compresslevel", cl1, cl2))
                 if offsets:
@@ -159,22 +159,31 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, offsets: bool = False,
                         print(f"+ {a}={v2!r}")
 
 
-def get_compresslevel(zf: zipfile.ZipFile, info: zipfile.ZipInfo) -> Union[int, str, None]:
+def get_compresslevel(fh_raw: BinaryIO, zf: zipfile.ZipFile,
+                      info: zipfile.ZipInfo) -> Optional[str]:
+    levels = []
     if info.compress_type == 8:
+        fh_raw.seek(info.header_offset)
+        n, m = struct.unpack("<HH", fh_raw.read(30)[26:30])
+        fh_raw.seek(info.header_offset + 30 + m + n)
+        ccrc = 0
+        size = info.compress_size
+        while size > 0:
+            ccrc = zlib.crc32(fh_raw.read(min(size, 4096)), ccrc)
+            size -= 4096
         with zf.open(info) as fh:
             comps = {lvl: zlib.compressobj(lvl, 8, -15) for lvl in LEVELS}
-            clens = {lvl: 0 for lvl in LEVELS}
+            ccrcs = {lvl: 0 for lvl in LEVELS}
             while True:
                 data = fh.read(4096)
                 if not data:
                     break
                 for lvl in LEVELS:
-                    clens[lvl] += len(comps[lvl].compress(data))
+                    ccrcs[lvl] = zlib.crc32(comps[lvl].compress(data), ccrcs[lvl])
             for lvl in LEVELS:
-                if clens[lvl] + len(comps[lvl].flush()) == info.compress_size:
-                    return lvl
-            else:
-                return "unknown"
+                if ccrc == zlib.crc32(comps[lvl].flush(), ccrcs[lvl]):
+                    levels.append(lvl)
+            return "|".join(map(str, levels)) if levels else "unknown"
     elif info.compress_type != 0:
         return "unsupported"
     return None

@@ -260,18 +260,19 @@ $ list-compresslevel.py --help
 usage: list-compresslevel.py [-h] APK
 [...]
 $ list-compresslevel.py some.apk
-filename='AndroidManifest.xml' compresslevel=9
+filename='AndroidManifest.xml' compresslevel=9|6
 filename='classes.dex' compresslevel=None
 filename='resources.arsc' compresslevel=None
 [...]
-filename='META-INF/CERT.SF' compresslevel=9
-filename='META-INF/CERT.RSA' compresslevel=9
-filename='META-INF/MANIFEST.MF' compresslevel=9
+filename='META-INF/CERT.SF' compresslevel=9|6
+filename='META-INF/CERT.RSA' compresslevel=9|6|4
+filename='META-INF/MANIFEST.MF' compresslevel=9|6|4
 ```
 
 NB: the compression level is not actually stored anywhere in the ZIP file, and
 is thus calculated by recompressing the data with different compression levels
-and checking the compressed size of the result against the original.
+and checking the CRC32 of the result against the CRC32 of the original
+compressed data.
 
 ## CLI
 
