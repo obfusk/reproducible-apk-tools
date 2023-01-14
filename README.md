@@ -180,6 +180,30 @@ not supported by Python's `ZipFile`, which is why `zipalign` is usually needed.
 
 ## scripts to dump info from apks and related file formats
 
+### diff-zip-meta.py
+
+Diff ZIP file metadata.
+
+This will show differences in filenames, central directory headers,
+local file headers, data descriptors, entry sizes.
+
+Since these can make the output quite verbose, differences in entry
+ordering and header offsets are hidden by default; use
+`--offsets`/`--ordering` to unhide them.
+
+Use `--verbose` to try harder to find differences: compression level
+(if it can be determined), SHA1 checksum of compressed data, extra
+data before entries or the central directory.
+
+```bash
+$ diff-zip-meta.py --help
+usage: diff-zip-meta.py [-h] [--offsets] [--ordering] [-v] ZIPFILE1 ZIPFILE2
+$ diff-zip-meta.py a.apk b.apk --offsets --ordering --verbose
+[...]
+```
+
+NB: work in progress; output format may change.
+
 ### dump-arsc.py
 
 Dump `resources.arsc` (extracted or inside an APK) using `aapt2`.
@@ -255,6 +279,7 @@ NB: you can just use the scripts stand-alone; alternatively, you can install the
 `repro-apk` Python package and use them as subcommands of `repro-apk`:
 
 ```bash
+$ repro-apk diff-zip-meta a.apk b.apk --offsets --ordering --verbose
 $ repro-apk dump-arsc resources.arsc
 $ repro-apk dump-arsc --apk some.apk
 $ repro-apk dump-baseline baseline.prof
@@ -272,6 +297,7 @@ $ repro-apk sort-baseline --apk some.apk sorted-baseline.apk
 
 ```bash
 $ repro-apk --help
+$ repro-apk diff-zip-meta --help
 $ repro-apk dump-arsc --help
 $ repro-apk dump-baseline --help
 $ repro-apk fix-compresslevel --help

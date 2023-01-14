@@ -7,6 +7,7 @@ import sys
 
 from typing import Tuple
 
+from . import diff_zip_meta as _diff_zip_meta
 from . import dump_arsc as _dump_arsc
 from . import dump_baseline as _dump_baseline
 from . import fix_compresslevel as _fix_compresslevel
@@ -21,6 +22,7 @@ __version__ = "0.1.1"
 NAME = "repro-apk"
 
 ERRORS = (
+    _diff_zip_meta.Error,
     _dump_arsc.Error,
     _dump_baseline.Error,
     _fix_compresslevel.Error,
@@ -38,6 +40,19 @@ def main() -> None:
     @click.version_option(__version__)
     def cli() -> None:
         pass
+
+    @cli.command(help="""
+        Diff ZIP file metadata.
+    """)
+    @click.option("--offsets", is_flag=True, help="Compare header offsets.")
+    @click.option("--ordering", is_flag=True, help="Compare entry ordering.")
+    @click.option("-v", "--verbose", is_flag=True, help="Compare harder.")
+    @click.argument("zipfile1", type=click.Path(exists=True, dir_okay=False))
+    @click.argument("zipfile2", type=click.Path(exists=True, dir_okay=False))
+    def diff_zip_meta(zipfile1: str, zipfile2: str, offsets: bool,
+                      ordering: bool, verbose: bool) -> None:
+        _diff_zip_meta.diff_zip_meta(zipfile1, zipfile2, offsets=offsets,
+                                     ordering=ordering, verbose=verbose)
 
     @cli.command(help="""
         Dump resources.arsc (extracted or inside an APK) using aapt2.
