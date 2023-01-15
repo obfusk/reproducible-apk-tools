@@ -44,15 +44,22 @@ def main() -> None:
     @cli.command(help="""
         Diff ZIP file metadata.
     """)
-    @click.option("--offsets", is_flag=True, help="Compare header offsets.")
-    @click.option("--ordering", is_flag=True, help="Compare entry ordering.")
-    @click.option("-v", "--verbose", is_flag=True, help="Compare harder.")
+    @click.option("--no-additional", is_flag=True, help="Skip additional tests.")
+    @click.option("--no-lfh-extra", is_flag=True, help="Ignore LFH extra field.")
+    @click.option("--no-offsets", is_flag=True, help="Ignore header offsets.")
+    @click.option("--no-ordering", is_flag=True, help="Ignore entry ordering.")
     @click.argument("zipfile1", type=click.Path(exists=True, dir_okay=False))
     @click.argument("zipfile2", type=click.Path(exists=True, dir_okay=False))
-    def diff_zip_meta(zipfile1: str, zipfile2: str, offsets: bool,
-                      ordering: bool, verbose: bool) -> None:
-        _diff_zip_meta.diff_zip_meta(zipfile1, zipfile2, offsets=offsets,
-                                     ordering=ordering, verbose=verbose)
+    def diff_zip_meta(zipfile1: str, zipfile2: str, no_additional: bool, no_lfh_extra: bool,
+                      no_offsets: bool, no_ordering: bool) -> None:
+        verbosity = _diff_zip_meta.Verbosity(
+            additional=not no_additional,
+            lfh_extra=not no_lfh_extra,
+            offsets=not no_offsets,
+            ordering=not no_ordering,
+        )
+        if _diff_zip_meta.diff_zip_meta(zipfile1, zipfile2, verbosity=verbosity):
+            sys.exit(4)
 
     @cli.command(help="""
         Dump resources.arsc (extracted or inside an APK) using aapt2.
@@ -150,7 +157,7 @@ def main() -> None:
         cli(prog_name=NAME)
     except ERRORS as e:
         click.echo(f"Error: {e}.", err=True)
-        sys.exit(1)
+        sys.exit(3)
 
 
 if __name__ == "__main__":
