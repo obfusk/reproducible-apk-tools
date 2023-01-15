@@ -181,7 +181,10 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity
                     differ = True
                     print(f"entry {show(n)}:")
                     for a, v1, v2 in diff:
-                        if "data_before" in a:
+                        s = a.split()[0]
+                        if s == "data_before":
+                            diff_bytes(v1, v2, a)
+                        elif s == "extra" and (len(v1) > 16 or len(v2) > 16):
                             diff_bytes(v1, v2, a)
                         else:
                             print(f"- {a}={show(v1)}")
