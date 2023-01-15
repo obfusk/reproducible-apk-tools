@@ -21,6 +21,15 @@
 
 # reproducible-apk-tools
 
+[`fix-compresslevel.py`](#fix-compresslevelpy),
+[`fix-newlines.py`](#fix-newlinespy),
+[`sort-apk.py`](#sort-apkpy),
+[`sort-baseline.py`](#sort-baselinepy),
+[`diff-zip-meta.py`](#diff-zip-metapy),
+[`dump-arsc.py`](#dump-arscpy),
+[`dump-baseline.py`](#dump-baselinepy),
+[`list-compresslevel.py`](#list-compresslevelpy).
+
 ## scripts to make apks reproducible
 
 ### fix-compresslevel.py
