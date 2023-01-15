@@ -25,9 +25,13 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
+        sudo apt-get update
+        sudo apt-get install -y aapt zipalign
         python3 -m pip install --upgrade pip
         python3 -m pip install flake8 pylint mypy
     - name: Install
       run: make install
     - name: Test
       run: make test
+    - name: Test examples
+      run: make test-examples
