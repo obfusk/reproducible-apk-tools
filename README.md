@@ -107,8 +107,8 @@ is deterministic but not sorted; see also the alignment CAVEAT.
 $ sort-apk.py --help
 usage: sort-apk.py [-h] [--no-realign] [--no-force-align] [--reset-lh-extra] INPUT_APK OUTPUT_APK
 [...]
-$ unzip -l some.apk
-Archive:  some.apk
+$ unzip -l unsigned.apk
+Archive:  unsigned.apk
   Length      Date    Time    Name
 ---------  ---------- -----   ----
         6  2017-05-15 11:24   lib/armeabi/fake.so
@@ -117,7 +117,7 @@ Archive:  some.apk
      1536  2009-01-01 00:00   classes.dex
 ---------                     -------
      4110                     4 files
-$ sort-apk.py some.apk sorted.apk
+$ sort-apk.py unsigned.apk sorted.apk
 $ unzip -l sorted.apk
 Archive:  sorted.apk
   Length      Date    Time    Name
@@ -176,7 +176,7 @@ Files a/baseline-sorted.profm and b/baseline-sorted.profm are identical
 ```
 
 ```bash
-$ sort-baseline.py --apk some.apk sorted-baseline.apk
+$ sort-baseline.py --apk unsigned.apk sorted-baseline.apk
 $ zipalign -f 4 sorted-baseline.apk sorted-baseline-aligned.apk
 ```
 
@@ -192,6 +192,10 @@ not supported by Python's `ZipFile`, which is why `zipalign` is usually needed.
 ### diff-zip-meta.py
 
 Diff ZIP file metadata.
+
+NB: this will not compare the *contents* of the ZIP entries, only metadata and
+other non-contents bytes; to compare the contents of ZIP/APK files, use e.g.
+[`diffoscope`](https://diffoscope.org).
 
 This will show differences in filenames, central directory headers, local file
 headers, data descriptors, entry sizes, etc.
@@ -312,6 +316,27 @@ is thus calculated by recompressing the data with different compression levels
 and checking the CRC32 of the result against the CRC32 of the original
 compressed data.
 
+## helper scripts
+
+### inplace-fix-and-zipalign.py
+
+Convenience wrapper for some of the other scripts like `fix-newlines` that makes
+them modify the APK in-place and `zipalign` it.
+
+```bash
+$ inplace-fix-and-zipalign.py --help
+usage: inplace-fix-and-zipalign.py COMMAND INPUT_APK [...]
+[...]
+$ inplace-fix-and-zipalign.py fix-newlines unsigned.apk 'META-INF/services/*'
+[RUN] fix-newlines.py unsigned.apk /tmp/.../fixed.apk META-INF/services/*
+fixing 'META-INF/services/foo'...
+fixing 'META-INF/services/bar'...
+[RUN] zipalign 4 /tmp/.../fixed.apk /tmp/.../aligned.apk
+[MOVE] /tmp/.../aligned.apk to unsigned.apk
+```
+
+NB: this script is not available as a `repro-apk` subcommand.
+
 ## CLI
 
 NB: you can just use the scripts stand-alone; alternatively, you can install the
@@ -328,9 +353,9 @@ $ repro-apk dump-baseline --apk some.apk
 $ repro-apk fix-compresslevel unsigned.apk fixed.apk 6 assets/foo/bar.js
 $ repro-apk fix-newlines unsigned.apk fixed.apk 'META-INF/services/*'
 $ repro-apk list-compresslevel some.apk
-$ repro-apk sort-apk some.apk sorted.apk
+$ repro-apk sort-apk unsigned.apk sorted.apk
 $ repro-apk sort-baseline baseline.profm baseline-sorted.profm
-$ repro-apk sort-baseline --apk some.apk sorted-baseline.apk
+$ repro-apk sort-baseline --apk unsigned.apk sorted-baseline.apk
 ```
 
 ### Help
