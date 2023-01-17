@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -36,6 +37,6 @@ if __name__ == "__main__":
         run_command(script, args.input_apk, fixed_apk, *rest)
         run_command("zipalign", "4", fixed_apk, aligned_apk)
         print(f"[MOVE] {aligned_apk} to {args.input_apk}")
-        os.replace(aligned_apk, args.input_apk)
+        shutil.move(aligned_apk, args.input_apk)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
