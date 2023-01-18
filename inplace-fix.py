@@ -11,42 +11,70 @@ import sys
 import tempfile
 
 
+COMMANDS = (
+    "fix-compresslevel",
+    "fix-newlines",
+    "sort-apk",
+    "sort-baseline",
+)
+
 ZIPALIGN = ("zipalign", "4")
 
 
-def run_command(*args: str) -> None:
-    args_ = (os.path.basename(args[0]),) + args[1:]
-    print(f"[RUN] {' '.join(args_)}")
+class Error(RuntimeError):
+    pass
+
+
+def inplace_fix(command: str, input_file: str, *args: str,
+                zipalign: bool = False) -> None:
+    if command not in COMMANDS:
+        raise Error(f"Unknown command {command}")
+    script_dir = os.path.dirname(__file__)
+    for cmd in (command, command.replace("-", "_")):
+        script = os.path.join(script_dir, cmd + ".py")
+        if os.path.exists(script):
+            break
+    else:
+        raise Error(f"Script for {command} not found")
+    ext = os.path.splitext(input_file)[1]
+    exe = sys.executable or "python3"
+    with tempfile.TemporaryDirectory() as tdir:
+        fixed = os.path.join(tdir, "fixed" + ext)
+        run_command(exe, script, input_file, fixed, *args, trim=2)
+        if zipalign:
+            aligned = os.path.join(tdir, "aligned" + ext)
+            run_command(*ZIPALIGN, fixed, aligned)
+            print(f"[MOVE] {aligned} to {input_file}")
+            shutil.move(aligned, input_file)
+        else:
+            print(f"[MOVE] {fixed} to {input_file}")
+            shutil.move(fixed, input_file)
+
+
+def run_command(*args: str, trim: int = 1) -> None:
+    targs = tuple(os.path.basename(a) for a in args[:trim]) + args[trim:]
+    print(f"[RUN] {' '.join(targs)}")
     try:
         subprocess.run(args, check=True)
-    except subprocess.CalledProcessError:
-        print(f"Error: {args[0]} command failed.", file=sys.stderr)
-        sys.exit(1)
-    except FileNotFoundError:
-        print(f"Error: {args[0]} command not found.", file=sys.stderr)
-        sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        raise Error(f"{args[0]} command failed") from e
+    except FileNotFoundError as e:
+        raise Error(f"{args[0]} command not found") from e
 
 
 def main() -> None:
     usage = "%(prog)s [-h] [--zipalign] COMMAND INPUT_FILE [...]"
-    parser = argparse.ArgumentParser(prog="inplace-fix.py", usage=usage)
+    epilog = f"Commands: {', '.join(COMMANDS)}."
+    parser = argparse.ArgumentParser(usage=usage, epilog=epilog)
     parser.add_argument("--zipalign", action="store_true")
     parser.add_argument("command", metavar="COMMAND")
     parser.add_argument("input_file", metavar="INPUT_FILE")
     args, rest = parser.parse_known_args()
-    script = os.path.join(os.path.dirname(__file__), args.command + ".py")
-    ext = os.path.splitext(args.input_file)[1]
-    with tempfile.TemporaryDirectory() as tdir:
-        fixed = os.path.join(tdir, "fixed" + ext)
-        run_command(script, args.input_file, fixed, *rest)
-        if args.zipalign:
-            aligned = os.path.join(tdir, "aligned" + ext)
-            run_command(*ZIPALIGN, fixed, aligned)
-            print(f"[MOVE] {aligned} to {args.input_file}")
-            shutil.move(aligned, args.input_file)
-        else:
-            print(f"[MOVE] {fixed} to {args.input_file}")
-            shutil.move(fixed, args.input_file)
+    try:
+        inplace_fix(args.command, args.input_file, *rest, zipalign=args.zipalign)
+    except Error as e:
+        print(f"Error: {e}.", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

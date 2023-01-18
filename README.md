@@ -328,14 +328,15 @@ $ inplace-fix.py --help
 usage: inplace-fix.py [-h] [--zipalign] COMMAND INPUT_FILE [...]
 [...]
 $ inplace-fix.py --zipalign fix-newlines unsigned.apk 'META-INF/services/*'
-[RUN] fix-newlines.py unsigned.apk /tmp/.../fixed.apk META-INF/services/*
+[RUN] python3 fix-newlines.py unsigned.apk /tmp/.../fixed.apk META-INF/services/*
 fixing 'META-INF/services/foo'...
 fixing 'META-INF/services/bar'...
 [RUN] zipalign 4 /tmp/.../fixed.apk /tmp/.../aligned.apk
 [MOVE] /tmp/.../aligned.apk to unsigned.apk
 ```
 
-NB: this script is not available as a `repro-apk` subcommand.
+NB: this script is not available as a `repro-apk` subcommand, but as a seperate
+`repro-apk-inplace-fix` command.
 
 ## gradle integration
 

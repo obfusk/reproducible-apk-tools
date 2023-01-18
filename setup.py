@@ -3,19 +3,19 @@ import setuptools
 
 __version__ = "0.2.0"
 
-info = Path(__file__).with_name("README.md").read_text(encoding = "utf8")
+info = Path(__file__).with_name("README.md").read_text(encoding="utf8")
 
 setuptools.setup(
-    name              = "repro-apk",
-    url               = "https://github.com/obfusk/reproducible-apk-tools",
-    description       = "scripts to make apks reproducible",
-    long_description  = info,
-    long_description_content_type = "text/markdown",
-    version           = __version__,
-    author            = "FC Stegerman",
-    author_email      = "flx@obfusk.net",
-    license           = "GPLv3+",
-    classifiers       = [
+    name="repro-apk",
+    url="https://github.com/obfusk/reproducible-apk-tools",
+    description="scripts to make apks reproducible",
+    long_description=info,
+    long_description_content_type="text/markdown",
+    version=__version__,
+    author="FC Stegerman",
+    author_email="flx@obfusk.net",
+    license="GPLv3+",
+    classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
         "Intended Audience :: Developers",
@@ -38,10 +38,15 @@ setuptools.setup(
         "Topic :: Software Development",
         "Topic :: Utilities",
     ],
-    keywords          = "android apk reproducible",
-    entry_points      = dict(console_scripts = ["repro-apk = repro_apk:main"]),
-    packages          = ["repro_apk"],
-    package_data      = dict(repro_apk = ["py.typed"]),
-    python_requires   = ">=3.8",
-    install_requires  = ["click>=6.0"],
+    keywords="android apk reproducible",
+    entry_points=dict(
+        console_scripts=[
+            "repro-apk = repro_apk:main",
+            "repro-apk-inplace-fix = repro_apk.inplace_fix:main",
+        ]
+    ),
+    packages=["repro_apk"],
+    package_data=dict(repro_apk=["py.typed"]),
+    python_requires=">=3.8",
+    install_requires=["click>=6.0"],
 )
