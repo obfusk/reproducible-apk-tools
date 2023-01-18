@@ -3,11 +3,15 @@
 # SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import argparse
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+
+
+ZIPALIGN = ("zipalign", "4")
 
 
 def run_command(*args: str) -> None:
@@ -23,20 +27,29 @@ def run_command(*args: str) -> None:
         sys.exit(1)
 
 
-if __name__ == "__main__":
-    import argparse
-    usage = "%(prog)s COMMAND INPUT_APK [...]"
-    parser = argparse.ArgumentParser(prog="inplace-fix-and-zipalign.py", usage=usage)
+def main() -> None:
+    usage = "%(prog)s [-h] [--zipalign] COMMAND INPUT_FILE [...]"
+    parser = argparse.ArgumentParser(prog="inplace-fix.py", usage=usage)
+    parser.add_argument("--zipalign", action="store_true")
     parser.add_argument("command", metavar="COMMAND")
-    parser.add_argument("input_apk", metavar="INPUT_APK")
+    parser.add_argument("input_file", metavar="INPUT_FILE")
     args, rest = parser.parse_known_args()
     script = os.path.join(os.path.dirname(__file__), args.command + ".py")
+    ext = os.path.splitext(args.input_file)[1]
     with tempfile.TemporaryDirectory() as tdir:
-        fixed_apk = os.path.join(tdir, "fixed.apk")
-        aligned_apk = os.path.join(tdir, "aligned.apk")
-        run_command(script, args.input_apk, fixed_apk, *rest)
-        run_command("zipalign", "4", fixed_apk, aligned_apk)
-        print(f"[MOVE] {aligned_apk} to {args.input_apk}")
-        shutil.move(aligned_apk, args.input_apk)
+        fixed = os.path.join(tdir, "fixed" + ext)
+        run_command(script, args.input_file, fixed, *rest)
+        if args.zipalign:
+            aligned = os.path.join(tdir, "aligned" + ext)
+            run_command(*ZIPALIGN, fixed, aligned)
+            print(f"[MOVE] {aligned} to {args.input_file}")
+            shutil.move(aligned, args.input_file)
+        else:
+            print(f"[MOVE] {fixed} to {args.input_file}")
+            shutil.move(fixed, args.input_file)
+
+
+if __name__ == "__main__":
+    main()
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

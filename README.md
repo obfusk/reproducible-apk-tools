@@ -318,16 +318,16 @@ compressed data.
 
 ## helper scripts
 
-### inplace-fix-and-zipalign.py
+### inplace-fix.py
 
 Convenience wrapper for some of the other scripts like `fix-newlines` that makes
-them modify the APK in-place and `zipalign` it.
+them modify the file in-place (and optionally `zipalign` it too).
 
 ```bash
-$ inplace-fix-and-zipalign.py --help
-usage: inplace-fix-and-zipalign.py COMMAND INPUT_APK [...]
+$ inplace-fix.py --help
+usage: inplace-fix.py [-h] [--zipalign] COMMAND INPUT_FILE [...]
 [...]
-$ inplace-fix-and-zipalign.py fix-newlines unsigned.apk 'META-INF/services/*'
+$ inplace-fix.py --zipalign fix-newlines unsigned.apk 'META-INF/services/*'
 [RUN] fix-newlines.py unsigned.apk /tmp/.../fixed.apk META-INF/services/*
 fixing 'META-INF/services/foo'...
 fixing 'META-INF/services/bar'...
