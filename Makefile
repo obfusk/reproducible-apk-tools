@@ -95,11 +95,11 @@ test-examples:
 	  <( repro-apk list-compresslevel level9.apk )
 
 lint:
-	set -x; flake8 repro_apk/*.py
-	set -x; pylint repro_apk/*.py
+	set -x; flake8 repro_apk/*.py inplace-fix.py
+	set -x; pylint repro_apk/*.py inplace-fix.py
 
 lint-extra:
-	set -x; mypy --strict --disallow-any-unimported repro_apk/*.py
+	set -x; mypy --strict --disallow-any-unimported repro_apk/*.py inplace-fix.py
 
 clean: cleanup
 	rm -fr repro_apk.egg-info/
