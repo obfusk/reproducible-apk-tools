@@ -349,7 +349,7 @@ like this to your `build.gradle`:
 // root dir; adjust the path accordingly if it is found elsewhere
 project.afterEvaluate {
     tasks.compileReleaseArtProfile.doLast {
-        outputs.properties.files.each { file ->
+        outputs.files.each { file ->
             if (file.toString().endsWith(".profm")) {
                 exec {
                     commandLine(
