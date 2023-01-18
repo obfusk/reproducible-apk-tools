@@ -337,6 +337,80 @@ fixing 'META-INF/services/bar'...
 
 NB: this script is not available as a `repro-apk` subcommand.
 
+## gradle integration
+
+You can e.g. sort `baseline.profm` during the `gradle` build by adding something
+like this to your `build.gradle`:
+
+<details>
+
+```gradle
+// NB: assumes reproducible-apk-tools is a submodule in the app repo's
+// root dir; adjust the path accordingly if it is found elsewhere
+project.afterEvaluate {
+    tasks.compileReleaseArtProfile.doLast {
+        outputs.properties.files.each { file ->
+            if (file.toString().endsWith(".profm")) {
+                exec {
+                    commandLine(
+                        "../reproducible-apk-tools/inplace-fix.py",
+                        "sort-baseline", file
+                    )
+                }
+            }
+        }
+    }
+}
+```
+
+</details>
+
+Alternatively, adding something like this allows you to modify the APK itself
+after building (and re-sign it if necessary):
+
+<details>
+
+```gradle
+// NB: assumes reproducible-apk-tools is a submodule in the app repo's
+// root dir; adjust the path accordingly if it is found elsewhere
+android {
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            variant.packageApplicationProvider.get().doLast {
+                def tools = "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}"
+                exec {
+                    // set PATH for zipalign
+                    environment "PATH", "${tools}:$System.env.PATH"
+                    commandLine(
+                        "../reproducible-apk-tools/inplace-fix.py",
+                        "--zipalign", "fix-newlines", output.outputFile,
+                        "META-INF/services/*"
+                    )
+                }
+                // re-sign w/ apksigner if needed
+                if (variant.signingConfig != null) {
+                    def sc = variant.signingConfig
+                    exec {
+                        environment "KS_PASS", sc.storePassword
+                        environment "KEY_PASS", sc.keyPassword
+                        commandLine(
+                            "${tools}/apksigner", "sign", "-v",
+                            "--ks", sc.storeFile,
+                            "--ks-pass", "env:KS_PASS",
+                            "--ks-key-alias", sc.keyAlias,
+                            "--key-pass", "env:KEY_PASS",
+                            output.outputFile
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+</details>
+
 ## CLI
 
 NB: you can just use the scripts stand-alone; alternatively, you can install the
