@@ -32,6 +32,10 @@ test-examples:
 	repro-apk fix-newlines --from-crlf test/data/crlf.apk .tmp/crlf-to-unix.apk 'LICENSE.*'
 	zipalign -f 4 .tmp/crlf-to-unix.apk .tmp/crlf-to-unix-aligned.apk
 	cmp test/data/unix.apk .tmp/crlf-to-unix-aligned.apk
+	# fix-newlines via repro-apk-inplace-fix
+	cp test/data/unix.apk .tmp/unix-to-crlf-inplace.apk
+	repro-apk-inplace-fix --zipalign fix-newlines .tmp/unix-to-crlf-inplace.apk 'LICENSE.*'
+	cmp test/data/crlf.apk .tmp/unix-to-crlf-inplace.apk
 	# sort-apk
 	repro-apk sort-apk test/data/golden-aligned-in.apk .tmp/sorted.apk
 	cmp test/data/golden-aligned-in-sorted.apk .tmp/sorted.apk
@@ -41,11 +45,19 @@ test-examples:
 	# sort-baseline
 	repro-apk sort-baseline test/data/baseline1.profm .tmp/baseline1-sorted.profm
 	cmp test/data/baseline2.profm .tmp/baseline1-sorted.profm
+	# sort-baseline via repro-apk-inplace-fix
+	cp test/data/baseline1.profm .tmp/baseline1-inplace.profm
+	repro-apk-inplace-fix sort-baseline .tmp/baseline1-inplace.profm
+	cmp test/data/baseline2.profm .tmp/baseline1-inplace.profm
 	# sort-baseline --apk
 	repro-apk sort-baseline --apk test/data/baseline1.profm.apk \
 	  .tmp/baseline1.profm-sorted.apk
 	zipalign -f 4 .tmp/baseline1.profm-sorted.apk .tmp/baseline1.profm-sorted-aligned.apk
 	cmp test/data/baseline2.profm.apk .tmp/baseline1.profm-sorted-aligned.apk
+	# sort-baseline --apk via repro-apk-inplace-fix
+	cp test/data/baseline1.profm.apk .tmp/baseline1.profm-inplace.apk
+	repro-apk-inplace-fix --zipalign sort-baseline --apk .tmp/baseline1.profm-inplace.apk
+	cmp test/data/baseline2.profm.apk .tmp/baseline1.profm-inplace.apk
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( repro-apk diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )
