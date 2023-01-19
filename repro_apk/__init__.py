@@ -18,7 +18,7 @@ from . import sort_baseline as _sort_baseline
 
 import click
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 NAME = "repro-apk"
 
 ERRORS = (

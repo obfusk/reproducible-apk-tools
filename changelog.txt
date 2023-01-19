@@ -1,3 +1,8 @@
+v0.2.1
+
+• add inplace-fix.py/repro-apk-inplace-fix (w/ --zipalign).
+• README: add gradle integration examples.
+
 v0.2.0
 
 • use basic argparse for non-click clis.
