@@ -10,6 +10,8 @@ import subprocess
 import sys
 import tempfile
 
+from typing import Tuple
+
 
 COMMANDS = (
     "fix-compresslevel",
@@ -18,6 +20,7 @@ COMMANDS = (
     "sort-baseline",
 )
 
+SDK_ENV = ("ANDROID_HOME", "ANDROID_SDK", "ANDROID_SDK_ROOT")
 ZIPALIGN = ("zipalign", "4")
 
 
@@ -43,12 +46,32 @@ def inplace_fix(command: str, input_file: str, *args: str,
         run_command(exe, script, input_file, fixed, *args, trim=2)
         if zipalign:
             aligned = os.path.join(tdir, "aligned" + ext)
-            run_command(*ZIPALIGN, fixed, aligned)
+            run_command(*zipalign_cmd(), fixed, aligned)
             print(f"[MOVE] {aligned} to {input_file}")
             shutil.move(aligned, input_file)
         else:
             print(f"[MOVE] {fixed} to {input_file}")
             shutil.move(fixed, input_file)
+
+
+def zipalign_cmd() -> Tuple[str, ...]:
+    def key(v: str) -> Tuple[int, ...]:
+        try:
+            return tuple(int(n) for n in v.split("."))
+        except ValueError:
+            return ()
+    cmd, *args = ZIPALIGN
+    if not shutil.which(cmd):
+        for k in SDK_ENV:
+            if v := os.environ.get(k):
+                t = os.path.join(v, "build-tools")
+                if os.path.exists(t):
+                    for v in sorted(os.listdir(t), key=key, reverse=True):
+                        c = os.path.join(t, v, cmd)
+                        if shutil.which(c):
+                            print(f"[FOUND] {c}")
+                            return (c, *args)
+    return (cmd, *args)
 
 
 def run_command(*args: str, trim: int = 1) -> None:

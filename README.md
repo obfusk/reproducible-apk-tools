@@ -335,6 +335,11 @@ fixing 'META-INF/services/bar'...
 [MOVE] /tmp/.../aligned.apk to unsigned.apk
 ```
 
+If `zipalign` is not found on `$PATH` but any of `$ANDROID_HOME`,
+`$ANDROID_SDK`, or `$ANDROID_SDK_ROOT` is set to an Android SDK directory, it
+will use `zipalign` from the latest `build-tools` subdirectory of the Android
+SDK.
+
 NB: this script is not available as a `repro-apk` subcommand, but as a seperate
 `repro-apk-inplace-fix` command.
 
