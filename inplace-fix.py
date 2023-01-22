@@ -55,6 +55,25 @@ def inplace_fix(command: str, input_file: str, *args: str,
 
 
 def zipalign_cmd() -> Tuple[str, ...]:
+    """
+    Find zipalign command using $PATH or $ANDROID_HOME etc.
+
+    >>> zipalign_cmd()
+    ('zipalign', '4')
+    >>> os.environ["PATH"] = ""
+    >>> for k in SDK_ENV:
+    ...     os.environ[k] = ""
+    >>> try:
+    ...     zipalign_cmd()
+    ... except Error as e:
+    ...     print(e)
+    zipalign command not found
+    >>> os.environ["ANDROID_HOME"] = "test/fake-sdk"
+    >>> zipalign_cmd()
+    [FOUND] test/fake-sdk/build-tools/33.0.0/zipalign
+    ('test/fake-sdk/build-tools/33.0.0/zipalign', '4')
+
+    """
     def key(v: str) -> Tuple[int, ...]:
         return tuple(int(x) if x.isdigit() else -1 for x in v.split("."))
     cmd, *args = ZIPALIGN
@@ -68,6 +87,7 @@ def zipalign_cmd() -> Tuple[str, ...]:
                         if shutil.which(c):
                             print(f"[FOUND] {c}")
                             return (c, *args)
+        raise Error(f"{cmd} command not found")
     return (cmd, *args)
 
 

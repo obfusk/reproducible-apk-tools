@@ -3,18 +3,22 @@ PYTHON  ?= python3
 
 export PYTHONWARNINGS := default
 
-.PHONY: all install test test-cli test-examples lint lint-extra clean cleanup
+.PHONY: all install test test-cli doctest test-examples lint lint-extra clean cleanup
 
 all:
 
 install:
 	$(PYTHON) -mpip install -e .
 
-test: test-cli lint lint-extra
+test: test-cli doctest lint lint-extra
 
 test-cli:
 	# TODO
 	repro-apk --version
+
+doctest:
+	# NB: uses test/ & requires zipalign on $PATH
+	$(PYTHON) -m doctest inplace-fix.py
 
 test-examples:
 	mkdir -p .tmp
