@@ -56,10 +56,7 @@ def inplace_fix(command: str, input_file: str, *args: str,
 
 def zipalign_cmd() -> Tuple[str, ...]:
     def key(v: str) -> Tuple[int, ...]:
-        try:
-            return tuple(int(n) for n in v.split("."))
-        except ValueError:
-            return ()
+        return tuple(int(x) if x.isdigit() else -1 for x in v.split("."))
     cmd, *args = ZIPALIGN
     if not shutil.which(cmd):
         for k in SDK_ENV:
