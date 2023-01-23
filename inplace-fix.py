@@ -20,6 +20,7 @@ COMMANDS = (
     "sort-baseline",
 )
 
+BUILD_TOOLS_WITH_BROKEN_ZIPALIGN = ("31.0.0", "32.0.0")
 SDK_ENV = ("ANDROID_HOME", "ANDROID_SDK", "ANDROID_SDK_ROOT")
 ZIPALIGN = ("zipalign", "4")
 
@@ -70,8 +71,9 @@ def zipalign_cmd() -> Tuple[str, ...]:
     zipalign command not found
     >>> os.environ["ANDROID_HOME"] = "test/fake-sdk"
     >>> zipalign_cmd()
-    [FOUND] test/fake-sdk/build-tools/33.0.0/zipalign
-    ('test/fake-sdk/build-tools/33.0.0/zipalign', '4')
+    [SKIP BROKEN] 31.0.0
+    [FOUND] test/fake-sdk/build-tools/30.0.3/zipalign
+    ('test/fake-sdk/build-tools/30.0.3/zipalign', '4')
 
     """
     def key(v: str) -> Tuple[int, ...]:
@@ -83,10 +85,15 @@ def zipalign_cmd() -> Tuple[str, ...]:
                 t = os.path.join(v, "build-tools")
                 if os.path.exists(t):
                     for v in sorted(os.listdir(t), key=key, reverse=True):
-                        c = os.path.join(t, v, cmd)
-                        if shutil.which(c):
-                            print(f"[FOUND] {c}")
-                            return (c, *args)
+                        for s in BUILD_TOOLS_WITH_BROKEN_ZIPALIGN:
+                            if v.startswith(s):
+                                print(f"[SKIP BROKEN] {v}")
+                                break
+                        else:
+                            c = os.path.join(t, v, cmd)
+                            if shutil.which(c):
+                                print(f"[FOUND] {c}")
+                                return (c, *args)
         raise Error(f"{cmd} command not found")
     return (cmd, *args)
 
