@@ -383,10 +383,9 @@ android {
     applicationVariants.all { variant ->
         variant.outputs.each { output ->
             variant.packageApplicationProvider.get().doLast {
-                def tools = "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}"
                 exec {
-                    // set PATH for zipalign
-                    environment "PATH", "${tools}:$System.env.PATH"
+                    // set ANDROID_HOME for zipalign
+                    environment "ANDROID_HOME", android.sdkDirectory
                     commandLine(
                         "../reproducible-apk-tools/inplace-fix.py",
                         "--zipalign", "fix-newlines", output.outputFile,
@@ -395,6 +394,7 @@ android {
                 }
                 // re-sign w/ apksigner if needed
                 if (variant.signingConfig != null) {
+                    def tools = "${android.sdkDirectory}/build-tools/${android.buildToolsVersion}"
                     def sc = variant.signingConfig
                     exec {
                         environment "KS_PASS", sc.storePassword
