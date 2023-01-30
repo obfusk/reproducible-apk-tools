@@ -85,6 +85,14 @@ test-examples:
 	# dump-arsc --apk
 	cd test/data && diff -Naur golden-aligned-in-arsc.dump \
 	  <( repro-apk dump-arsc --apk crlf.apk )
+	# dump-axml
+	cd test/data && diff -Naur AndroidManifest.xml.dump \
+	  <( repro-apk dump-axml AndroidManifest.xml )
+	cd test/data && diff -Naur main.xml.dump \
+	  <( repro-apk dump-axml main.xml )
+	# dump-axml --apk
+	cd test/data && diff -Naur golden-aligned-in-axml.dump \
+	  <( repro-apk dump-axml --apk golden-aligned-in.apk AndroidManifest.xml )
 	# dump-baseline .prof
 	cd test/data && diff -Naur <( gunzip < baseline1.prof.dump.gz ) \
 	  <( repro-apk dump-baseline -v baseline1.prof )

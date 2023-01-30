@@ -27,6 +27,7 @@
 [`sort-baseline.py`](#sort-baselinepy),
 [`diff-zip-meta.py`](#diff-zip-metapy),
 [`dump-arsc.py`](#dump-arscpy),
+[`dump-axml.py`](#dump-axmlpy),
 [`dump-baseline.py`](#dump-baselinepy),
 [`list-compresslevel.py`](#list-compresslevelpy).
 
@@ -261,6 +262,26 @@ Package name=com.example.app id=7f
 $ dump-arsc.py --apk some.apk
 Binary APK
 Package name=com.example.app id=7f
+[...]
+```
+
+### dump-axml.py
+
+Dump Android binary XML (extracted or inside an APK) using `aapt2`.
+
+```bash
+$ dump-axml.py --help
+usage: dump-axml.py [-h] [--apk APK] AXML
+[...]
+$ dump-axml.py foo.xml
+N: android=http://schemas.android.com/apk/res/android (line=17)
+  E: selector (line=17)
+      E: item (line=18)
+[...]
+$ dump-axml.py --apk some.apk res/foo.xml
+N: android=http://schemas.android.com/apk/res/android (line=17)
+  E: selector (line=17)
+      E: item (line=18)
 [...]
 ```
 
