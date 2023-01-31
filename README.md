@@ -361,6 +361,9 @@ If `zipalign` is not found on `$PATH` but any of `$ANDROID_HOME`,
 will use `zipalign` from the latest `build-tools` subdirectory of the Android
 SDK.
 
+NB: however, it will skip `build-tools` `31.0.0` and `32.0.0` because
+[their `zipalign` is broken](https://android.googlesource.com/platform/build/+/df73d1b4733b8b3cdfd96199018455026ba8d9d2).
+
 NB: this script is not available as a `repro-apk` subcommand, but as a seperate
 `repro-apk-inplace-fix` command.
 
