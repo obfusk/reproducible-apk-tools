@@ -1,3 +1,9 @@
+v0.2.2
+
+• add dump-axml.py.
+• inplace-fix: find zipalign via $ANDROID_HOME when not on $PATH.
+• inplace-fix: blocklist build-tools w/ broken zipalign.
+
 v0.2.1
 
 • add inplace-fix.py/repro-apk-inplace-fix (w/ --zipalign).
