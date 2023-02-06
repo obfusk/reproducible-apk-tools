@@ -54,7 +54,6 @@ class Error(RuntimeError):
 
 
 # FIXME
-# https://github.com/obfusk/reproducible-apk-tools/issues/10
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1097
 # https://sources.debian.org/src/zip/3.0-12/zip.h/#L211
 def format_info(info: zipfile.ZipInfo, *, extended: bool = True,
@@ -68,6 +67,8 @@ def format_info(info: zipfile.ZipInfo, *, extended: bool = True,
                           info.create_version % 10)
     syst = SYSTEM.get(info.create_system, "unx")
     xinf = "t" if info.internal_attr == 1 else "b"
+    if info.flag_bits & 1:
+        xinf = xinf.upper()     # encrypted
     xinf += EXTRA_DATA_INFO[(bool(info.extra), bool(info.flag_bits & 0x08))]
     comp = COMPRESS_TYPE[info.compress_type]
     if info.compress_type == zipfile.ZIP_DEFLATED:

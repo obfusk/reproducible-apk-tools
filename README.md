@@ -382,8 +382,9 @@ extra info, compressed size (w/ `--long` or `--extended`), compression type,
 date, time, CRC32 (w/ `--extended`), filename.
 
 The extra info field consists of two characters: the first is `b` for binary,
-`t` for text; the second is `X` for data descriptor and extra field, `l` for
-just data descriptor, `x` for just extra field, `-` for neither.
+`t` for text (uppercase for encrypted files); the second is `X` for data
+descriptor and extra field, `l` for just data descriptor, `x` for just extra
+field, `-` for neither.
 
 ## helper scripts
 
