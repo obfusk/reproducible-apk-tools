@@ -13,11 +13,17 @@ import zipfile
 from typing import Callable, Optional
 
 
-# FIXME: defS, defF, defX missing; what about ZIP_BZIP2, ZIP_LZMA?
+# https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1896
 COMPRESS_TYPE = {
     zipfile.ZIP_STORED: "stor",
-    zipfile.ZIP_DEFLATED: "defN",
+    zipfile.ZIP_DEFLATED: "def",
+    zipfile.ZIP_BZIP2: "bzp2",
+    zipfile.ZIP_LZMA: "lzma",
 }
+
+# https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1886
+# normal, maximum, fast, superfast
+DEFLATE_TYPE = "NXFS"
 
 EXTRA_DATA_INFO = {
     # extra, data descriptor
@@ -35,9 +41,10 @@ class Error(RuntimeError):
 # FIXME: fat file permissions, ...
 # https://github.com/obfusk/reproducible-apk-tools/issues/10
 # https://sources.debian.org/src/zip/3.0-12/zip.h/#L211
+# https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1097
 def format_info(info: zipfile.ZipInfo, extended: bool = True,
                 long: bool = False) -> str:
-    if (mtime := _get_ut(info)) is not None:
+    if (mtime := _get_ut(info.extra)) is not None:
         date_time = tuple(time.localtime(mtime))[:6]
     else:
         date_time = info.date_time
@@ -53,6 +60,8 @@ def format_info(info: zipfile.ZipInfo, extended: bool = True,
     xinf = "t" if info.internal_attr == 1 else "b"
     xinf += EXTRA_DATA_INFO[(bool(info.extra), bool(info.flag_bits & 0x08))]
     comp = COMPRESS_TYPE[info.compress_type]
+    if info.compress_type == zipfile.ZIP_DEFLATED:
+        comp += DEFLATE_TYPE[(info.flag_bits >> 1) & 3]
     if extended:
         dt = "{}-{:02d}-{:02d}".format(*date_time[:3])
         tm = "{:02d}:{:02d}:{:02d}".format(*date_time[3:])
@@ -75,8 +84,7 @@ def format_info(info: zipfile.ZipInfo, extended: bool = True,
 
 # FIXME: atime, ctime (local header only) not supported
 # https://sources.debian.org/src/zip/3.0-12/zipfile.c/#L6544
-def _get_ut(info: zipfile.ZipInfo) -> Optional[int]:
-    xtr = info.extra
+def _get_ut(xtr: bytes) -> Optional[int]:
     while len(xtr) >= 4:
         hdr_id, size = struct.unpack("<HH", xtr[:4])
         if size > len(xtr) - 4:
