@@ -125,7 +125,7 @@ def _get_time(xtr: bytes, local: bool = False) -> Optional[Time]:
             flags = xtr[4]
             if flags & 0x1 and size >= 5:
                 mtime = int.from_bytes(xtr[5:9], "little")
-                if not local:
+                if local:
                     if flags & 0x2 and size >= 9:
                         atime = int.from_bytes(xtr[9:13], "little")
                     if flags & 0x4 and size >= 13:
