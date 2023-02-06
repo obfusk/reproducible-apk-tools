@@ -29,7 +29,8 @@
 [`dump-arsc.py`](#dump-arscpy),
 [`dump-axml.py`](#dump-axmlpy),
 [`dump-baseline.py`](#dump-baselinepy),
-[`list-compresslevel.py`](#list-compresslevelpy).
+[`list-compresslevel.py`](#list-compresslevelpy),
+[`zipinfo.py`](#zipinfopy).
 
 ## scripts to make apks reproducible
 
@@ -336,6 +337,40 @@ NB: the compression level is not actually stored anywhere in the ZIP file, and
 is thus calculated by recompressing the data with different compression levels
 and checking the CRC32 of the result against the CRC32 of the original
 compressed data.
+
+### zipinfo.py
+
+List ZIP entries (like `zipinfo`).
+
+The `--long` option adds the compressed size before the compression type;
+`--extended` does the same, adds the CRC32 checksum before the filename as well,
+and uses a more standard date format.
+
+```bash
+$ zipinfo.py --help
+usage: zipinfo.py [-h] [-e] [-l] ZIPFILE
+[...]
+$ zipinfo.py some.apk
+Archive:  some.apk
+Zip file size: 5612 bytes, number of entries: 8
+-rw----     2.0 fat        0 bX        2 defN 2017-05-15 11:25:18 00000000 META-INF/
+-rw----     2.0 fat       77 bl       76 defN 2017-05-15 11:25:18 b506b894 META-INF/MANIFEST.MF
+-rw----     2.0 fat     1672 bl      630 defN 2009-01-01 00:00:00 615ef200 AndroidManifest.xml
+-rw----     1.0 fat     1536 b-     1536 stor 2009-01-01 00:00:00 9987d5d8 classes.dex
+-rw----     2.0 fat       29 bl        6 defN 2017-05-15 11:26:52 ff801cd1 temp.txt
+-rw----     1.0 fat        6 b-        6 stor 2017-05-15 11:24:32 31963516 lib/armeabi/fake.so
+-rw----     1.0 fat      896 b-      896 stor 2009-01-01 00:00:00 4fcab821 resources.arsc
+-rw----     2.0 fat       20 bl        6 defN 2017-05-15 11:28:40 c9983e85 temp2.txt
+8 files, 4236 bytes uncompressed, 3158 bytes compressed:  25.4%
+```
+
+The fields are: permissions, create version, create system, uncompressed size,
+extra info, compressed size (w/ `--long` or `--extended`), compression type,
+date, time, CRC32 (w/ `--extended`), filename.
+
+The extra info field consists of two characters: the first is `b` for binary,
+`t` for text; the second is `X` for data descriptor and extra field, `l` for
+just data descriptor, `x` for just extra field, `-` for neither.
 
 ## helper scripts
 

@@ -16,6 +16,7 @@ from . import fix_newlines as _fix_newlines
 from . import list_compresslevel as _list_compresslevel
 from . import sort_apk as _sort_apk
 from . import sort_baseline as _sort_baseline
+from . import zipinfo as _zipinfo
 
 import click
 
@@ -32,6 +33,7 @@ ERRORS = (
     _list_compresslevel.Error,
     _sort_apk.Error,
     _sort_baseline.Error,
+    _zipinfo.Error,
 )
 
 
@@ -166,6 +168,21 @@ def main() -> None:
             _sort_baseline.sort_baseline_apk(input_prof_or_apk, output_prof_or_apk)
         else:
             _sort_baseline.sort_baseline(input_prof_or_apk, output_prof_or_apk)
+
+    @cli.command(help="""
+        List ZIP entries (like zipinfo).
+
+        The --long option adds the compressed size before the compression type;
+        --extended does the same, adds the CRC32 checksum before the filename as
+        well, and uses a more standard date format.
+    """)
+    @click.option("-e", "--extended", is_flag=True,
+                  help="Use extended output format (+ CRC32).")
+    @click.option("-l", "--long", is_flag=True,
+                  help="Use long output format (+ compressed size).")
+    @click.argument("zipfile", type=click.Path(exists=True, dir_okay=False))
+    def zipinfo(zipfile: str, extended: bool, long: bool) -> None:
+        _zipinfo.zipinfo(zipfile, extended=extended, long=long)
 
     try:
         cli(prog_name=NAME)

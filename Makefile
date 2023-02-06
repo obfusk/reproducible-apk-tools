@@ -117,6 +117,11 @@ test-examples:
 	  <( repro-apk list-compresslevel level6.apk )
 	cd test/data && diff -Naur level9.levels \
 	  <( repro-apk list-compresslevel level9.apk )
+	# zipinfo
+	set -e; cd test/data && for apk in *.apk; do echo "$$apk"; \
+	  diff -Naur <( zipinfo    "$$apk" ) <( repro-apk zipinfo    "$$apk" ); \
+	  diff -Naur <( zipinfo -l "$$apk" ) <( repro-apk zipinfo -l "$$apk" ); \
+	done
 
 lint:
 	set -x; flake8 repro_apk/*.py
