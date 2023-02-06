@@ -13,6 +13,14 @@ import zipfile
 from dataclasses import dataclass
 from typing import BinaryIO, Callable, Optional
 
+# FIXME
+# https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1887
+SYS_FAT, SYS_UNX, SYS_NTF = (0, 3, 11)
+SYSTEM = {SYS_FAT: "fat", SYS_UNX: "unx", SYS_NTF: "ntf"}
+
+# https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L2086
+EXE_EXTS = {"com", "exe", "btm", "cmd", "bat"}
+
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1896
 COMPRESS_TYPE = {
     zipfile.ZIP_STORED: "stor",
@@ -45,25 +53,20 @@ class Error(RuntimeError):
     pass
 
 
-# FIXME: fat file permissions, ...
+# FIXME
 # https://github.com/obfusk/reproducible-apk-tools/issues/10
-# https://sources.debian.org/src/zip/3.0-12/zip.h/#L211
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1097
+# https://sources.debian.org/src/zip/3.0-12/zip.h/#L211
 def format_info(info: zipfile.ZipInfo, *, extended: bool = True,
                 long: bool = False) -> str:
     if ut := _get_time(info.extra):
         date_time = tuple(time.localtime(ut.mtime))[:6]
     else:
         date_time = info.date_time
-    if hi := info.external_attr >> 16:
-        perm = stat.filemode(hi)
-    elif extended and info.filename.endswith("/"):
-        perm = "drw----"
-    else:
-        perm = "-rw----"
+    perm = _perms(info, extended=extended)
     vers = "{}.{}".format(info.create_version // 10,
                           info.create_version % 10)
-    syst = "fat" if info.create_system == 0 else "unx"
+    syst = SYSTEM.get(info.create_system, "unx")
     xinf = "t" if info.internal_attr == 1 else "b"
     xinf += EXTRA_DATA_INFO[(bool(info.extra), bool(info.flag_bits & 0x08))]
     comp = COMPRESS_TYPE[info.compress_type]
@@ -89,7 +92,26 @@ def format_info(info: zipfile.ZipInfo, *, extended: bool = True,
     return " ".join(fields)
 
 
-# FIXME: atime, ctime (local header only) not supported
+# FIXME
+# https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L2064
+def _perms(info: zipfile.ZipInfo, extended: bool = True) -> str:
+    hi = info.external_attr >> 16
+    if hi and info.create_system in (SYS_UNX, SYS_FAT):
+        return stat.filemode(hi)
+    is_dir = extended and info.filename.endswith("/")
+    is_exe = os.path.splitext(info.filename)[1][1:].lower() in EXE_EXTS
+    xatt = info.external_attr & 0xFF
+    return "".join((
+        'd' if xatt & 0x10 or is_dir else '-',
+        'r',
+        '-' if xatt & 0x01 else 'w',
+        'x' if xatt & 0x10 or is_exe else '-',
+        'a' if xatt & 0x20 else '-',
+        'h' if xatt & 0x02 else '-',
+        's' if xatt & 0x04 else '-',
+    ))
+
+
 # https://sources.debian.org/src/zip/3.0-12/zip.h/#L217
 # https://sources.debian.org/src/zip/3.0-12/zipfile.c/#L6544
 def _get_time(xtr: bytes, local: bool = False) -> Optional[Time]:
