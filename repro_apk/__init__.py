@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import sys
+import zipfile
 
 from typing import Tuple
 
@@ -34,6 +35,7 @@ ERRORS = (
     _sort_apk.Error,
     _sort_baseline.Error,
     _zipinfo.Error,
+    zipfile.BadZipFile,
 )
 
 
