@@ -10,8 +10,8 @@ import struct
 import time
 import zipfile
 
-from typing import Callable, Optional
-
+from dataclasses import dataclass
+from typing import BinaryIO, Callable, Optional
 
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1896
 COMPRESS_TYPE = {
@@ -34,6 +34,13 @@ EXTRA_DATA_INFO = {
 }
 
 
+@dataclass(frozen=True)
+class Time:
+    mtime: int
+    atime: Optional[int]
+    ctime: Optional[int]
+
+
 class Error(RuntimeError):
     pass
 
@@ -42,10 +49,10 @@ class Error(RuntimeError):
 # https://github.com/obfusk/reproducible-apk-tools/issues/10
 # https://sources.debian.org/src/zip/3.0-12/zip.h/#L211
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1097
-def format_info(info: zipfile.ZipInfo, extended: bool = True,
+def format_info(info: zipfile.ZipInfo, *, extended: bool = True,
                 long: bool = False) -> str:
-    if (mtime := _get_ut(info.extra)) is not None:
-        date_time = tuple(time.localtime(mtime))[:6]
+    if ut := _get_time(info.extra):
+        date_time = tuple(time.localtime(ut.mtime))[:6]
     else:
         date_time = info.date_time
     if hi := info.external_attr >> 16:
@@ -83,19 +90,40 @@ def format_info(info: zipfile.ZipInfo, extended: bool = True,
 
 
 # FIXME: atime, ctime (local header only) not supported
+# https://sources.debian.org/src/zip/3.0-12/zip.h/#L217
 # https://sources.debian.org/src/zip/3.0-12/zipfile.c/#L6544
-def _get_ut(xtr: bytes) -> Optional[int]:
+def _get_time(xtr: bytes, local: bool = False) -> Optional[Time]:
     while len(xtr) >= 4:
         hdr_id, size = struct.unpack("<HH", xtr[:4])
         if size > len(xtr) - 4:
             break
         if hdr_id == 0x5455 and size >= 1:
+            mtime = atime = ctime = None
             flags = xtr[4]
             if flags & 0x1 and size >= 5:
                 mtime = int.from_bytes(xtr[5:9], "little")
-                return mtime
+                if not local:
+                    if flags & 0x2 and size >= 9:
+                        atime = int.from_bytes(xtr[9:13], "little")
+                    if flags & 0x4 and size >= 13:
+                        ctime = int.from_bytes(xtr[13:17], "little")
+                return Time(mtime, atime, ctime)
+        elif hdr_id == 0x5855 and size >= 8:
+            atime = int.from_bytes(xtr[4:8], "little")
+            mtime = int.from_bytes(xtr[8:12], "little")
+            return Time(mtime, atime, None)
         xtr = xtr[size + 4:]
     return None
+
+
+def _get_lfh_extra(fh: BinaryIO, info: zipfile.ZipInfo) -> bytes:
+    fh.seek(info.header_offset)
+    hdr = fh.read(30)
+    if hdr[:4] != b"\x50\x4b\x03\x04":
+        raise Error("Expected local file header signature")
+    n, m = struct.unpack("<HH", hdr[26:30])
+    fh.seek(n, os.SEEK_CUR)
+    return fh.read(m)
 
 
 def zipinfo(zip_file: str, *, extended: bool = True, long: bool = False,
