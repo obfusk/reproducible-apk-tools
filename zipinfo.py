@@ -32,6 +32,8 @@ class Error(RuntimeError):
     pass
 
 
+# FIXME: fat file permissions, ...
+# https://github.com/obfusk/reproducible-apk-tools/issues/10
 # https://sources.debian.org/src/zip/3.0-12/zip.h/#L211
 def format_info(info: zipfile.ZipInfo, extended: bool = True,
                 long: bool = False) -> str:
@@ -41,6 +43,8 @@ def format_info(info: zipfile.ZipInfo, extended: bool = True,
         date_time = info.date_time
     if hi := info.external_attr >> 16:
         perm = stat.filemode(hi)
+    elif extended and info.filename.endswith("/"):
+        perm = "drw----"
     else:
         perm = "-rw----"
     vers = "{}.{}".format(info.create_version // 10,

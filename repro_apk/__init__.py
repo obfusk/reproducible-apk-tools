@@ -174,7 +174,8 @@ def main() -> None:
 
         The --long option adds the compressed size before the compression type;
         --extended does the same, adds the CRC32 checksum before the filename as
-        well, and uses a more standard date format.
+        well, uses a more standard date format, and treats filenames ending with
+        a "/" as directories.
     """)
     @click.option("-e", "--extended", is_flag=True,
                   help="Use extended output format (+ CRC32).")

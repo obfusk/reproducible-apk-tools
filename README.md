@@ -344,16 +344,17 @@ List ZIP entries (like `zipinfo`).
 
 The `--long` option adds the compressed size before the compression type;
 `--extended` does the same, adds the CRC32 checksum before the filename as well,
-and uses a more standard date format.
+uses a more standard date format, and treats filenames ending with a `/` as
+directories.
 
 ```bash
 $ zipinfo.py --help
 usage: zipinfo.py [-h] [-e] [-l] ZIPFILE
 [...]
-$ zipinfo.py some.apk
+$ zipinfo.py -e some.apk
 Archive:  some.apk
 Zip file size: 5612 bytes, number of entries: 8
--rw----     2.0 fat        0 bX        2 defN 2017-05-15 11:25:18 00000000 META-INF/
+drw----     2.0 fat        0 bX        2 defN 2017-05-15 11:25:18 00000000 META-INF/
 -rw----     2.0 fat       77 bl       76 defN 2017-05-15 11:25:18 b506b894 META-INF/MANIFEST.MF
 -rw----     2.0 fat     1672 bl      630 defN 2009-01-01 00:00:00 615ef200 AndroidManifest.xml
 -rw----     1.0 fat     1536 b-     1536 stor 2009-01-01 00:00:00 9987d5d8 classes.dex
@@ -361,6 +362,18 @@ Zip file size: 5612 bytes, number of entries: 8
 -rw----     1.0 fat        6 b-        6 stor 2017-05-15 11:24:32 31963516 lib/armeabi/fake.so
 -rw----     1.0 fat      896 b-      896 stor 2009-01-01 00:00:00 4fcab821 resources.arsc
 -rw----     2.0 fat       20 bl        6 defN 2017-05-15 11:28:40 c9983e85 temp2.txt
+8 files, 4236 bytes uncompressed, 3158 bytes compressed:  25.4%
+$ zipinfo.py -l some.apk
+Archive:  some.apk
+Zip file size: 5612 bytes, number of entries: 8
+-rw----     2.0 fat        0 bX        2 defN 17-May-15 11:25 META-INF/
+-rw----     2.0 fat       77 bl       76 defN 17-May-15 11:25 META-INF/MANIFEST.MF
+-rw----     2.0 fat     1672 bl      630 defN 09-Jan-01 00:00 AndroidManifest.xml
+-rw----     1.0 fat     1536 b-     1536 stor 09-Jan-01 00:00 classes.dex
+-rw----     2.0 fat       29 bl        6 defN 17-May-15 11:26 temp.txt
+-rw----     1.0 fat        6 b-        6 stor 17-May-15 11:24 lib/armeabi/fake.so
+-rw----     1.0 fat      896 b-      896 stor 09-Jan-01 00:00 resources.arsc
+-rw----     2.0 fat       20 bl        6 defN 17-May-15 11:28 temp2.txt
 8 files, 4236 bytes uncompressed, 3158 bytes compressed:  25.4%
 ```
 
