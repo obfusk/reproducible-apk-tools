@@ -11,7 +11,7 @@ import time
 import zipfile
 
 from dataclasses import dataclass
-from typing import BinaryIO, Callable, Optional
+from typing import Callable, Optional
 
 # FIXME
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1887
@@ -137,16 +137,6 @@ def _get_time(xtr: bytes, local: bool = False) -> Optional[Time]:
             return Time(mtime, atime, None)
         xtr = xtr[size + 4:]
     return None
-
-
-def _get_lfh_extra(fh: BinaryIO, info: zipfile.ZipInfo) -> bytes:
-    fh.seek(info.header_offset)
-    hdr = fh.read(30)
-    if hdr[:4] != b"\x50\x4b\x03\x04":
-        raise Error("Expected local file header signature")
-    n, m = struct.unpack("<HH", hdr[26:30])
-    fh.seek(n, os.SEEK_CUR)
-    return fh.read(m)
 
 
 def zipinfo(zip_file: str, *, extended: bool = True, long: bool = False,
