@@ -270,7 +270,25 @@ def zipinfo(zip_file: str, *, extended: bool = False, long: bool = False,
 
 
 # https://sources.debian.org/src/unzip/6.0-27/list.c/#L708
+# https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L913
 def _cfactor(u: int, c: int) -> str:
+    """
+    Compression factor as reported by Info-ZIP's zipinfo(1).
+
+    >>> _cfactor(0, 0)
+    '0.0%'
+    >>> _cfactor(400, 300)
+    '25.0%'
+    >>> _cfactor(300, 400)
+    '-33.3%'
+    >>> _cfactor(84624808, 25825672)
+    '69.5%'
+    >>> _cfactor(938, 492)
+    '47.5%'
+    >>> _cfactor(3070914, 1205461)
+    '60.8%'
+
+    """
     if not u:
         r, s = 0, ""
     else:
