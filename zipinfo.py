@@ -261,6 +261,8 @@ def zipinfo(zip_file: str, *, extended: bool = False, long: bool = False,
                 tot_u += info.file_size
                 tot_c += info.compress_size
                 print(fmt(info, extended=extended, long=long))
+                if info.flag_bits & 1:  # encrypted
+                    tot_c -= 12         # don't count extra 12 header bytes
             s = "" if ents == 1 else "s"
             r = _cfactor(tot_u, tot_c)
             print(f"{ents} file{s}, {tot_u} bytes uncompressed, "
