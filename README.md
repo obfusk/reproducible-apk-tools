@@ -32,7 +32,12 @@
 [`list-compresslevel.py`](#list-compresslevelpy),
 [`zipinfo.py`](#zipinfopy).
 
-## scripts to make apks reproducible
+## scripts to make android apks reproducible
+
+`reproducible-apk-tools` is a collection of scripts (available as subcommands of
+the `repro-apk` command) to help make APKs reproducible (e.g. by changing line
+endings from LF to CRLF), or find out why they are not (e.g. by comparing ZIP
+file metadata, or dumping `baseline.prof` files).
 
 ### fix-compresslevel.py
 

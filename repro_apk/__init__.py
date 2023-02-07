@@ -41,7 +41,7 @@ ERRORS = (
 
 def main() -> None:
     @click.group(help="""
-        repro-apk - scripts to make apks reproducible
+        repro-apk - scripts to make android apks reproducible
     """)
     @click.version_option(__version__)
     def cli() -> None:

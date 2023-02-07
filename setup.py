@@ -8,7 +8,7 @@ info = Path(__file__).with_name("README.md").read_text(encoding="utf8")
 setuptools.setup(
     name="repro-apk",
     url="https://github.com/obfusk/reproducible-apk-tools",
-    description="scripts to make apks reproducible",
+    description="scripts to make android apks reproducible",
     long_description=info,
     long_description_content_type="text/markdown",
     version=__version__,
