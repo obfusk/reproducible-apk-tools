@@ -80,6 +80,7 @@ def format_info(info: zipfile.ZipInfo, *, extended: bool = False,
     >>> format_info(info3, extended=True)
     '-rw-r--r--  3.0 unx    35823 t-    12289 defN 1980-01-01 00:00:00 cece3b93 LICENSE.GPLv3'
     >>> info4 = zipfile.ZipInfo("foo\n.com")
+    >>> info4.file_size = info4.compress_size = 0
     >>> format_info(info4)
     '-rwx---     2.0 unx        0 b- stor 80-Jan-01 00:00 foo^J.com'
     >>> info4.extra = b'UT\x05\x00\x01\x00\x00\x00\x00'
