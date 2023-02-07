@@ -261,12 +261,25 @@ def zipinfo(zip_file: str, *, extended: bool = False, long: bool = False,
                 tot_u += info.file_size
                 tot_c += info.compress_size
                 print(fmt(info, extended=extended, long=long))
-            pct = 100 * (tot_u - tot_c) / tot_u if tot_u else 0
             s = "" if ents == 1 else "s"
+            r = _cfactor(tot_u, tot_c)
             print(f"{ents} file{s}, {tot_u} bytes uncompressed, "
-                  f"{tot_c} bytes compressed:  {pct:.1f}%")
+                  f"{tot_c} bytes compressed:  {r}")
         else:
             print("Empty zipfile.")
+
+
+# https://sources.debian.org/src/unzip/6.0-27/list.c/#L708
+def _cfactor(u: int, c: int) -> str:
+    if not u:
+        r, s = 0, ""
+    else:
+        f, d = (1, u // 1000) if u > 2000000 else (1000, u)
+        if u >= c:
+            r, s = (f * (u - c) + (d >> 1)) // d, ""
+        else:
+            r, s = (f * (c - u) + (d >> 1)) // d, "-"
+    return f"{s}{r//10}.{r%10}%"
 
 
 if __name__ == "__main__":
