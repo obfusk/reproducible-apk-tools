@@ -179,11 +179,16 @@ def main() -> None:
         filename as well, uses a more standard date format, and treats filenames
         ending with a "/" as directories.
     """)
+    @click.option("-1", "--filenames-only", is_flag=True,
+                  help="Only print filenames, one per line.")
     @click.option("-e", "--extended", is_flag=True, help="Use extended output format.")
     @click.option("-l", "--long", is_flag=True, help="Use long output format.")
     @click.argument("zipfile", type=click.Path(exists=True, dir_okay=False))
-    def zipinfo(zipfile: str, extended: bool, long: bool) -> None:
-        _zipinfo.zipinfo(zipfile, extended=extended, long=long)
+    def zipinfo(zipfile: str, extended: bool, filenames_only: bool, long: bool) -> None:
+        if filenames_only and not (extended or long):
+            _zipinfo.zip_filenames(zipfile)
+        else:
+            _zipinfo.zipinfo(zipfile, extended=extended, long=long)
 
     try:
         cli(prog_name=NAME)

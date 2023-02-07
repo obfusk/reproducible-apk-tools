@@ -302,15 +302,27 @@ def _cfactor(u: int, c: int) -> str:
     return f"{s}{r//10}.{r%10}%"
 
 
+def zip_filenames(zip_file: str) -> None:
+    """List ZIP entry filenames, one per line."""
+    with zipfile.ZipFile(zip_file) as zf:
+        for name in zf.namelist():
+            print(printable_filename(name))
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(prog="zipinfo.py")
+    parser.add_argument("-1", "--filenames-only", action="store_true",
+                        help="only print filenames, one per line")
     parser.add_argument("-e", "--extended", action="store_true",
                         help="use extended output format")
     parser.add_argument("-l", "--long", action="store_true",
                         help="use long output format")
     parser.add_argument("zipfile", metavar="ZIPFILE")
     args = parser.parse_args()
-    zipinfo(args.zipfile, extended=args.extended, long=args.long)
+    if args.filenames_only and not (args.extended or args.long):
+        zip_filenames(args.zipfile)
+    else:
+        zipinfo(args.zipfile, extended=args.extended, long=args.long)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
