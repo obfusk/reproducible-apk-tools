@@ -174,15 +174,13 @@ def main() -> None:
     @cli.command(help="""
         List ZIP entries (like zipinfo).
 
-        The --long option adds the compressed size before the compression type;
-        --extended does the same, adds the CRC32 checksum before the filename as
-        well, uses a more standard date format, and treats filenames ending with
-        a "/" as directories.
+        The -l/--long option adds the compressed size before the compression
+        type; -e/--extended does the same, adds the CRC32 checksum before the
+        filename as well, uses a more standard date format, and treats filenames
+        ending with a "/" as directories.
     """)
-    @click.option("-e", "--extended", is_flag=True,
-                  help="Use extended output format (+ CRC32).")
-    @click.option("-l", "--long", is_flag=True,
-                  help="Use long output format (+ compressed size).")
+    @click.option("-e", "--extended", is_flag=True, help="Use extended output format.")
+    @click.option("-l", "--long", is_flag=True, help="Use long output format.")
     @click.argument("zipfile", type=click.Path(exists=True, dir_okay=False))
     def zipinfo(zipfile: str, extended: bool, long: bool) -> None:
         _zipinfo.zipinfo(zipfile, extended=extended, long=long)

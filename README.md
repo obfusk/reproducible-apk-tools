@@ -342,10 +342,17 @@ compressed data.
 
 List ZIP entries (like `zipinfo`).
 
-The `--long` option adds the compressed size before the compression type;
-`--extended` does the same, adds the CRC32 checksum before the filename as well,
-uses a more standard date format, and treats filenames ending with a `/` as
-directories.
+This implementation aims for compatibility with the default and `-l` output
+formats of Info-ZIP's `zipinfo`; the `-e` extended output format is unique to
+this implementation.  Other formats and options are (currently) not supported.
+
+Neither is the full variety of ZIP formats and extensions supported, just the
+most common ones (UNIX, FAT, NTFS).
+
+The `-l`/`--long` option adds the compressed size before the compression type;
+`-e`/`--extended` does the same, adds the CRC32 checksum before the filename as
+well, uses a more standard date format, and treats filenames ending with a `/`
+as directories.
 
 ```bash
 $ zipinfo.py --help
@@ -385,6 +392,10 @@ The extra info field consists of two characters: the first is `b` for binary,
 `t` for text (uppercase for encrypted files); the second is `X` for data
 descriptor and extra field, `l` for just data descriptor, `x` for just extra
 field, `-` for neither.
+
+See also:
+[`zipinfo(1)`](https://manpages.debian.org/stable/unzip/zipinfo.1.en.html),
+[`zipdetails(1)`](https://manpages.debian.org/stable/perl/zipdetails.1.en.html).
 
 ## helper scripts
 
@@ -500,6 +511,8 @@ $ repro-apk diff-zip-meta a.apk b.apk
 $ repro-apk diff-zip-meta a.apk c.apk --no-offsets --no-ordering
 $ repro-apk dump-arsc resources.arsc
 $ repro-apk dump-arsc --apk some.apk
+$ repro-apk dump-axml foo.xml
+$ repro-apk dump-axml --apk some.apk res/foo.xml
 $ repro-apk dump-baseline baseline.prof
 $ repro-apk dump-baseline baseline.profm
 $ repro-apk dump-baseline --apk some.apk
@@ -509,6 +522,8 @@ $ repro-apk list-compresslevel some.apk
 $ repro-apk sort-apk unsigned.apk sorted.apk
 $ repro-apk sort-baseline baseline.profm baseline-sorted.profm
 $ repro-apk sort-baseline --apk unsigned.apk sorted-baseline.apk
+$ repro-apk zipinfo -e some.apk
+$ repro-apk zipinfo -l some.apk
 ```
 
 ### Help
@@ -517,12 +532,14 @@ $ repro-apk sort-baseline --apk unsigned.apk sorted-baseline.apk
 $ repro-apk --help
 $ repro-apk diff-zip-meta --help
 $ repro-apk dump-arsc --help
+$ repro-apk dump-axml --help
 $ repro-apk dump-baseline --help
 $ repro-apk fix-compresslevel --help
 $ repro-apk fix-newlines --help
 $ repro-apk list-compresslevel --help
 $ repro-apk sort-apk --help
 $ repro-apk sort-baseline --help
+$ repro-apk zipinfo --help
 ```
 
 ## Installing

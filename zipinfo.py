@@ -13,7 +13,7 @@ import zipfile
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-# FIXME
+# FIXME: support more types, needs test cases
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1887
 SYS_FAT, SYS_UNX, SYS_NTF = (0, 3, 11)
 SYSTEM = {SYS_FAT: "fat", SYS_UNX: "unx", SYS_NTF: "ntf"}
@@ -24,7 +24,7 @@ EXE_EXTS = {"com", "exe", "btm", "cmd", "bat"}
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1896
 COMPRESS_TYPE = {
     zipfile.ZIP_STORED: "stor",
-    zipfile.ZIP_DEFLATED: "def",
+    zipfile.ZIP_DEFLATED: "def",  # DEFLATE_TYPE char is appended
     zipfile.ZIP_BZIP2: "bzp2",
     zipfile.ZIP_LZMA: "lzma",
 }
@@ -44,6 +44,7 @@ EXTRA_DATA_INFO = {
 
 @dataclass(frozen=True)
 class Time:
+    """Unix time from extra field (UT or UX)."""
     mtime: int
     atime: Optional[int]
     ctime: Optional[int]
@@ -56,21 +57,54 @@ class Error(RuntimeError):
 # FIXME
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L1097
 # https://sources.debian.org/src/zip/3.0-12/zip.h/#L211
-def format_info(info: zipfile.ZipInfo, *, extended: bool = True,
+def format_info(info: zipfile.ZipInfo, *, extended: bool = False,
                 long: bool = False) -> str:
-    if ut := _get_time(info.extra):
-        date_time = tuple(time.localtime(ut.mtime))[:6]
+    r"""
+    Format ZIP entry info.
+
+    >>> zf = zipfile.ZipFile("test/data/crlf.apk")
+    >>> info1 = zf.getinfo("META-INF/")
+    >>> info2 = zf.getinfo("resources.arsc")
+    >>> info3 = zf.getinfo("LICENSE.GPLv3")
+    >>> format_info(info1)
+    '-rw----     2.0 fat        0 bx defN 17-May-15 11:25 META-INF/'
+    >>> format_info(info1, extended=True)
+    'drw----     2.0 fat        0 bx        2 defN 2017-05-15 11:25:18 00000000 META-INF/'
+    >>> format_info(info2)
+    '-rw----     1.0 fat      896 b- stor 09-Jan-01 00:00 resources.arsc'
+    >>> format_info(info3)
+    '-rw-------  3.0 unx    35823 t- defN 80-Jan-01 00:00 LICENSE.GPLv3'
+    >>> info3.external_attr |= 0o644 << 16
+    >>> format_info(info3, long=True)
+    '-rw-r--r--  3.0 unx    35823 t-    12289 defN 80-Jan-01 00:00 LICENSE.GPLv3'
+    >>> format_info(info3, extended=True)
+    '-rw-r--r--  3.0 unx    35823 t-    12289 defN 1980-01-01 00:00:00 cece3b93 LICENSE.GPLv3'
+    >>> info4 = zipfile.ZipInfo("foo\n.com")
+    >>> format_info(info4)
+    '-rwx---     2.0 unx        0 b- stor 80-Jan-01 00:00 foo^J.com'
+    >>> info4.extra = b'UT\x05\x00\x01\x00\x00\x00\x00'
+    >>> format_info(info4)
+    '-rwx---     2.0 unx        0 bx stor 70-Jan-01 00:00 foo^J.com'
+    >>> info4.extra = b'UX\x08\x00\x80h\x9e>|h\x9e>'
+    >>> format_info(info4)
+    '-rwx---     2.0 unx        0 bx stor 03-Apr-17 08:40 foo^J.com'
+
+    """
+    if t := extra_field_time(info.extra):
+        date_time = tuple(time.localtime(t.mtime))[:6]
     else:
         date_time = info.date_time
-    perm = _perms(info, extended=extended)
+    perm = format_permissions(info)
+    if extended and info.filename.endswith("/"):
+        perm = "d" + perm[1:]                       # directory
     vers = "{}.{}".format(info.create_version // 10,
                           info.create_version % 10)
-    syst = SYSTEM.get(info.create_system, "unx")
-    xinf = "t" if info.internal_attr == 1 else "b"
+    syst = SYSTEM.get(info.create_system, "???")
+    xinf = "t" if info.internal_attr == 1 else "b"  # text/binary
     if info.flag_bits & 1:
-        xinf = xinf.upper()     # encrypted
+        xinf = xinf.upper()                         # encrypted
     xinf += EXTRA_DATA_INFO[(bool(info.extra), bool(info.flag_bits & 0x08))]
-    comp = COMPRESS_TYPE[info.compress_type]
+    comp = COMPRESS_TYPE.get(info.compress_type, "????")
     if info.compress_type == zipfile.ZIP_DEFLATED:
         comp += DEFLATE_TYPE[(info.flag_bits >> 1) & 3]
     if extended:
@@ -89,72 +123,149 @@ def format_info(info: zipfile.ZipInfo, *, extended: bool = True,
     fields += [comp, dt, tm]
     if extended:
         fields.append(f"{info.CRC:08x}")
-    fields.append(info.filename)
+    fields.append(printable_filename(info.filename))
     return " ".join(fields)
 
 
 # FIXME
 # https://sources.debian.org/src/unzip/6.0-27/zipinfo.c/#L2064
-def _perms(info: zipfile.ZipInfo, extended: bool = True) -> str:
+def format_permissions(info: zipfile.ZipInfo) -> str:
+    """
+    Format ZIP entry Unix or FAT permissions.
+
+    >>> zf = zipfile.ZipFile("test/data/crlf.apk")
+    >>> info1 = zf.getinfo("META-INF/")
+    >>> info2 = zf.getinfo("resources.arsc")
+    >>> info3 = zf.getinfo("LICENSE.GPLv3")
+    >>> format_permissions(info1)
+    '-rw----'
+    >>> format_permissions(info2)
+    '-rw----'
+    >>> format_permissions(info3)
+    '-rw-------'
+    >>> info3.external_attr = info3.external_attr | (0o644 << 16)
+    >>> format_permissions(info3)
+    '-rw-r--r--'
+    >>> info4 = zipfile.ZipInfo("foo.com")
+    >>> format_permissions(info4)
+    '-rwx---'
+
+    """
     hi = info.external_attr >> 16
     if hi and info.create_system in (SYS_UNX, SYS_FAT):
         return stat.filemode(hi)
-    is_dir = extended and info.filename.endswith("/")
-    is_exe = os.path.splitext(info.filename)[1][1:].lower() in EXE_EXTS
-    xatt = info.external_attr & 0xFF
+    exe = os.path.splitext(info.filename)[1][1:].lower() in EXE_EXTS
+    xat = info.external_attr & 0xFF
     return "".join((
-        'd' if xatt & 0x10 or is_dir else '-',
+        'd' if xat & 0x10 else '-',
         'r',
-        '-' if xatt & 0x01 else 'w',
-        'x' if xatt & 0x10 or is_exe else '-',
-        'a' if xatt & 0x20 else '-',
-        'h' if xatt & 0x02 else '-',
-        's' if xatt & 0x04 else '-',
+        '-' if xat & 0x01 else 'w',
+        'x' if xat & 0x10 or exe else '-',
+        'a' if xat & 0x20 else '-',
+        'h' if xat & 0x02 else '-',
+        's' if xat & 0x04 else '-',
     ))
 
 
 # https://sources.debian.org/src/zip/3.0-12/zip.h/#L217
 # https://sources.debian.org/src/zip/3.0-12/zipfile.c/#L6544
-def _get_time(xtr: bytes, local: bool = False) -> Optional[Time]:
-    while len(xtr) >= 4:
-        hdr_id, size = struct.unpack("<HH", xtr[:4])
-        if size > len(xtr) - 4:
+def extra_field_time(extra: bytes, local: bool = False) -> Optional[Time]:
+    r"""
+    Get unix time from extra field (UT or UX).
+
+    >>> t = extra_field_time(b'UT\x05\x00\x01\x00\x00\x00\x00')
+    >>> t
+    Time(mtime=0, atime=None, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (1970, 1, 1, 0, 0, 0, 3, 1, 0)
+    >>> t = extra_field_time(b'UT\x05\x00\x01\xda\xe9\xe36')
+    >>> t
+    Time(mtime=920906202, atime=None, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (1999, 3, 8, 15, 16, 42, 0, 67, 0)
+    >>> t = extra_field_time(b'UX\x08\x00\x80h\x9e>|h\x9e>')
+    >>> t
+    Time(mtime=1050568828, atime=1050568832, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (2003, 4, 17, 8, 40, 28, 3, 107, 0)
+    >>> tuple(time.localtime(t.atime))
+    (2003, 4, 17, 8, 40, 32, 3, 107, 0)
+    >>> t = extra_field_time(b'UX\x08\x00\xda\xe9\xe36\xda\xe9\xe36')
+    >>> t
+    Time(mtime=920906202, atime=920906202, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (1999, 3, 8, 15, 16, 42, 0, 67, 0)
+    >>> tuple(time.localtime(t.atime))
+    (1999, 3, 8, 15, 16, 42, 0, 67, 0)
+
+    """
+    while len(extra) >= 4:
+        hdr_id, size = struct.unpack("<HH", extra[:4])
+        if size > len(extra) - 4:
             break
         if hdr_id == 0x5455 and size >= 1:
-            mtime = atime = ctime = None
-            flags = xtr[4]
+            flags = extra[4]
             if flags & 0x1 and size >= 5:
-                mtime = int.from_bytes(xtr[5:9], "little")
+                mtime = int.from_bytes(extra[5:9], "little")
+                atime = ctime = None
                 if local:
                     if flags & 0x2 and size >= 9:
-                        atime = int.from_bytes(xtr[9:13], "little")
+                        atime = int.from_bytes(extra[9:13], "little")
                     if flags & 0x4 and size >= 13:
-                        ctime = int.from_bytes(xtr[13:17], "little")
+                        ctime = int.from_bytes(extra[13:17], "little")
                 return Time(mtime, atime, ctime)
         elif hdr_id == 0x5855 and size >= 8:
-            atime = int.from_bytes(xtr[4:8], "little")
-            mtime = int.from_bytes(xtr[8:12], "little")
+            atime = int.from_bytes(extra[4:8], "little")
+            mtime = int.from_bytes(extra[8:12], "little")
             return Time(mtime, atime, None)
-        xtr = xtr[size + 4:]
+        extra = extra[size + 4:]
     return None
 
 
-def zipinfo(zip_file: str, *, extended: bool = True, long: bool = False,
+def printable_filename(s: str) -> str:
+    r"""
+    Replace ASCII control characters with caret notation (e.g. ^M, ^J) and other
+    non-printable characters with backslash escapes like repr().
+
+    >>> printable_filename("foo bar.baz")
+    'foo bar.baz'
+    >>> printable_filename("foo\r\n\x7fbar\x82\u0fff.baz")
+    'foo^M^J^?bar\\x82\\u0fff.baz'
+
+    """
+    t = []
+    for c in s:
+        if c.isprintable():
+            t.append(c)
+        elif (i := ord(c)) in range(32):
+            t.append("^" + chr(i + 64))
+        elif i == 127:
+            t.append("^?")
+        else:
+            t.append(repr(c)[1:-1])
+    return "".join(t)
+
+
+def zipinfo(zip_file: str, *, extended: bool = False, long: bool = False,
             fmt: Callable[..., str] = format_info) -> None:
+    """List ZIP entries, like Info-ZIP's zipinfo(1)."""
     with zipfile.ZipFile(zip_file) as zf:
         size = os.path.getsize(zip_file)
         ents = len(zf.infolist())
         tot_u = tot_c = 0
-        print(f"Archive:  {zip_file}")
+        print(f"Archive:  {printable_filename(zip_file)}")
         print(f"Zip file size: {size} bytes, number of entries: {ents}")
-        for info in zf.infolist():
-            tot_u += info.file_size
-            tot_c += info.compress_size
-            print(fmt(info, extended=extended, long=long))
-        pct = (tot_u - tot_c) / tot_u * 100 if tot_u else 0
-        s = "" if ents == 1 else "s"
-        print(f"{ents} file{s}, {tot_u} bytes uncompressed, "
-              f"{tot_c} bytes compressed:  {pct:.1f}%")
+        if ents:
+            for info in zf.infolist():
+                tot_u += info.file_size
+                tot_c += info.compress_size
+                print(fmt(info, extended=extended, long=long))
+            pct = 100 * (tot_u - tot_c) / tot_u if tot_u else 0
+            s = "" if ents == 1 else "s"
+            print(f"{ents} file{s}, {tot_u} bytes uncompressed, "
+                  f"{tot_c} bytes compressed:  {pct:.1f}%")
+        else:
+            print("Empty zipfile.")
 
 
 if __name__ == "__main__":

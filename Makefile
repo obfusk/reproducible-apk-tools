@@ -18,7 +18,7 @@ test-cli:
 
 doctest:
 	# NB: uses test/ & requires zipalign on $PATH
-	$(PYTHON) -m doctest inplace-fix.py
+	TZ=UTC $(PYTHON) -m doctest inplace-fix.py zipinfo.py
 
 test-examples:
 	mkdir -p .tmp
