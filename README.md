@@ -584,13 +584,13 @@ $ git pull --rebase
 * Python >= 3.8 + click (`repro-apk` package only, the stand-alone scripts have
   no dependencies besides Python).
 
-* The `dump-arsc.py` script requires `aapt2`.
+* The `dump-arsc.py` and `dump-axml.py` scripts require `aapt2`.
 
 ### Debian/Ubuntu
 
 ```bash
 $ apt install python3-click
-$ apt install aapt      # for dump-arsc.py
+$ apt install aapt      # for dump-arsc.py & dump-axml.py
 $ apt install zipalign  # for realignment; see examples
 ```
 
