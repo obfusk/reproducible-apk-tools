@@ -1,3 +1,9 @@
+v0.2.3
+
+• add zipinfo.py.
+• repro-apk cli: catch zipfile.BadZipFile.
+• update README & description.
+
 v0.2.2
 
 • add dump-axml.py.

@@ -21,7 +21,7 @@ from . import zipinfo as _zipinfo
 
 import click
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 NAME = "repro-apk"
 
 ERRORS = (
