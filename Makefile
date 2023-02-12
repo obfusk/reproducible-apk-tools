@@ -117,6 +117,8 @@ test-examples:
 	  <( repro-apk list-compresslevel level6.apk )
 	cd test/data && diff -Naur level9.levels \
 	  <( repro-apk list-compresslevel level9.apk )
+	cd test/data && diff -Naur <( echo "filename='LICENSE.GPLv3' compresslevel=6" ) \
+	  <( repro-apk list-compresslevel unix.apk LICENSE.GPLv3 )
 	# zipinfo
 	set -e; cd test/data && for apk in *.apk; do echo "$$apk"; \
 	  diff -Naur <( zipinfo    "$$apk" ) <( repro-apk zipinfo    "$$apk" ); \

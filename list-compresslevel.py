@@ -7,6 +7,8 @@ import struct
 import zipfile
 import zlib
 
+from fnmatch import fnmatch
+
 LEVELS = (9, 6, 4, 1)
 
 
@@ -14,10 +16,12 @@ class Error(RuntimeError):
     pass
 
 
-def list_compresslevel(apk: str) -> None:
+def list_compresslevel(apk: str, *patterns: str) -> None:
     with open(apk, "rb") as fh_raw:
         with zipfile.ZipFile(apk) as zf:
             for info in zf.infolist():
+                if patterns and not any(fnmatch(info.filename, p) for p in patterns):
+                    continue
                 levels = []
                 if info.compress_type == 8:
                     fh_raw.seek(info.header_offset)
@@ -52,7 +56,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(prog="list-compresslevel.py")
     parser.add_argument("apk", metavar="APK")
+    parser.add_argument("patterns", metavar="PATTERN", nargs="*")
     args = parser.parse_args()
-    list_compresslevel(args.apk)
+    list_compresslevel(args.apk, *args.patterns)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

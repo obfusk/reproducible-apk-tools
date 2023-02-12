@@ -324,9 +324,12 @@ NB: does not support all file format versions yet.
 
 List ZIP entries with compression level.
 
+You can optionally specify which files to list by providing one or more
+fnmatch-style patterns, e.g. `'assets/foo/*.bar'`.
+
 ```bash
 $ list-compresslevel.py --help
-usage: list-compresslevel.py [-h] APK
+usage: list-compresslevel.py [-h] APK [PATTERN ...]
 [...]
 $ list-compresslevel.py some.apk
 filename='AndroidManifest.xml' compresslevel=9|6

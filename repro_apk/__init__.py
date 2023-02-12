@@ -116,7 +116,7 @@ def main() -> None:
     @click.argument("compresslevel", type=click.INT)
     @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
     def fix_compresslevel(input_apk: str, output_apk: str, compresslevel: int,
-                          patterns: Tuple[str], verbose: bool) -> None:
+                          patterns: Tuple[str, ...], verbose: bool) -> None:
         _fix_compresslevel.fix_compresslevel(input_apk, output_apk, compresslevel,
                                              *patterns, verbose=verbose)
 
@@ -132,7 +132,7 @@ def main() -> None:
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
-    def fix_newlines(input_apk: str, output_apk: str, patterns: Tuple[str],
+    def fix_newlines(input_apk: str, output_apk: str, patterns: Tuple[str, ...],
                      from_crlf: bool, verbose: bool) -> None:
         replace = ("\r\n", "\n") if from_crlf else ("\n", "\r\n")
         _fix_newlines.fix_newlines(input_apk, output_apk, *patterns,
@@ -140,10 +140,14 @@ def main() -> None:
 
     @cli.command(help="""
         List ZIP entries with compression level.
+
+        You can optionally specify which files to list by providing one or more
+        fnmatch-style patterns, e.g. 'assets/foo/*.bar'.
     """)
     @click.argument("apk", type=click.Path(exists=True, dir_okay=False))
-    def list_compresslevel(apk: str) -> None:
-        _list_compresslevel.list_compresslevel(apk)
+    @click.argument("patterns", metavar="[PATTERN...]", nargs=-1)
+    def list_compresslevel(apk: str, patterns: Tuple[str, ...]) -> None:
+        _list_compresslevel.list_compresslevel(apk, *patterns)
 
     @cli.command(help="""
         Sort (and realign) the ZIP entries of an APK.
