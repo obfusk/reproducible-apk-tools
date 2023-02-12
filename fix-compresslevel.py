@@ -10,7 +10,6 @@ import zlib
 from fnmatch import fnmatch
 from typing import Any, Dict
 
-
 ATTRS = ("compress_type", "create_system", "create_version", "date_time",
          "external_attr", "extract_version", "flag_bits")
 LEVELS = (9, 6, 4, 1)

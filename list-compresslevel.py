@@ -7,7 +7,6 @@ import struct
 import zipfile
 import zlib
 
-
 LEVELS = (9, 6, 4, 1)
 
 

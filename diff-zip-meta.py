@@ -14,7 +14,6 @@ import zlib
 from dataclasses import dataclass
 from typing import Any, BinaryIO, Dict, List, Optional, Tuple
 
-
 CDH_ATTRS = (
     "create_version",
     "create_system",

@@ -12,7 +12,6 @@ import tempfile
 
 from typing import Tuple
 
-
 COMMANDS = (
     "fix-compresslevel",
     "fix-newlines",
