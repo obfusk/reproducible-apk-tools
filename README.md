@@ -23,6 +23,7 @@
 
 [`fix-compresslevel.py`](#fix-compresslevelpy),
 [`fix-newlines.py`](#fix-newlinespy),
+[`rm-files.py`](#rm-filespy),
 [`sort-apk.py`](#sort-apkpy),
 [`sort-baseline.py`](#sort-baselinepy),
 [`diff-zip-meta.py`](#diff-zip-metapy),
@@ -94,6 +95,27 @@ fixing 'META-INF/services/bar'...
 $ zipalign -f 4 fixed.apk fixed-aligned.apk
 $ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
 OK
+```
+
+NB: this builds a new ZIP file, preserving most ZIP metadata (and recompressing
+using the same compression level) but not everything: e.g. copying the existing
+local header extra fields which contain padding for alignment is not supported
+by Python's `ZipFile`, which is why `zipalign` is usually needed.
+
+### rm-files.py
+
+Remove entries from ZIP file.
+
+Specify which files to remove by providing at least one fnmatch-style PATTERN,
+e.g. `'META-INF/MANIFEST.MF'`.
+
+```bash
+$ rm-files.py --help
+usage: rm-files.py [-h] [-v] INPUT_APK OUTPUT_APK PATTERN [PATTERN ...]
+[...]
+$ rm-files.py some.apk fixed.apk META-INF/MANIFEST.IN
+skipping 'META-INF/MANIFEST.IN'...
+$ zipalign -f 4 fixed.apk fixed-aligned.apk
 ```
 
 NB: this builds a new ZIP file, preserving most ZIP metadata (and recompressing
@@ -527,6 +549,7 @@ $ repro-apk dump-baseline --apk some.apk
 $ repro-apk fix-compresslevel unsigned.apk fixed.apk 6 assets/foo/bar.js
 $ repro-apk fix-newlines unsigned.apk fixed.apk 'META-INF/services/*'
 $ repro-apk list-compresslevel some.apk
+$ repro-apk rm-files some.apk fixed.apk META-INF/MANIFEST.IN
 $ repro-apk sort-apk unsigned.apk sorted.apk
 $ repro-apk sort-baseline baseline.profm baseline-sorted.profm
 $ repro-apk sort-baseline --apk unsigned.apk sorted-baseline.apk
@@ -545,6 +568,7 @@ $ repro-apk dump-baseline --help
 $ repro-apk fix-compresslevel --help
 $ repro-apk fix-newlines --help
 $ repro-apk list-compresslevel --help
+$ repro-apk rm-files --help
 $ repro-apk sort-apk --help
 $ repro-apk sort-baseline --help
 $ repro-apk zipinfo --help

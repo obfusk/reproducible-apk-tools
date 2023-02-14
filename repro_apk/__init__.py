@@ -15,6 +15,7 @@ from . import dump_baseline as _dump_baseline
 from . import fix_compresslevel as _fix_compresslevel
 from . import fix_newlines as _fix_newlines
 from . import list_compresslevel as _list_compresslevel
+from . import rm_files as _rm_files
 from . import sort_apk as _sort_apk
 from . import sort_baseline as _sort_baseline
 from . import zipinfo as _zipinfo
@@ -32,6 +33,7 @@ ERRORS = (
     _fix_compresslevel.Error,
     _fix_newlines.Error,
     _list_compresslevel.Error,
+    _rm_files.Error,
     _sort_apk.Error,
     _sort_baseline.Error,
     _zipinfo.Error,
@@ -148,6 +150,20 @@ def main() -> None:
     @click.argument("patterns", metavar="[PATTERN...]", nargs=-1)
     def list_compresslevel(apk: str, patterns: Tuple[str, ...]) -> None:
         _list_compresslevel.list_compresslevel(apk, *patterns)
+
+    @cli.command(help="""
+        Remove entries from ZIP file.
+
+        Specify which files to remove by providing at least one fnmatch-style
+        PATTERN, e.g. 'META-INF/MANIFEST.MF'.
+    """)
+    @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
+    @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
+    @click.argument("output_apk", type=click.Path(dir_okay=False))
+    @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
+    def rm_files(input_apk: str, output_apk: str, patterns: Tuple[str, ...],
+                 verbose: bool) -> None:
+        _rm_files.rm_files(input_apk, output_apk, *patterns, verbose=verbose)
 
     @cli.command(help="""
         Sort (and realign) the ZIP entries of an APK.

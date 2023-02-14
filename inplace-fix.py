@@ -15,6 +15,7 @@ from typing import Tuple
 COMMANDS = (
     "fix-compresslevel",
     "fix-newlines",
+    "rm-files",
     "sort-apk",
     "sort-baseline",
 )

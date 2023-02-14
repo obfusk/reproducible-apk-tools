@@ -40,6 +40,11 @@ test-examples:
 	cp test/data/unix.apk .tmp/unix-to-crlf-inplace.apk
 	repro-apk-inplace-fix --zipalign fix-newlines .tmp/unix-to-crlf-inplace.apk 'LICENSE.*'
 	cmp test/data/crlf.apk .tmp/unix-to-crlf-inplace.apk
+	# rm-files (via repro-apk-inplace-fix as well)
+	repro-apk rm-files test/data/baseline1.profm.apk .tmp/rm1.apk '*.profm'
+	cp test/data/baseline2.profm.apk .tmp/rm2.apk
+	repro-apk-inplace-fix rm-files .tmp/rm2.apk '*.profm'
+	cmp .tmp/rm1.apk .tmp/rm2.apk
 	# sort-apk
 	repro-apk sort-apk test/data/golden-aligned-in.apk .tmp/sorted.apk
 	cmp test/data/golden-aligned-in-sorted.apk .tmp/sorted.apk
