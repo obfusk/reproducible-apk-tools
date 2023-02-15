@@ -272,6 +272,8 @@ def main() -> None:
     except ERRORS as e:
         click.echo(f"Error: {e}.", err=True)
         sys.exit(3)
+    except BrokenPipeError:
+        pass
 
 
 if __name__ == "__main__":

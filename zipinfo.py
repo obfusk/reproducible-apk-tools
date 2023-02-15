@@ -329,10 +329,13 @@ if __name__ == "__main__":
                         help="sort entries by header offset")
     parser.add_argument("zipfile", metavar="ZIPFILE")
     args = parser.parse_args()
-    if args.filenames_only and not (args.extended or args.long):
-        zip_filenames(args.zipfile, sort_by_offset=args.sort_by_offset)
-    else:
-        zipinfo(args.zipfile, extended=args.extended, long=args.long,
-                sort_by_offset=args.sort_by_offset)
+    try:
+        if args.filenames_only and not (args.extended or args.long):
+            zip_filenames(args.zipfile, sort_by_offset=args.sort_by_offset)
+        else:
+            zipinfo(args.zipfile, extended=args.extended, long=args.long,
+                    sort_by_offset=args.sort_by_offset)
+    except BrokenPipeError:
+        pass
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

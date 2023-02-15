@@ -58,6 +58,9 @@ if __name__ == "__main__":
     parser.add_argument("apk", metavar="APK")
     parser.add_argument("patterns", metavar="PATTERN", nargs="*")
     args = parser.parse_args()
-    list_compresslevel(args.apk, *args.patterns)
+    try:
+        list_compresslevel(args.apk, *args.patterns)
+    except BrokenPipeError:
+        pass
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
