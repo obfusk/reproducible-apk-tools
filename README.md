@@ -501,7 +501,7 @@ them modify the file in-place (and optionally `zipalign` it too).
 
 ```bash
 $ inplace-fix.py --help
-usage: inplace-fix.py [-h] [--zipalign] COMMAND INPUT_FILE [...]
+usage: inplace-fix.py [-h] [--zipalign] [--page-align] COMMAND INPUT_FILE [...]
 [...]
 $ inplace-fix.py --zipalign fix-newlines unsigned.apk 'META-INF/services/*'
 [RUN] python3 fix-newlines.py unsigned.apk /tmp/.../fixed.apk META-INF/services/*

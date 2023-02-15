@@ -44,6 +44,9 @@ test-examples:
 	cp test/data/unix.apk .tmp/unix-to-crlf-inplace.apk
 	repro-apk-inplace-fix --zipalign fix-newlines .tmp/unix-to-crlf-inplace.apk 'LICENSE.*'
 	cmp test/data/crlf.apk .tmp/unix-to-crlf-inplace.apk
+	cp test/data/unix.apk .tmp/unix-to-crlf-inplace-p.apk
+	repro-apk-inplace-fix --page-align fix-newlines .tmp/unix-to-crlf-inplace-p.apk 'LICENSE.*'
+	cmp test/data/crlf-p.apk .tmp/unix-to-crlf-inplace-p.apk
 	# rm-files (via repro-apk-inplace-fix as well)
 	repro-apk rm-files test/data/baseline1.profm.apk .tmp/rm1.apk '*.profm'
 	cp test/data/baseline2.profm.apk .tmp/rm2.apk

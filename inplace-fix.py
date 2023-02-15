@@ -24,6 +24,7 @@ COMMANDS = (
 BUILD_TOOLS_WITH_BROKEN_ZIPALIGN = ("31.0.0", "32.0.0")
 SDK_ENV = ("ANDROID_HOME", "ANDROID_SDK", "ANDROID_SDK_ROOT")
 ZIPALIGN = ("zipalign", "4")
+ZIPALIGN_P = ("zipalign", "-p", "4")
 
 
 class Error(RuntimeError):
@@ -31,7 +32,7 @@ class Error(RuntimeError):
 
 
 def inplace_fix(command: str, input_file: str, *args: str,
-                zipalign: bool = False) -> None:
+                zipalign: bool = False, page_align: bool = False) -> None:
     if command not in COMMANDS:
         raise Error(f"Unknown command {command}")
     exe, script = _script_cmd(command)
@@ -41,7 +42,7 @@ def inplace_fix(command: str, input_file: str, *args: str,
         run_command(exe, script, input_file, fixed, *args, trim=2)
         if zipalign:
             aligned = os.path.join(tdir, "aligned" + ext)
-            run_command(*zipalign_cmd(), fixed, aligned, trim=2)
+            run_command(*zipalign_cmd(page_align=page_align), fixed, aligned, trim=2)
             print(f"[MOVE] {aligned} to {input_file}")
             shutil.move(aligned, input_file)
         else:
@@ -49,12 +50,14 @@ def inplace_fix(command: str, input_file: str, *args: str,
             shutil.move(fixed, input_file)
 
 
-def zipalign_cmd() -> Tuple[str, ...]:
+def zipalign_cmd(page_align: bool = False) -> Tuple[str, ...]:
     """
     Find zipalign command using $PATH or $ANDROID_HOME etc.
 
     >>> zipalign_cmd()
     ('zipalign', '4')
+    >>> zipalign_cmd(page_align=True)
+    ('zipalign', '-p', '4')
     >>> os.environ["PATH"] = ""
     >>> for k in SDK_ENV:
     ...     os.environ[k] = ""
@@ -70,7 +73,7 @@ def zipalign_cmd() -> Tuple[str, ...]:
     """
     def key(v: str) -> Tuple[int, ...]:
         return tuple(int(x) if x.isdigit() else -1 for x in v.split("."))
-    cmd, *args = ZIPALIGN
+    cmd, *args = ZIPALIGN_P if page_align else ZIPALIGN
     if not shutil.which(cmd):
         for k in SDK_ENV:
             if v := os.environ.get(k):
@@ -114,15 +117,20 @@ def run_command(*args: str, trim: int = 1) -> None:
 
 
 def main() -> None:
-    usage = "%(prog)s [-h] [--zipalign] COMMAND INPUT_FILE [...]"
+    usage = "%(prog)s [-h] [--zipalign] [--page-align] COMMAND INPUT_FILE [...]"
     epilog = f"Commands: {', '.join(COMMANDS)}."
     parser = argparse.ArgumentParser(usage=usage, epilog=epilog)
-    parser.add_argument("--zipalign", action="store_true")
+    parser.add_argument("--zipalign", action="store_true",
+                        help="run zipalign after COMMAND")
+    parser.add_argument("--page-align", action="store_true",
+                        help="run zipalign w/ -p option (implies --zipalign)")
     parser.add_argument("command", metavar="COMMAND")
     parser.add_argument("input_file", metavar="INPUT_FILE")
     args, rest = parser.parse_known_args()
     try:
-        inplace_fix(args.command, args.input_file, *rest, zipalign=args.zipalign)
+        inplace_fix(args.command, args.input_file, *rest,
+                    zipalign=args.zipalign or args.page_align,
+                    page_align=args.page_align)
     except Error as e:
         print(f"Error: {e}.", file=sys.stderr)
         sys.exit(1)
