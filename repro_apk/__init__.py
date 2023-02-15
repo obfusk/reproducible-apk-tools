@@ -203,12 +203,15 @@ def main() -> None:
                   help="Only print filenames, one per line.")
     @click.option("-e", "--extended", is_flag=True, help="Use extended output format.")
     @click.option("-l", "--long", is_flag=True, help="Use long output format.")
+    @click.option("--sort-by-offset", is_flag=True, help="Sort entries by header offset.")
     @click.argument("zipfile", type=click.Path(exists=True, dir_okay=False))
-    def zipinfo(zipfile: str, extended: bool, filenames_only: bool, long: bool) -> None:
+    def zipinfo(zipfile: str, extended: bool, filenames_only: bool, long: bool,
+                sort_by_offset: bool) -> None:
         if filenames_only and not (extended or long):
-            _zipinfo.zip_filenames(zipfile)
+            _zipinfo.zip_filenames(zipfile, sort_by_offset=sort_by_offset)
         else:
-            _zipinfo.zipinfo(zipfile, extended=extended, long=long)
+            _zipinfo.zipinfo(zipfile, extended=extended, long=long,
+                             sort_by_offset=sort_by_offset)
 
     try:
         cli(prog_name=NAME)

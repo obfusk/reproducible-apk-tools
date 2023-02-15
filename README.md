@@ -386,7 +386,7 @@ as directories.
 
 ```bash
 $ zipinfo.py --help
-usage: zipinfo.py [-h] [-e] [-l] ZIPFILE
+usage: zipinfo.py [-h] [-1] [-e] [-l] [--sort-by-offset] ZIPFILE
 [...]
 $ zipinfo.py -e some.apk
 Archive:  some.apk

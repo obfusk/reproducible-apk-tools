@@ -248,24 +248,27 @@ def printable_filename(s: str) -> str:
 
 
 def zipinfo(zip_file: str, *, extended: bool = False, long: bool = False,
-            fmt: Callable[..., str] = format_info) -> None:
+            sort_by_offset: bool = False, fmt: Callable[..., str] = format_info) -> None:
     """List ZIP entries, like Info-ZIP's zipinfo(1)."""
     with zipfile.ZipFile(zip_file) as zf:
+        if sort_by_offset:
+            infos = sorted(zf.infolist(), key=lambda i: i.header_offset)
+        else:
+            infos = zf.infolist()
         size = os.path.getsize(zip_file)
-        ents = len(zf.infolist())
         tot_u = tot_c = 0
         print(f"Archive:  {printable_filename(zip_file)}")
-        print(f"Zip file size: {size} bytes, number of entries: {ents}")
-        if ents:
-            for info in zf.infolist():
+        print(f"Zip file size: {size} bytes, number of entries: {len(infos)}")
+        if infos:
+            for info in infos:
                 tot_u += info.file_size
                 tot_c += info.compress_size
                 print(fmt(info, extended=extended, long=long))
                 if info.flag_bits & 1:  # encrypted
                     tot_c -= 12         # don't count extra 12 header bytes
-            s = "" if ents == 1 else "s"
+            s = "" if len(infos) == 1 else "s"
             r = _cfactor(tot_u, tot_c)
-            print(f"{ents} file{s}, {tot_u} bytes uncompressed, "
+            print(f"{len(infos)} file{s}, {tot_u} bytes uncompressed, "
                   f"{tot_c} bytes compressed:  {r}")
         else:
             print("Empty zipfile.")
@@ -302,11 +305,15 @@ def _cfactor(u: int, c: int) -> str:
     return f"{s}{r//10}.{r%10}%"
 
 
-def zip_filenames(zip_file: str) -> None:
+def zip_filenames(zip_file: str, *, sort_by_offset: bool = False) -> None:
     """List ZIP entry filenames, one per line."""
     with zipfile.ZipFile(zip_file) as zf:
-        for name in zf.namelist():
-            print(printable_filename(name))
+        if sort_by_offset:
+            infos = sorted(zf.infolist(), key=lambda i: i.header_offset)
+        else:
+            infos = zf.infolist()
+        for info in infos:
+            print(printable_filename(info.filename))
 
 
 if __name__ == "__main__":
@@ -318,11 +325,14 @@ if __name__ == "__main__":
                         help="use extended output format")
     parser.add_argument("-l", "--long", action="store_true",
                         help="use long output format")
+    parser.add_argument("--sort-by-offset", action="store_true",
+                        help="sort entries by header offset")
     parser.add_argument("zipfile", metavar="ZIPFILE")
     args = parser.parse_args()
     if args.filenames_only and not (args.extended or args.long):
-        zip_filenames(args.zipfile)
+        zip_filenames(args.zipfile, sort_by_offset=args.sort_by_offset)
     else:
-        zipinfo(args.zipfile, extended=args.extended, long=args.long)
+        zipinfo(args.zipfile, extended=args.extended, long=args.long,
+                sort_by_offset=args.sort_by_offset)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
