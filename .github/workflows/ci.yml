@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y aapt zipalign
+        sudo apt-get install -y aapt dos2unix zipalign
         python3 -m pip install --upgrade pip
         python3 -m pip install flake8 pylint mypy
     - name: Install
