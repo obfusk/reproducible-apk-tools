@@ -29,6 +29,10 @@ test-examples:
 	repro-apk fix-compresslevel test/data/level9.apk .tmp/level9-to-6.apk 6 'LICENSE.*'
 	zipalign -f 4 .tmp/level9-to-6.apk .tmp/level9-to-6-aligned.apk
 	cmp test/data/level6.apk .tmp/level9-to-6-aligned.apk
+	# fix-files
+	repro-apk fix-files test/data/unix.apk .tmp/unix2dos.apk unix2dos 'LICENSE.*'
+	zipalign -f 4 .tmp/unix2dos.apk .tmp/unix2dos-aligned.apk
+	cmp test/data/crlf.apk .tmp/unix2dos-aligned.apk
 	# fix-newlines
 	repro-apk fix-newlines test/data/unix.apk .tmp/unix-to-crlf.apk 'LICENSE.*'
 	zipalign -f 4 .tmp/unix-to-crlf.apk .tmp/unix-to-crlf-aligned.apk

@@ -13,6 +13,7 @@ from . import dump_arsc as _dump_arsc
 from . import dump_axml as _dump_axml
 from . import dump_baseline as _dump_baseline
 from . import fix_compresslevel as _fix_compresslevel
+from . import fix_files as _fix_files
 from . import fix_newlines as _fix_newlines
 from . import list_compresslevel as _list_compresslevel
 from . import rm_files as _rm_files
@@ -31,6 +32,7 @@ ERRORS = (
     _dump_axml.Error,
     _dump_baseline.Error,
     _fix_compresslevel.Error,
+    _fix_files.Error,
     _fix_newlines.Error,
     _list_compresslevel.Error,
     _rm_files.Error,
@@ -121,6 +123,28 @@ def main() -> None:
                           patterns: Tuple[str, ...], verbose: bool) -> None:
         _fix_compresslevel.fix_compresslevel(input_apk, output_apk, compresslevel,
                                              *patterns, verbose=verbose)
+
+    @cli.command(help="""
+        Process ZIP entries using an external command.
+
+        Runs the command for each specified file, providing the old file
+        contents as stdin and using stdout as the new file contents.
+
+        The provided command is split on whitespace to allow passing arguments
+        (e.g. 'foo --bar'), but shell syntax is not supported.
+
+        Specify which files to process by providing at least one fnmatch-style
+        PATTERN, e.g. 'META-INF/services/*'.
+    """)
+    @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
+    @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
+    @click.argument("output_apk", type=click.Path(dir_okay=False))
+    @click.argument("command")
+    @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
+    def fix_files(input_apk: str, output_apk: str, command: str,
+                  patterns: Tuple[str, ...], verbose: bool) -> None:
+        _fix_files.fix_files(input_apk, output_apk, tuple(command.split()),
+                             *patterns, verbose=verbose)
 
     @cli.command(help="""
         Change line endings from LF to CRLF (or vice versa).

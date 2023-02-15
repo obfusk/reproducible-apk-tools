@@ -22,6 +22,7 @@
 # reproducible-apk-tools
 
 [`fix-compresslevel.py`](#fix-compresslevelpy),
+[`fix-files.py`](#fix-filespy),
 [`fix-newlines.py`](#fix-newlinespy),
 [`rm-files.py`](#rm-filespy),
 [`sort-apk.py`](#sort-apkpy),
@@ -70,6 +71,39 @@ entries not matching the pattern using the same compression level as in the
 original APK) but not everything: e.g. copying the existing local header extra
 fields which contain padding for alignment is not supported by Python's
 `ZipFile`, which is why `zipalign` is usually needed.
+
+### fix-files.py
+
+Process ZIP entries using an external command.
+
+Runs the command for each specified file, providing the old file contents as
+stdin and using stdout as the new file contents.
+
+The provided command is split on whitespace to allow passing arguments (e.g.
+`'foo --bar'`), but shell syntax is not supported.
+
+Specify which files to process by providing at least one fnmatch-style PATTERN,
+e.g. `'META-INF/services/*'`.
+
+```bash
+$ fix-files.py --help
+usage: fix-files.py [-h] [-v] INPUT_APK OUTPUT_APK COMMAND PATTERN [PATTERN ...]
+[...]
+$ apksigcopier compare signed.apk --unsigned unsigned.apk
+DOES NOT VERIFY
+[...]
+$ fix-files.py unsigned.apk fixed.apk unix2dos 'META-INF/services/*'
+processing 'META-INF/services/foo' with 'unix2dos'...
+processing 'META-INF/services/bar' with 'unix2dos'...
+$ zipalign -f 4 fixed.apk fixed-aligned.apk
+$ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
+OK
+```
+
+NB: this builds a new ZIP file, preserving most ZIP metadata (and recompressing
+using the same compression level) but not everything: e.g. copying the existing
+local header extra fields which contain padding for alignment is not supported
+by Python's `ZipFile`, which is why `zipalign` is usually needed.
 
 ### fix-newlines.py
 
@@ -547,6 +581,7 @@ $ repro-apk dump-baseline baseline.prof
 $ repro-apk dump-baseline baseline.profm
 $ repro-apk dump-baseline --apk some.apk
 $ repro-apk fix-compresslevel unsigned.apk fixed.apk 6 assets/foo/bar.js
+$ repro-apk fix-files unsigned.apk fixed.apk unix2dos 'META-INF/services/*'
 $ repro-apk fix-newlines unsigned.apk fixed.apk 'META-INF/services/*'
 $ repro-apk list-compresslevel some.apk
 $ repro-apk rm-files some.apk fixed.apk META-INF/MANIFEST.IN
@@ -566,6 +601,7 @@ $ repro-apk dump-arsc --help
 $ repro-apk dump-axml --help
 $ repro-apk dump-baseline --help
 $ repro-apk fix-compresslevel --help
+$ repro-apk fix-files --help
 $ repro-apk fix-newlines --help
 $ repro-apk list-compresslevel --help
 $ repro-apk rm-files --help
