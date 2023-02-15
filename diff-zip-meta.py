@@ -34,7 +34,7 @@ CDH_ATTRS = (
     "comment",
 )
 LFH_ATTRS = (
-    # from LHF
+    # from LFH
     "extract_version",
     "flag_bits",
     "compress_type",
@@ -66,7 +66,7 @@ class Verbosity:
 
 @dataclass(frozen=True)
 class Entry:
-    # from LHF
+    # from LFH
     extract_version: int
     flag_bits: int
     compress_type: int
@@ -256,7 +256,8 @@ def read_entry(fh: BinaryIO, info: zipfile.ZipInfo, prev: Optional[Entry],
                  t >> 11, (t >> 5) & 0x3F, (t & 0x1F) * 2)
     filename = fh.read(n).decode()
     extra = fh.read(m)
-    fh.seek(compress_size, os.SEEK_CUR)
+    # NB: compress_size in the LFH is zero if there's a data descriptor
+    fh.seek(info.compress_size, os.SEEK_CUR)
     if info.flag_bits & 0x08:
         data_descriptor = fh.read(12)
         if data_descriptor[:4] == b"\x50\x4b\x07\x08":
