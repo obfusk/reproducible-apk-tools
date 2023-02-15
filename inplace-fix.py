@@ -34,21 +34,14 @@ def inplace_fix(command: str, input_file: str, *args: str,
                 zipalign: bool = False) -> None:
     if command not in COMMANDS:
         raise Error(f"Unknown command {command}")
-    script_dir = os.path.dirname(__file__)
-    for cmd in (command, command.replace("-", "_")):
-        script = os.path.join(script_dir, cmd + ".py")
-        if os.path.exists(script):
-            break
-    else:
-        raise Error(f"Script for {command} not found")
+    exe, script = _script_cmd(command)
     ext = os.path.splitext(input_file)[1]
-    exe = sys.executable or "python3"
     with tempfile.TemporaryDirectory() as tdir:
         fixed = os.path.join(tdir, "fixed" + ext)
         run_command(exe, script, input_file, fixed, *args, trim=2)
         if zipalign:
             aligned = os.path.join(tdir, "aligned" + ext)
-            run_command(*zipalign_cmd(), fixed, aligned)
+            run_command(*zipalign_cmd(), fixed, aligned, trim=2)
             print(f"[MOVE] {aligned} to {input_file}")
             shutil.move(aligned, input_file)
         else:
@@ -65,11 +58,9 @@ def zipalign_cmd() -> Tuple[str, ...]:
     >>> os.environ["PATH"] = ""
     >>> for k in SDK_ENV:
     ...     os.environ[k] = ""
-    >>> try:
-    ...     zipalign_cmd()
-    ... except Error as e:
-    ...     print(e)
-    zipalign command not found
+    >>> cmd = zipalign_cmd()
+    >>> [x.split("/")[-1] for x in cmd]
+    ['python3', 'zipalign.py', '4']
     >>> os.environ["ANDROID_HOME"] = "test/fake-sdk"
     >>> zipalign_cmd()
     [SKIP BROKEN] 31.0.0
@@ -95,8 +86,20 @@ def zipalign_cmd() -> Tuple[str, ...]:
                             if shutil.which(c):
                                 print(f"[FOUND] {c}")
                                 return (c, *args)
-        raise Error(f"{cmd} command not found")
+        return (*_script_cmd(cmd), *args)
     return (cmd, *args)
+
+
+def _script_cmd(command: str) -> Tuple[str, str]:
+    script_dir = os.path.dirname(__file__)
+    for cmd in (command, command.replace("-", "_")):
+        script = os.path.join(script_dir, cmd + ".py")
+        if os.path.exists(script):
+            break
+    else:
+        raise Error(f"Script for {command} not found")
+    exe = sys.executable or "python3"
+    return exe, script
 
 
 def run_command(*args: str, trim: int = 1) -> None:
