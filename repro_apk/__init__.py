@@ -19,6 +19,7 @@ from . import list_compresslevel as _list_compresslevel
 from . import rm_files as _rm_files
 from . import sort_apk as _sort_apk
 from . import sort_baseline as _sort_baseline
+from . import zipalign as _zipalign
 from . import zipinfo as _zipinfo
 
 import click
@@ -38,6 +39,7 @@ ERRORS = (
     _rm_files.Error,
     _sort_apk.Error,
     _sort_baseline.Error,
+    _zipalign.Error,
     _zipinfo.Error,
     zipfile.BadZipFile,
 )
@@ -214,6 +216,34 @@ def main() -> None:
             _sort_baseline.sort_baseline_apk(input_prof_or_apk, output_prof_or_apk)
         else:
             _sort_baseline.sort_baseline(input_prof_or_apk, output_prof_or_apk)
+
+    @cli.command(help="""
+        Align uncompressed ZIP/APK entries to 4-byte boundaries (and .so shared
+        object files to 4096-byte boundaries with -p/--page-align).
+    """)
+    @click.option("-p", "--page-align", is_flag=True,
+                  help="Use 4096-byte memory page alignment for .so files.")
+    @click.option("--pad-like-apksigner", is_flag=True,
+                  help="Use 0xd935 Android ZIP Alignment Extra Field instead of zero padding.")
+    @click.option("--copy-extra", is_flag=True,
+                  help="Copy extra bytes between ZIP entries.")
+    @click.option("--no-update-lfh", is_flag=True,
+                  help="Don't update the LFH using the data descriptor.")
+    @click.argument("align", nargs=-1, metavar="[ALIGN]")
+    @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
+    @click.argument("output_apk", type=click.Path(dir_okay=False))
+    @click.pass_context
+    def zipalign(ctx: click.Context, align: Tuple[str, ...], input_apk: str,
+                 output_apk: str, page_align: bool, pad_like_apksigner: bool,
+                 copy_extra: bool, no_update_lfh: bool) -> None:
+        if len(align) > 1:
+            s = "s" if len(align) > 2 else ""
+            ctx.fail(f"Got unexpected extra argument{s} ({' '.join(align[1:])})")
+        if align not in ((), ("4",)):
+            raise click.exceptions.BadParameter("ALIGN must be 4.", ctx)
+        _zipalign.zipalign(input_apk, output_apk, page_align=page_align,
+                           pad_like_apksigner=pad_like_apksigner,
+                           copy_extra=copy_extra, update_lfh=not no_update_lfh)
 
     @cli.command(help="""
         List ZIP entries (like zipinfo).

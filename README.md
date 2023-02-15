@@ -32,6 +32,7 @@
 [`dump-axml.py`](#dump-axmlpy),
 [`dump-baseline.py`](#dump-baselinepy),
 [`list-compresslevel.py`](#list-compresslevelpy),
+[`zipalign.py`](#zipalignpy),
 [`zipinfo.py`](#zipinfopy).
 
 ## scripts to make android apks reproducible
@@ -402,6 +403,33 @@ is thus calculated by recompressing the data with different compression levels
 and checking the CRC32 of the result against the CRC32 of the original
 compressed data.
 
+### zipalign.py
+
+Align uncompressed ZIP/APK entries to 4-byte boundaries (and `.so` shared object
+files to 4096-byte boundaries with `-p`/`--page-align`).
+
+This implementation aims for compatibility with Android's `zipalign`, with the
+exception of there not being a `-f` option to enable overwriting an existing
+output file (it will always be overwritten), and the `ALIGN` parameter -- which
+must always be 4 anyway -- being optional; not does it support the `-c`, `-v`,
+or `-z` options.
+
+By default, the same plain zero padding as the original `zipalign` is used, but
+with the `--pad-like-apksigner` option it uses the same alignment padding as
+`apksigner` (a `0xd935` "Android ZIP Alignment Extra Field" which stores the
+alignment itself plus zero padding and is thus always at least 6 bytes).
+
+```bash
+$ zipalign.py --help
+usage: zipalign.py [-h] [-p] [--pad-like-apksigner] [--copy-extra] [--no-update-lfh]
+                   [ALIGN] INPUT_APK OUTPUT_APK
+[...]
+$ zipalign -f 4 fixed.apk fixed-aligned.apk
+$ zipalign.py fixed.apk fixed-aligned-py.apk
+$ cmp fixed-aligned.apk fixed-aligned-py.apk && echo OK
+OK
+```
+
 ### zipinfo.py
 
 List ZIP entries (like `zipinfo`).
@@ -588,6 +616,7 @@ $ repro-apk rm-files some.apk fixed.apk META-INF/MANIFEST.IN
 $ repro-apk sort-apk unsigned.apk sorted.apk
 $ repro-apk sort-baseline baseline.profm baseline-sorted.profm
 $ repro-apk sort-baseline --apk unsigned.apk sorted-baseline.apk
+$ repro-apk zipalign fixed.apk fixed-aligned-py.apk
 $ repro-apk zipinfo -e some.apk
 $ repro-apk zipinfo -l some.apk
 ```
@@ -607,6 +636,7 @@ $ repro-apk list-compresslevel --help
 $ repro-apk rm-files --help
 $ repro-apk sort-apk --help
 $ repro-apk sort-baseline --help
+$ repro-apk zipalign --help
 $ repro-apk zipinfo --help
 ```
 

@@ -128,6 +128,24 @@ test-examples:
 	  <( repro-apk list-compresslevel level9.apk )
 	cd test/data && diff -Naur <( echo "filename='LICENSE.GPLv3' compresslevel=6" ) \
 	  <( repro-apk list-compresslevel unix.apk LICENSE.GPLv3 )
+	# zipalign
+	repro-apk zipalign .tmp/level6-to-9.apk .tmp/level6-to-9-aligned-py.apk
+	cmp .tmp/level6-to-9-aligned.apk .tmp/level6-to-9-aligned-py.apk
+	repro-apk zipalign .tmp/level9-to-6.apk .tmp/level9-to-6-aligned-py.apk
+	cmp .tmp/level9-to-6-aligned.apk .tmp/level9-to-6-aligned-py.apk
+	repro-apk zipalign .tmp/unix2dos.apk .tmp/unix2dos-aligned-py.apk
+	cmp .tmp/unix2dos-aligned.apk .tmp/unix2dos-aligned-py.apk
+	repro-apk zipalign .tmp/unix-to-crlf.apk .tmp/unix-to-crlf-aligned-py.apk
+	cmp .tmp/unix-to-crlf-aligned.apk .tmp/unix-to-crlf-aligned-py.apk
+	repro-apk zipalign .tmp/crlf-to-unix.apk .tmp/crlf-to-unix-aligned-py.apk
+	cmp .tmp/crlf-to-unix-aligned.apk .tmp/crlf-to-unix-aligned-py.apk
+	repro-apk zipalign .tmp/baseline1.profm-sorted.apk .tmp/baseline1.profm-sorted-aligned-py.apk
+	cmp .tmp/baseline1.profm-sorted-aligned.apk .tmp/baseline1.profm-sorted-aligned-py.apk
+	set -e; for apk in test/data/*.apk; do echo "$$apk"; \
+	  zipalign -f 4 "$$apk" .tmp/aligned.apk; \
+	  repro-apk zipalign "$$apk" .tmp/aligned-py.apk; \
+	  cmp .tmp/aligned.apk .tmp/aligned-py.apk; \
+	done
 	# zipinfo
 	set -e; cd test/data && for apk in *.apk; do echo "$$apk"; \
 	  diff -Naur <( zipinfo    "$$apk" ) <( repro-apk zipinfo    "$$apk" ); \
