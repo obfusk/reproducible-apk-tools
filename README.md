@@ -596,6 +596,30 @@ android {
 
 </details>
 
+## fnmatch-style patterns
+
+Some of these scripts process/list files matching any of the provided patterns
+using Python's `fnmatch.fnmatch()`, Unix shell style:
+
+```
+*       matches everything
+?       matches any single character
+[seq]   matches any character in seq
+[!seq]  matches any char not in seq
+```
+
+With one addition: an optional prefix `!` negates the pattern, invalidating a
+successful match by any preceding pattern; use a backslash (`\`) in front of the
+first `!` for patterns that begin with a literal `!`.
+
+NB: to match e.g. everything except for `*.xml`, you need to provide two
+patterns: the first (`'*'`) to match everything, the second (`'!*.xml'`) to
+negate matching `*.xml`.
+
+NB: `*` matches anything, including `/` and the pattern matches the complete
+filename path, including leading directories, so e.g. `foo/bar.baz` is matched
+by both `*.baz` and `foo/*`.
+
 ## CLI
 
 NB: you can just use the scripts stand-alone; alternatively, you can install the

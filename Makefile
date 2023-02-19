@@ -18,7 +18,8 @@ test-cli:
 
 doctest:
 	# NB: uses test/ & requires zipalign on $PATH
-	TZ=UTC $(PYTHON) -m doctest inplace-fix.py zipinfo.py
+	TZ=UTC $(PYTHON) -m doctest fix-compresslevel.py fix-files.py fix-newlines.py \
+	  inplace-fix.py list-compresslevel.py rm-files.py zipinfo.py
 
 test-examples:
 	mkdir -p .tmp

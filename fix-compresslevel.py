@@ -56,7 +56,7 @@ def fix_compresslevel(input_apk: str, output_apk: str, compresslevel: int,
                 for info in zf_in.infolist():
                     attrs = {attr: getattr(info, attr) for attr in ATTRS}
                     zinfo = ReproducibleZipInfo(info, **attrs)
-                    tofix = any(fnmatch(info.filename, p) for p in patterns)
+                    tofix = fnmatches_with_negation(info.filename, *patterns)
                     level = None
                     if info.compress_type == 8:
                         fh_raw.seek(info.header_offset)
@@ -101,6 +101,37 @@ def fix_compresslevel(input_apk: str, output_apk: str, compresslevel: int,
                                 if not data:
                                     break
                                 fh_out.write(data)
+
+
+def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
+    r"""
+    Filename matching with shell patterns and negation.
+
+    Checks whether filename matches any of the fnmatch patterns.
+
+    An optional prefix "!" negates the pattern, invalidating a successful match
+    by any preceding pattern; use a backslash ("\") in front of the first "!"
+    for patterns that begin with a literal "!".
+
+    >>> fnmatches_with_negation("foo.xml", "*", "!*.png")
+    True
+    >>> fnmatches_with_negation("foo.png", "*", "!*.png")
+    False
+    >>> fnmatches_with_negation("!foo.png", r"\!*.png")
+    True
+
+    """
+    matches = False
+    for p in patterns:
+        if p.startswith("!"):
+            if fnmatch(filename, p[1:]):
+                matches = False
+        else:
+            if p.startswith(r"\!"):
+                p = p[1:]
+            if fnmatch(filename, p):
+                matches = True
+    return matches
 
 
 if __name__ == "__main__":

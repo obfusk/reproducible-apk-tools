@@ -83,7 +83,7 @@ def fix_files(input_apk: str, output_apk: str, command: Tuple[str, ...],
                                 raise Error(f"Unable to determine compresslevel for {info.filename!r}")
                     elif info.compress_type != 0:
                         raise Error(f"Unsupported compress_type {info.compress_type}")
-                    if any(fnmatch(info.filename, p) for p in patterns):
+                    if fnmatches_with_negation(info.filename, *patterns):
                         print(f"processing {info.filename!r} with {' '.join(command)!r}...")
                         with zf_in.open(info) as fh_in:
                             with zf_out.open(zinfo, "w") as fh_out:
@@ -110,6 +110,37 @@ def pipe_through_command(fh_in: IO[bytes], fh_out: IO[bytes], *args: str) -> Non
         raise Error(f"{args[0]} command failed") from e
     except FileNotFoundError as e:
         raise Error(f"{args[0]} command not found") from e
+
+
+def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
+    r"""
+    Filename matching with shell patterns and negation.
+
+    Checks whether filename matches any of the fnmatch patterns.
+
+    An optional prefix "!" negates the pattern, invalidating a successful match
+    by any preceding pattern; use a backslash ("\") in front of the first "!"
+    for patterns that begin with a literal "!".
+
+    >>> fnmatches_with_negation("foo.xml", "*", "!*.png")
+    True
+    >>> fnmatches_with_negation("foo.png", "*", "!*.png")
+    False
+    >>> fnmatches_with_negation("!foo.png", r"\!*.png")
+    True
+
+    """
+    matches = False
+    for p in patterns:
+        if p.startswith("!"):
+            if fnmatch(filename, p[1:]):
+                matches = False
+        else:
+            if p.startswith(r"\!"):
+                p = p[1:]
+            if fnmatch(filename, p):
+                matches = True
+    return matches
 
 
 if __name__ == "__main__":

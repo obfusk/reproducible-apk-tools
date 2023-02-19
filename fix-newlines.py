@@ -82,7 +82,7 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
                                 raise Error(f"Unable to determine compresslevel for {info.filename!r}")
                     elif info.compress_type != 0:
                         raise Error(f"Unsupported compress_type {info.compress_type}")
-                    if any(fnmatch(info.filename, p) for p in patterns):
+                    if fnmatches_with_negation(info.filename, *patterns):
                         print(f"fixing {info.filename!r}...")
                         zf_out.writestr(zinfo, zf_in.read(info).decode().replace(*replace))
                     else:
@@ -95,6 +95,37 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
                                     if not data:
                                         break
                                     fh_out.write(data)
+
+
+def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
+    r"""
+    Filename matching with shell patterns and negation.
+
+    Checks whether filename matches any of the fnmatch patterns.
+
+    An optional prefix "!" negates the pattern, invalidating a successful match
+    by any preceding pattern; use a backslash ("\") in front of the first "!"
+    for patterns that begin with a literal "!".
+
+    >>> fnmatches_with_negation("foo.xml", "*", "!*.png")
+    True
+    >>> fnmatches_with_negation("foo.png", "*", "!*.png")
+    False
+    >>> fnmatches_with_negation("!foo.png", r"\!*.png")
+    True
+
+    """
+    matches = False
+    for p in patterns:
+        if p.startswith("!"):
+            if fnmatch(filename, p[1:]):
+                matches = False
+        else:
+            if p.startswith(r"\!"):
+                p = p[1:]
+            if fnmatch(filename, p):
+                matches = True
+    return matches
 
 
 if __name__ == "__main__":

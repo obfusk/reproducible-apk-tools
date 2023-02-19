@@ -20,7 +20,7 @@ def list_compresslevel(apk: str, *patterns: str) -> None:
     with open(apk, "rb") as fh_raw:
         with zipfile.ZipFile(apk) as zf:
             for info in zf.infolist():
-                if patterns and not any(fnmatch(info.filename, p) for p in patterns):
+                if patterns and not fnmatches_with_negation(info.filename, *patterns):
                     continue
                 levels = []
                 if info.compress_type == 8:
@@ -50,6 +50,37 @@ def list_compresslevel(apk: str, *patterns: str) -> None:
                     raise Error(f"Unsupported compress_type {info.compress_type}")
                 result = "|".join(map(str, levels)) if levels else None
                 print(f"filename={info.filename!r} compresslevel={result}")
+
+
+def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
+    r"""
+    Filename matching with shell patterns and negation.
+
+    Checks whether filename matches any of the fnmatch patterns.
+
+    An optional prefix "!" negates the pattern, invalidating a successful match
+    by any preceding pattern; use a backslash ("\") in front of the first "!"
+    for patterns that begin with a literal "!".
+
+    >>> fnmatches_with_negation("foo.xml", "*", "!*.png")
+    True
+    >>> fnmatches_with_negation("foo.png", "*", "!*.png")
+    False
+    >>> fnmatches_with_negation("!foo.png", r"\!*.png")
+    True
+
+    """
+    matches = False
+    for p in patterns:
+        if p.startswith("!"):
+            if fnmatch(filename, p[1:]):
+                matches = False
+        else:
+            if p.startswith(r"\!"):
+                p = p[1:]
+            if fnmatch(filename, p):
+                matches = True
+    return matches
 
 
 if __name__ == "__main__":
