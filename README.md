@@ -616,7 +616,7 @@ NB: to match e.g. everything except for `*.xml`, you need to provide two
 patterns: the first (`'*'`) to match everything, the second (`'!*.xml'`) to
 negate matching `*.xml`.
 
-NB: `*` matches anything, including `/` and the pattern matches the complete
+NB: `*` matches anything, including `/`, and the pattern matches the complete
 filename path, including leading directories, so e.g. `foo/bar.baz` is matched
 by both `*.baz` and `foo/*`.
 
