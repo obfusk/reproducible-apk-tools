@@ -114,7 +114,7 @@ def main() -> None:
         Recompress with different compression level.
 
         Specify which files to change by providing at least one fnmatch-style
-        pattern, e.g. 'assets/foo/*.bar'.
+        PATTERN, e.g. 'assets/foo/*.bar'.
     """)
     @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))

@@ -86,7 +86,7 @@ stdin and using stdout as the new file contents.
 The provided command is split on whitespace to allow passing arguments (e.g.
 `'foo --bar'`), but shell syntax is not supported.
 
-Specify which files to process by providing at least one fnmatch-style PATTERN,
+Specify which files to process by providing at least one fnmatch-style pattern,
 e.g. `'META-INF/services/*'`.
 
 ```bash
@@ -144,7 +144,7 @@ by Python's `ZipFile`, which is why `zipalign` is usually needed.
 
 Remove entries from ZIP file.
 
-Specify which files to remove by providing at least one fnmatch-style PATTERN,
+Specify which files to remove by providing at least one fnmatch-style pattern,
 e.g. `'META-INF/MANIFEST.MF'`.
 
 ```bash
