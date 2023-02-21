@@ -535,7 +535,7 @@ like this to your `build.gradle`:
 project.afterEvaluate {
     tasks.compileReleaseArtProfile.doLast {
         outputs.files.each { file ->
-            if (file.toString().endsWith(".profm")) {
+            if (file.name.endsWith(".profm")) {
                 exec {
                     commandLine(
                         "../reproducible-apk-tools/inplace-fix.py",
