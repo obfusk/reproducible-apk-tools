@@ -1,0 +1,264 @@
+[
+  {
+    "_type": "XMLChunk",
+    "children": [
+      {
+        "_type": "StringPoolChunk",
+        "chunk_size": 620,
+        "flags": 0,
+        "header_size": 28,
+        "level": 1,
+        "offset": 8,
+        "strings": [
+          "minSdkVersion",
+          "versionCode",
+          "versionName",
+          "targetSdkVersion",
+          "compileSdkVersion",
+          "compileSdkVersionCodename",
+          "1",
+          "10.0.0",
+          "android",
+          "com.example",
+          "http://schemas.android.com/apk/res/android",
+          "manifest",
+          "package",
+          "platformBuildVersionCode",
+          "platformBuildVersionName",
+          "uses-sdk"
+        ],
+        "styles": []
+      },
+      {
+        "_type": "XMLResourceMapChunk",
+        "chunk_size": 32,
+        "header_size": 8,
+        "level": 1,
+        "offset": 628,
+        "resources": [
+          16843276,
+          16843291,
+          16843292,
+          16843376,
+          16844146,
+          16844147
+        ]
+      },
+      {
+        "_type": "XMLNSStartChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 1,
+        "lineno": 1,
+        "offset": 660,
+        "prefix": "android",
+        "uri": "http://schemas.android.com/apk/res/android"
+      },
+      {
+        "_type": "XMLElemStartChunk",
+        "attributes": [
+          {
+            "_type": "XMLAttr",
+            "name": "versionCode",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "versionName",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "1",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 6,
+              "size": 8,
+              "type": {
+                "name": "STRING",
+                "value": 3
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "compileSdkVersion",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 29,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "compileSdkVersionCodename",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "10.0.0",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 7,
+              "size": 8,
+              "type": {
+                "name": "STRING",
+                "value": 3
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "package",
+            "namespace": "",
+            "raw_value": "com.example",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 9,
+              "size": 8,
+              "type": {
+                "name": "STRING",
+                "value": 3
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "platformBuildVersionCode",
+            "namespace": "",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 29,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "platformBuildVersionName",
+            "namespace": "",
+            "raw_value": "10.0.0",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 7,
+              "size": 8,
+              "type": {
+                "name": "STRING",
+                "value": 3
+              }
+            }
+          }
+        ],
+        "chunk_size": 176,
+        "class_idx": null,
+        "comment": "",
+        "header_size": 16,
+        "id_idx": null,
+        "level": 2,
+        "lineno": 1,
+        "name": "manifest",
+        "namespace": "",
+        "offset": 684,
+        "style_idx": null
+      },
+      {
+        "_type": "XMLElemStartChunk",
+        "attributes": [
+          {
+            "_type": "XMLAttr",
+            "name": "minSdkVersion",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 21,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "targetSdkVersion",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 29,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          }
+        ],
+        "chunk_size": 76,
+        "class_idx": null,
+        "comment": "",
+        "header_size": 16,
+        "id_idx": null,
+        "level": 3,
+        "lineno": 2,
+        "name": "uses-sdk",
+        "namespace": "",
+        "offset": 860,
+        "style_idx": null
+      },
+      {
+        "_type": "XMLElemEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 3,
+        "lineno": 2,
+        "name": "uses-sdk",
+        "namespace": "",
+        "offset": 936
+      },
+      {
+        "_type": "XMLElemEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 2,
+        "lineno": 1,
+        "name": "manifest",
+        "namespace": "",
+        "offset": 960
+      },
+      {
+        "_type": "XMLNSEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 1,
+        "lineno": 1,
+        "offset": 984,
+        "prefix": "android",
+        "uri": "http://schemas.android.com/apk/res/android"
+      }
+    ],
+    "chunk_size": 1008,
+    "header_size": 8,
+    "level": 0,
+    "offset": 0
+  }
+]
