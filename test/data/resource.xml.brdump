@@ -1,0 +1,50 @@
+XML
+  STRING POOL [flags=256, #strings=27, #styles=0]
+  XML RESOURCE MAP [#resources=22]
+  XML NS START [lineno=26, prefix='android', uri='http://schemas.android.com/apk/res/android']
+    XML ELEM START [lineno=26, name='LinearLayout']
+      ATTR: http://schemas.android.com/apk/res/android:gravity=0x00000010
+      ATTR: http://schemas.android.com/apk/res/android:paddingRight=?0x01010063
+      ATTR: http://schemas.android.com/apk/res/android:layout_width=-1
+      ATTR: http://schemas.android.com/apk/res/android:layout_height=-2
+      ATTR: http://schemas.android.com/apk/res/android:minHeight=?0x0101004d
+      ATTR: http://schemas.android.com/apk/res/android:paddingEnd=?0x01010063
+      XML ELEM START [lineno=37, name='RelativeLayout']
+        ATTR: http://schemas.android.com/apk/res/android:layout_width=0.000000dp
+        ATTR: http://schemas.android.com/apk/res/android:layout_height=-2
+        ATTR: http://schemas.android.com/apk/res/android:layout_marginLeft=16.000000sp
+        ATTR: http://schemas.android.com/apk/res/android:layout_marginTop=6.000000sp
+        ATTR: http://schemas.android.com/apk/res/android:layout_marginRight=6.000000sp
+        ATTR: http://schemas.android.com/apk/res/android:layout_marginBottom=6.000000sp
+        ATTR: http://schemas.android.com/apk/res/android:layout_weight=1
+        ATTR: http://schemas.android.com/apk/res/android:layout_marginStart=16.000000sp
+        ATTR: http://schemas.android.com/apk/res/android:layout_marginEnd=6.000000sp
+        XML ELEM START [lineno=44, name='TextView']
+          ATTR: http://schemas.android.com/apk/res/android:textAppearance=?0x01010040
+          ATTR: http://schemas.android.com/apk/res/android:textColor=?0x01010038
+          ATTR: http://schemas.android.com/apk/res/android:id=@0x01020016
+          ATTR: http://schemas.android.com/apk/res/android:layout_width=-2
+          ATTR: http://schemas.android.com/apk/res/android:layout_height=-2
+          ATTR: http://schemas.android.com/apk/res/android:singleLine=true
+        XML ELEM END [lineno=44, name='TextView']
+        XML ELEM START [lineno=54, name='TextView']
+          ATTR: http://schemas.android.com/apk/res/android:textAppearance=?0x01010042
+          ATTR: http://schemas.android.com/apk/res/android:textColor=?0x01010038
+          ATTR: http://schemas.android.com/apk/res/android:id=@0x01020010
+          ATTR: http://schemas.android.com/apk/res/android:layout_width=-2
+          ATTR: http://schemas.android.com/apk/res/android:layout_height=-2
+          ATTR: http://schemas.android.com/apk/res/android:maxLines=2
+          ATTR: http://schemas.android.com/apk/res/android:layout_below=@0x01020016
+          ATTR: http://schemas.android.com/apk/res/android:layout_alignLeft=@0x01020016
+          ATTR: http://schemas.android.com/apk/res/android:layout_alignStart=@0x01020016
+        XML ELEM END [lineno=54, name='TextView']
+      XML ELEM END [lineno=37, name='RelativeLayout']
+      XML ELEM START [lineno=63, name='LinearLayout']
+        ATTR: http://schemas.android.com/apk/res/android:gravity=0x00000010
+        ATTR: http://schemas.android.com/apk/res/android:orientation=1
+        ATTR: http://schemas.android.com/apk/res/android:id=@0x01020018
+        ATTR: http://schemas.android.com/apk/res/android:layout_width=-2
+        ATTR: http://schemas.android.com/apk/res/android:layout_height=-1
+      XML ELEM END [lineno=63, name='LinearLayout']
+    XML ELEM END [lineno=26, name='LinearLayout']
+  XML NS END [lineno=26, prefix='android', uri='http://schemas.android.com/apk/res/android']
