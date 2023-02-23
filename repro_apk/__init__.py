@@ -8,6 +8,7 @@ import zipfile
 
 from typing import Optional, Tuple
 
+from . import binres as _binres
 from . import diff_zip_meta as _diff_zip_meta
 from . import dump_arsc as _dump_arsc
 from . import dump_axml as _dump_axml
@@ -28,6 +29,7 @@ __version__ = "0.2.3"
 NAME = "repro-apk"
 
 ERRORS = (
+    _binres.Error,
     _diff_zip_meta.Error,
     _dump_arsc.Error,
     _dump_axml.Error,
@@ -52,6 +54,40 @@ def main() -> None:
     @click.version_option(__version__)
     def cli() -> None:
         pass
+
+    @cli.group(help="""
+        Parse/dump android binary XML (AXML) or resources (ARSC).
+    """)
+    def binres() -> None:
+        pass
+
+    @binres.command(help="""
+        Parse & dump ARSC or AXML.
+    """, name="dump")
+    @click.option("--apk", metavar="APK", type=click.Path(exists=True, dir_okay=False),
+                  help="APK that contains the AXML/ARSC file(s).")
+    @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.option("--xml", is_flag=True, help="Output XML (AXML only).")
+    @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
+    @click.argument("files_or_patterns", metavar="FILE_OR_PATTERN...", nargs=-1, required=True)
+    @click.pass_context
+    def binres_dump(ctx: click.Context, files_or_patterns: Tuple[str, ...],
+                    apk: str, json: bool, xml: bool, verbose: bool) -> None:
+        if json and xml:
+            raise click.exceptions.BadParameter("Conflicting options: --json and --xml.", ctx)
+        if apk:
+            _binres.dump_apk(apk, *files_or_patterns, json=json, verbose=verbose, xml=xml)
+        else:
+            _binres.dump(*files_or_patterns, json=json, verbose=verbose, xml=xml)
+
+    @binres.command(help="""
+        Quickly get appid & version code/name from APK(s).
+    """, name="fastid")
+    @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.argument("apks", metavar="APK...", nargs=-1, required=True,
+                    type=click.Path(exists=True, dir_okay=False))
+    def binres_fastid(apks: Tuple[str, ...], json: bool) -> None:
+        _binres.fastid(*apks, json=json)
 
     @cli.command(help="""
         Diff ZIP file metadata.
