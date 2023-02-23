@@ -18,8 +18,8 @@ test-cli:
 
 doctest:
 	# NB: uses test/ & requires zipalign on $PATH
-	TZ=UTC $(PYTHON) -m doctest fix-compresslevel.py fix-files.py fix-newlines.py \
-	  inplace-fix.py list-compresslevel.py rm-files.py zipinfo.py
+	TZ=UTC $(PYTHON) -m doctest binres.py fix-compresslevel.py fix-files.py \
+	  fix-newlines.py inplace-fix.py list-compresslevel.py rm-files.py zipinfo.py
 
 test-examples:
 	mkdir -p .tmp
@@ -75,6 +75,15 @@ test-examples:
 	cp test/data/baseline1.profm.apk .tmp/baseline1.profm-inplace.apk
 	repro-apk-inplace-fix --zipalign sort-baseline --apk .tmp/baseline1.profm-inplace.apk
 	cmp test/data/baseline2.profm.apk .tmp/baseline1.profm-inplace.apk
+	# binres dump
+	cd test/data && diff -Naur AndroidManifest.xml.json \
+	  <( repro-apk binres dump --json AndroidManifest.xml )
+	cd test/data && diff -Naur resource.xml.brdump \
+	  <( repro-apk binres dump resource.xml )
+	# TODO: arsc
+	# binres fastid
+	cd test/data && diff -Naur <( echo "android.appsecurity.cts.tinyapp 10 1.0" ) \
+	  <( repro-apk binres fastid unix.apk )
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( repro-apk diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )
