@@ -84,7 +84,7 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
                         raise Error(f"Unsupported compress_type {info.compress_type}")
                     if fnmatches_with_negation(info.filename, *patterns):
                         print(f"fixing {info.filename!r}...")
-                        zf_out.writestr(zinfo, zf_in.read(info).decode().replace(*replace))
+                        zf_out.writestr(zinfo, replace_newlines(zf_in.read(info).decode(), *replace))
                     else:
                         if verbose:
                             print(f"copying {info.filename!r}...")
@@ -95,6 +95,37 @@ def fix_newlines(input_apk: str, output_apk: str, *patterns: str,
                                     if not data:
                                         break
                                     fh_out.write(data)
+
+
+def replace_newlines(s: str, old: str, new: str) -> str:
+    r"""
+    Replace old line end with new (unless already present).
+
+    >>> lf, crlf = "\n", "\r\n"
+    >>> replace_newlines("foo", lf, crlf)
+    'foo'
+    >>> replace_newlines("foo\nbar", lf, crlf)
+    'foo\r\nbar'
+    >>> replace_newlines("foo\nbar\n", lf, crlf)
+    'foo\r\nbar\r\n'
+    >>> replace_newlines("foo\nbar\r\n", lf, crlf)
+    'foo\r\nbar\r\n'
+    >>> replace_newlines("foo", crlf, lf)
+    'foo'
+    >>> replace_newlines("foo\nbar", crlf, lf)
+    'foo\nbar'
+    >>> replace_newlines("foo\r\nbar", crlf, lf)
+    'foo\nbar'
+    >>> replace_newlines("foo\r\nbar\r\n", crlf, lf)
+    'foo\nbar\n'
+
+    """
+    result, overlap, n = [], old.endswith(new), len(old)
+    for line in s.splitlines(True):
+        if line.endswith(old) and (overlap or not line.endswith(new)):
+            line = line[:-n] + new
+        result.append(line)
+    return "".join(result)
 
 
 def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
