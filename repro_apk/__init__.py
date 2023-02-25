@@ -88,9 +88,9 @@ def main() -> None:
     @cli.command(help="""
         Dump Android binary XML (extracted or inside an APK) using aapt2.
     """)
-    @click.option("--apk", metavar="APK",
+    @click.option("--apk", metavar="APK", type=click.Path(exists=True, dir_okay=False),
                   help="APK that contains the (non-extracted) AXML file.")
-    @click.argument("axml", type=click.Path(exists=False, dir_okay=False))
+    @click.argument("axml", type=click.Path(dir_okay=False))
     def dump_axml(axml: str, apk: str) -> None:
         if apk:
             _dump_axml.dump_axml_apk(apk, axml)
