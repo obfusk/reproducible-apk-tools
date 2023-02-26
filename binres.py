@@ -37,13 +37,13 @@ RESOURCE TABLE
     STRING POOL [flags=256, #strings=1, #styles=0]
     TYPE SPEC [id=0x1, #resources=0]
     TYPE SPEC [id=0x2, #resources=1]
-    TYPE [id=0x2, configuration=None]
+    TYPE [id=0x2, configuration=BinResCfg()]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: 'Tiny App for CTS'
-    TYPE [id=0x2, configuration=None]
+    TYPE [id=0x2, configuration=BinResCfg()]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
-    TYPE [id=0x2, configuration=None]
+    TYPE [id=0x2, configuration=BinResCfg()]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'
 
@@ -95,11 +95,11 @@ import zipfile
 import zlib
 
 from collections import namedtuple
-from dataclasses import dataclass, field, InitVar
+from dataclasses import dataclass, field
 from enum import Enum
 from fnmatch import fnmatch
 from functools import cached_property
-from typing import (Any, BinaryIO, Callable, ClassVar, Dict, Iterator,
+from typing import (cast, Any, BinaryIO, Callable, ClassVar, Dict, Iterator,
                     List, Optional, TextIO, Tuple, Union, TYPE_CHECKING)
 
 # https://android.googlesource.com/platform/tools/base
@@ -121,106 +121,160 @@ UTF8, UTF16 = ("utf8", "utf_16_le")
 ZipData = namedtuple("ZipData", ("cd_offset", "eocd_offset", "cd_and_eocd"))
 
 
-class Error(RuntimeError):
-    pass
+class Error(Exception):
+    """Base class for errors."""
+
+
+class ParseError(Error):
+    """Parse failure."""
+
+
+class ParentError(Error):
+    """Missing/deallocated parent."""
+
+
+class ChildError(Error):
+    """Missing child."""
+
+
+class ZipError(Error):
+    """Something wrong with ZIP file."""
 
 
 @dataclass(frozen=True)
 class Chunk:
+    """Base class for chunks."""
     header_size: int
     chunk_size: int
     parent: Optional[ChunkRef] = field(repr=False, compare=False)
     level: int = field(compare=False)
     offset: int = field(compare=False)
 
-    header: InitVar[bytes]
-    payload: InitVar[bytes]
-
     TYPE_ID: ClassVar[Optional[int]] = None
 
-    # FIXME: raise error when header/payload not empty?!
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        pass
+    @classmethod
+    def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
+        header_size = len(header) + 8
+        chunk_size = len(payload) + header_size
+        return dict(header_size=header_size, chunk_size=chunk_size, **kwargs)
 
     @property
     def type_id(self) -> int:
         if self.__class__.TYPE_ID is not None:
             return self.__class__.TYPE_ID
-        raise NotImplementedError("no .TYPE_ID or custom .type_id")
+        raise NotImplementedError("No .TYPE_ID or custom .type_id")
 
 
 @dataclass(frozen=True)
 class ParentChunk(Chunk):
-    children: Tuple[Tuple[int, Chunk], ...] = field(init=False, repr=False, compare=False)
+    """Base class for chunks with children."""
+    children: Tuple[Tuple[int, Chunk], ...] = field(repr=False, compare=False)
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        children = tuple(read_chunks(payload, weakref.ref(self), self.level + 1,
-                                     self.header_size))
-        _setattrs(self, children=children)
+    @classmethod
+    def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
+        return Chunk._parse(header=header, payload=payload, children=None, **kwargs)
+
+    def _parse_children(self, payload: bytes) -> None:
+        c = tuple(read_chunks(payload, weakref.ref(self), self.level + 1, self.header_size))
+        object.__setattr__(self, "children", c)
 
 
-# FIXME
+# FIXME: unused
 @dataclass(frozen=True)
 class NullChunk(Chunk):
+    """Null chunk."""
     TYPE_ID: ClassVar[int] = 0x0000
 
 
 @dataclass(frozen=True)
 class StringPoolChunk(Chunk):
-    flags: int = field(init=False)
-    strings: Tuple[str, ...] = field(init=False)
-    styles: Tuple[StringPoolStyle, ...] = field(init=False)
+    """String pool."""
+    flags: int
+    strings: Tuple[str, ...]
+    styles: Tuple[Style, ...]
 
     TYPE_ID: ClassVar[int] = 0x0001
 
     FLAG_SORTED: ClassVar[int] = 0x1
     FLAG_UTF8: ClassVar[int] = 0x100
 
-    # FIXME: check payload size?
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
+    @dataclass(frozen=True)
+    class Style:
+        """String pool style."""
+        spans: Tuple[StringPoolChunk.Span, ...]
+
+        SPAN_END: ClassVar[int] = 0xFFFFFFFF
+
+    # FIXME: show how? use properly!
+    @dataclass(frozen=True)
+    class Span:
+        """String pool style span."""
+        name_idx: int
+        start: int
+        stop: int
+
+    # FIXME: check payload size
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> StringPoolChunk:
+        """Parse StringPoolChunk."""
+        d = Chunk._parse(header=header, payload=payload, **kwargs)
         n_strs, n_styles, flags, strs_start, styles_start = struct.unpack("<IIIII", header)
-        codec = UTF8 if flags & self.FLAG_UTF8 else UTF16
-        strings = tuple(_read_strings(payload, strs_start - self.header_size, n_strs, codec))
-        styles = tuple(_read_styles(payload, styles_start - self.header_size, n_styles, n_strs))
-        _setattrs(self, flags=flags, strings=strings, styles=styles)
+        codec = UTF8 if flags & cls.FLAG_UTF8 else UTF16
+        strings = tuple(_read_strings(payload, strs_start - d["header_size"], n_strs, codec))
+        styles = tuple(_read_styles(payload, styles_start - d["header_size"], n_styles, n_strs))
+        return cls(**d, flags=flags, strings=strings, styles=styles)
 
     @property
     def is_sorted(self) -> bool:
+        """Whether the sorted flag is set."""
         return bool(self.flags & self.FLAG_SORTED)
 
     @property
     def is_utf8(self) -> bool:
+        """Whether the UTF-8 flag is set."""
         return bool(self.flags & self.FLAG_UTF8)
 
     def string(self, idx: Optional[int]) -> str:
+        """Get string by index."""
         return "" if idx is None else self.strings[idx]
 
-    def style(self, idx: int) -> StringPoolStyle:
+    def style(self, idx: int) -> Style:
+        """Get style by index."""
         return self.styles[idx]
 
 
 @dataclass(frozen=True)
 class ResourceTableChunk(ParentChunk):
-    string_pool: StringPoolChunk = field(init=False, repr=False, compare=False)
-    packages: Tuple[Tuple[str, PackageChunk]] = field(init=False, repr=False, compare=False)
+    """Resource table; contains string pool and packages."""
+    string_pool: StringPoolChunk = field(repr=False, compare=False)
+    packages: Tuple[Tuple[str, PackageChunk], ...] = field(repr=False, compare=False)
 
     TYPE_ID: ClassVar[int] = 0x0002
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        super().__post_init__(header, payload)
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> ResourceTableChunk:
+        """Parse ResourceTableChunk."""
+        d = ParentChunk._parse(header=header, payload=payload, **kwargs)
         _size, = struct.unpack("<I", header)
+        chunk = cls(**d, string_pool=cast(StringPoolChunk, None), packages=())
+        chunk._parse_children(payload)
         string_pool, packages = None, []
-        for _, c in self.children:
+        for _, c in chunk.children:
             if isinstance(c, PackageChunk):
                 packages.append((c.package_name, c))
             elif isinstance(c, StringPoolChunk):
                 if string_pool is not None:
-                    raise Error("Multiple StringPoolChunks")
+                    raise ParseError("Multiple StringPoolChunk children")
                 string_pool = c
-        _setattrs(self, string_pool=string_pool, packages=tuple(packages))
+        if string_pool is None:
+            raise ParseError("No StringPoolChunk child")
+        object.__setattr__(chunk, "string_pool", string_pool)
+        object.__setattr__(chunk, "packages", tuple(packages))
+        return chunk
 
     @property
     def packages_as_dict(self) -> Dict[str, PackageChunk]:
+        """Packages as dict."""
         return dict(self.packages)
 
     @cached_property
@@ -228,208 +282,281 @@ class ResourceTableChunk(ParentChunk):
         return self.packages_as_dict
 
     def package(self, name: str) -> PackageChunk:
+        """Get package by name."""
         return self._packages_dict[name]
 
 
 @dataclass(frozen=True)
 class XMLChunk(ParentChunk):
+    """XML chunk; contains string pool and XML nodes."""
     TYPE_ID: ClassVar[int] = 0x0003
 
-    def string(self, idx: Optional[int]) -> str:
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> XMLChunk:
+        """Parse XMLChunk."""
+        if header:
+            raise ParseError("Expected empty header")
+        chunk = cls(**ParentChunk._parse(header=header, payload=payload, **kwargs))
+        chunk._parse_children(payload)
+        return chunk
+
+    @cached_property
+    def string_pool(self) -> StringPoolChunk:
+        """Get string pool child."""
         for _, c in self.children:
             if isinstance(c, StringPoolChunk):
-                return c.string(idx)
-        raise Error("No StringPoolChunk child")
+                return c
+        raise ChildError("No StringPoolChunk child")
+
+    def string(self, idx: Optional[int]) -> str:
+        """Get string from string pool by index."""
+        return self.string_pool.string(idx)
 
 
 @dataclass(frozen=True)
 class XMLNodeChunk(Chunk):
-    lineno: int = field(init=False)
-    comment_idx: Optional[int] = field(init=False)
+    """Base class for XML node chunks."""
+    lineno: int
+    comment_idx: Optional[int]
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
+    @classmethod
+    def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
+        d = Chunk._parse(header=header, payload=payload, **kwargs)
         lineno, comment_idx = struct.unpack("<II", header)
-        _setattrs(self, lineno=lineno, comment_idx=_noref(comment_idx))
+        return dict(**d, lineno=lineno, comment_idx=_noref(comment_idx))
 
     # FIXME: weakref?
     @cached_property
     def xml_chunk(self) -> XMLChunk:
+        """Get XMLChunk parent."""
         r = self.parent
         while r is not None:
             if (p := r()) is None:
-                raise Error("Parent deallocated")
+                raise ParentError("Parent deallocated")
             if isinstance(p, XMLChunk):
                 return p
             r = p.parent
-        raise Error("No XMLChunk parent")
+        raise ParentError("No XMLChunk parent")
 
     def string(self, idx: Optional[int]) -> str:
+        """Get string from XML chunk parent by index."""
         return "" if idx is None else self.xml_chunk.string(idx)
 
     @property
     def comment(self) -> str:
+        """Get comment string."""
         return self.string(self.comment_idx)
 
 
 @dataclass(frozen=True)
 class XMLNSChunk(XMLNodeChunk):
-    prefix_idx: int = field(init=False)
-    uri_idx: int = field(init=False)
+    """Base class for XML namespace chunks."""
+    prefix_idx: int
+    uri_idx: int
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        super().__post_init__(header, payload)
+    @classmethod
+    def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
+        d = XMLNodeChunk._parse(header=header, payload=payload, **kwargs)
         prefix_idx, uri_idx = struct.unpack("<II", payload)
-        _setattrs(self, prefix_idx=prefix_idx, uri_idx=uri_idx)
+        return dict(**d, prefix_idx=prefix_idx, uri_idx=uri_idx)
 
     @property
     def prefix(self) -> str:
+        """Get prefix string."""
         return self.string(self.prefix_idx)
 
     @property
     def uri(self) -> str:
+        """Get uri string."""
         return self.string(self.uri_idx)
 
 
 @dataclass(frozen=True)
 class XMLNSStartChunk(XMLNSChunk):
+    """XML namespace start."""
     TYPE_ID: ClassVar[int] = 0x0100
+
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> XMLNSStartChunk:
+        """Parse XMLNSStartChunk."""
+        return cls(**XMLNSChunk._parse(header=header, payload=payload, **kwargs))
 
 
 @dataclass(frozen=True)
 class XMLNSEndChunk(XMLNSChunk):
+    """XML namespace end."""
     TYPE_ID: ClassVar[int] = 0x0101
+
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> XMLNSEndChunk:
+        """Parse XMLNSEndChunk."""
+        return cls(**XMLNSChunk._parse(header=header, payload=payload, **kwargs))
 
 
 @dataclass(frozen=True)
 class XMLElemStartChunk(XMLNodeChunk):
-    namespace_idx: Optional[int] = field(init=False)
-    name_idx: int = field(init=False)
-    id_idx: Optional[int] = field(init=False)
-    class_idx: Optional[int] = field(init=False)
-    style_idx: Optional[int] = field(init=False)
-    attributes: Tuple[XMLAttr, ...] = field(init=False)
+    """XML element start; contains XML attributes."""
+    namespace_idx: Optional[int]
+    name_idx: int
+    id_idx: Optional[int]
+    class_idx: Optional[int]
+    style_idx: Optional[int]
+    attributes: Tuple[XMLAttr, ...]
 
     TYPE_ID: ClassVar[int] = 0x0102
 
-    # FIXME: check payload size?
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        super().__post_init__(header, payload)
+    # FIXME: check payload size
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> XMLElemStartChunk:
+        """Parse XMLElemStartChunk."""
+        d = XMLNodeChunk._parse(header=header, payload=payload, **kwargs)
         ns_idx, name_idx, attr_start, attr_size, n_attrs, id_idx, class_idx, \
             style_idx, data = _unpack("<IIHHHHHH", payload)
         if attr_size != 20:
-            raise Error("Wrong XML attribute size")
-        attrs = tuple(_read_attrs(data, weakref.ref(self), attr_start - 20, n_attrs))
+            raise ParseError("Wrong XML attribute size")
         # NB: adjust 1-based indices
-        _setattrs(self, namespace_idx=_noref(ns_idx), name_idx=name_idx,
-                  id_idx=_noref(id_idx - 1), class_idx=_noref(class_idx - 1),
-                  style_idx=_noref(style_idx - 1), attributes=attrs)
+        chunk = cls(**d, namespace_idx=_noref(ns_idx), name_idx=name_idx,
+                    id_idx=_noref(id_idx - 1), class_idx=_noref(class_idx - 1),
+                    style_idx=_noref(style_idx - 1), attributes=())
+        attrs = tuple(_read_attrs(data, weakref.ref(chunk), attr_start - 20, n_attrs))
+        object.__setattr__(chunk, "attributes", attrs)
+        return chunk
 
     @property
     def attrs_as_dict(self) -> Dict[str, XMLAttr]:
+        """XML attributes as dict."""
         return {a.name_with_ns: a for a in self.attributes}
 
     @property
     def namespace(self) -> str:
+        """Get namespace string."""
         return self.string(self.namespace_idx)
 
     @property
     def name(self) -> str:
+        """Get name string."""
         return self.string(self.name_idx)
 
 
 @dataclass(frozen=True)
 class XMLElemEndChunk(XMLNodeChunk):
-    namespace_idx: int = field(init=False)
-    name_idx: int = field(init=False)
+    """XML element end."""
+    namespace_idx: Optional[int]
+    name_idx: int
 
     TYPE_ID: ClassVar[int] = 0x0103
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        super().__post_init__(header, payload)
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> XMLElemEndChunk:
+        """Parse XMLElemEndChunk."""
+        d = XMLNodeChunk._parse(header=header, payload=payload, **kwargs)
         namespace_idx, name_idx = struct.unpack("<II", payload)
-        _setattrs(self, namespace_idx=_noref(namespace_idx), name_idx=name_idx)
+        return cls(**d, namespace_idx=_noref(namespace_idx), name_idx=name_idx)
 
     @property
     def namespace(self) -> str:
+        """Get namespace string."""
         return self.string(self.namespace_idx)
 
     @property
     def name(self) -> str:
+        """Get name string."""
         return self.string(self.name_idx)
 
 
 @dataclass(frozen=True)
 class XMLCDATAChunk(XMLNodeChunk):
-    raw_value_idx: int = field(init=False)
-    typed_value: BinResVal = field(init=False)
+    """XML CDATA."""
+    raw_value_idx: int
+    typed_value: BinResVal
 
     TYPE_ID: ClassVar[int] = 0x0104
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        super().__post_init__(header, payload)
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> XMLCDATAChunk:
+        """Parse XMLCDATAChunk."""
+        d = XMLNodeChunk._parse(header=header, payload=payload, **kwargs)
         raw_value_idx, tv_data = _unpack("<I", payload)
-        _setattrs(self, raw_value_idx=raw_value_idx, typed_value=_read_brv(tv_data))
+        return cls(**d, raw_value_idx=raw_value_idx, typed_value=_read_brv(tv_data))
 
     @property
     def raw_value(self) -> str:
+        """Get raw value string."""
         return self.string(self.raw_value_idx)
 
 
 @dataclass(frozen=True)
 class XMLResourceMapChunk(Chunk):
-    resources: Tuple[int, ...] = field(init=False)
+    """XML resource map."""
+    resources: Tuple[int, ...]
 
     TYPE_ID: ClassVar[int] = 0x0180
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        n = (self.chunk_size - self.header_size) // 4
-        _setattrs(self, resources=struct.unpack(f"<{n}I", payload))
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> XMLResourceMapChunk:
+        """Parse XMLResourceMapChunk."""
+        d = Chunk._parse(header=header, payload=payload, **kwargs)
+        n = (d["chunk_size"] - d["header_size"]) // 4
+        return cls(**d, resources=struct.unpack(f"<{n}I", payload))
 
     def resource(self, i: int) -> BinResId:
+        """Get resource by index."""
         return BinResId.from_int(self.resources[i])
 
 
 @dataclass(frozen=True)
 class PackageChunk(ParentChunk):
-    id: int = field(init=False)
-    package_name: str = field(init=False)
-    type_specs: Tuple[Tuple[int, TypeSpecChunk], ...] = field(init=False, repr=False, compare=False)
-    # NB: types can have multiple values for the same key
-    types: Tuple[Tuple[int, TypeChunk], ...] = field(init=False, repr=False, compare=False)
-    library_chunk: Optional[LibraryChunk] = field(init=False, repr=False, compare=False)
-    _type_strings_offset: int = field(init=False, repr=False, compare=False)
-    _key_strings_offset: int = field(init=False, repr=False, compare=False)
-    # NB: last public type/key offset in string pool & type id offset are unused
+    """
+    Package chunk; contains type specs and types.
+
+    NB: types can have multiple values for the same key.
+    """
+    id: int
+    package_name: str
+    type_specs: Tuple[Tuple[int, TypeSpecChunk], ...] = field(repr=False, compare=False)
+    types: Tuple[Tuple[int, TypeChunk], ...] = field(repr=False, compare=False)
+    library_chunk: Optional[LibraryChunk] = field(repr=False, compare=False)
+    _type_strings_offset: int = field(repr=False, compare=False)
+    _key_strings_offset: int = field(repr=False, compare=False)
 
     TYPE_ID: ClassVar[int] = 0x0200
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
-        super().__post_init__(header, payload)
-        id_, name_b, type_off, last_pub_t, key_off, last_pub_k, tid_off = \
+    # NB: last public type/key offset in string pool & type id offset are unused
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> PackageChunk:
+        """Parse PackageChunk."""
+        d = ParentChunk._parse(header=header, payload=payload, **kwargs)
+        id_, name_b, t_off, last_pub_t, k_off, last_pub_k, tid_off = \
             struct.unpack("<I256sIIIII", header)
         name = _decode_package_name(name_b)
+        chunk = cls(**d, id=id_, package_name=name, type_specs=(), types=(),
+                    library_chunk=None, _key_strings_offset=k_off, _type_strings_offset=t_off)
+        chunk._parse_children(payload)
         type_specs, types, library_chunk = [], [], None
-        for _, c in self.children:
+        for _, c in chunk.children:
             if isinstance(c, TypeSpecChunk):
                 type_specs.append((c.id, c))
             elif isinstance(c, TypeChunk):
                 types.append((c.id, c))
             elif isinstance(c, LibraryChunk):
                 if library_chunk is not None:
-                    raise Error("Multiple LibraryChunks")
+                    raise ParseError("Multiple LibraryChunk children")
                 library_chunk = c
             elif not isinstance(c, StringPoolChunk):
-                raise Error(f"Unexpected {c.__class__.__name__}")
-        _setattrs(self, id=id_, package_name=name, type_specs=tuple(type_specs),
-                  types=tuple(types), library_chunk=library_chunk,
-                  _key_strings_offset=key_off, _type_strings_offset=type_off)
+                raise ParseError(f"Unexpected {c.__class__.__name__} child")
+        object.__setattr__(chunk, "type_specs", tuple(type_specs))
+        object.__setattr__(chunk, "types", tuple(types))
+        object.__setattr__(chunk, "library_chunk", library_chunk)
+        return chunk
 
     @property
     def type_specs_as_dict(self) -> Dict[int, TypeSpecChunk]:
+        """Type specs as dict."""
         return dict(self.type_specs)
 
     @property
     def types_as_dict(self) -> Dict[int, List[TypeChunk]]:
+        """Types as dict of lists."""
         d: Dict[int, List[TypeChunk]] = {}
         for i, c in self.types:
             d.setdefault(i, []).append(c)
@@ -444,14 +571,17 @@ class PackageChunk(ParentChunk):
         return self.types_as_dict
 
     def type_spec_chunks(self) -> Tuple[TypeSpecChunk, ...]:
+        """Get all type specs."""
         return tuple(c for _, c in self.type_specs)
 
     def type_spec_chunk(self, type_id: Union[int, str]) -> TypeSpecChunk:
+        """Get type spec by id"""
         if isinstance(type_id, str):
             type_id = self.type_string_pool.strings.index(type_id) + 1
         return self._type_specs_dict[type_id]
 
     def type_chunks(self, type_id: Union[int, str, None]) -> Tuple[TypeChunk, ...]:
+        """Get all types or types by id."""
         if type_id is None:
             return tuple(c for _, c in self.types)
         if isinstance(type_id, str):
@@ -460,38 +590,42 @@ class PackageChunk(ParentChunk):
 
     @cached_property
     def type_string_pool(self) -> StringPoolChunk:
-        pool = None
-        for o, c in self.children:
-            if o == self._type_strings_offset:
-                pool = c
-                break
-        if not isinstance(pool, StringPoolChunk):
-            raise Error("Unable to find type string pool")
-        return pool
+        """Get type string pool child."""
+        return self._string_pool(self._type_strings_offset, "type")
 
     @cached_property
     def key_string_pool(self) -> StringPoolChunk:
+        """Get key string pool child."""
+        return self._string_pool(self._key_strings_offset, "key")
+
+    def _string_pool(self, offset: int, what: str) -> StringPoolChunk:
         pool = None
         for o, c in self.children:
-            if o == self._key_strings_offset:
+            if o == offset:
                 pool = c
                 break
         if not isinstance(pool, StringPoolChunk):
-            raise Error("Unable to find key string pool")
+            raise ChildError(f"Unable to find {what} string pool")
         return pool
 
 
 @dataclass(frozen=True)
 class TypeOrSpecChunk(Chunk):
-    id: int = field(init=False)
+    """Base class for TypeChunk and TypeSpecChunk."""
+    id: int
+
+    @classmethod
+    def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
+        return Chunk._parse(header=header, payload=payload, **kwargs)
 
     # FIXME: weakref?
     @cached_property
     def package_chunk(self) -> Optional[PackageChunk]:
+        """Get PackageChunk parent."""
         r = self.parent
         while r is not None:
             if (p := r()) is None:
-                raise Error("Parent deallocated")
+                raise ParentError("Parent deallocated")
             if isinstance(p, PackageChunk):
                 return p
             r = p.parent
@@ -499,22 +633,24 @@ class TypeOrSpecChunk(Chunk):
 
     @property
     def type_name(self) -> str:
+        """Get type name from package chunk type string pool."""
         if (c := self.package_chunk) is None:
-            raise Error("No PackageChunk parent")
+            raise ParentError("No PackageChunk parent")
         return c.type_string_pool.strings[self.id - 1]
 
     def resource_id(self, entry_id: int) -> BinResId:
+        """Get resource ID (package + type + entry) for entry."""
         if (c := self.package_chunk) is None:
-            raise Error("No PackageChunk parent")
+            raise ParentError("No PackageChunk parent")
         return BinResId(c.id, self.id, entry_id)
 
 
-# FIXME
+# FIXME: incomplete
 @dataclass(frozen=True)
 class TypeChunk(TypeOrSpecChunk):
-    id: int = field(init=False)
-    entries: Tuple[Tuple[int, Entry], ...] = field(init=False)
-    configuration: BinResCfg = field(init=False)
+    """Type chunk; contains entries and configuration."""
+    entries: Tuple[Tuple[int, Entry], ...]
+    configuration: BinResCfg
 
     TYPE_ID: ClassVar[int] = 0x0201
 
@@ -522,6 +658,7 @@ class TypeChunk(TypeOrSpecChunk):
 
     @dataclass(frozen=True)
     class Entry:
+        """Type chunk entry."""
         header_size: int
         flags: int
         key_index: int
@@ -534,6 +671,7 @@ class TypeChunk(TypeOrSpecChunk):
 
         @property
         def values_as_dict(self) -> Dict[int, BinResVal]:
+            """Values as dict."""
             return dict(self.values)
 
         @cached_property
@@ -542,146 +680,150 @@ class TypeChunk(TypeOrSpecChunk):
 
         @property
         def is_complex(self) -> bool:
+            """Whether the entry has multiple values (instead of one value)."""
             return bool(self.flags & self.FLAG_COMPLEX)
 
         @property
         def key(self) -> str:
+            """Get key name from TypeChunk parent."""
             if (p := self.parent()) is not None:
                 return p.key_name(self.key_index)
-            raise Error("Parent deallocated")
+            raise ParentError("Parent deallocated")
 
     # FIXME: configuration
-    # FIXME: check payload size?
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
+    # FIXME: check payload size
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> TypeChunk:
+        """Parse TypeChunk."""
+        d = TypeOrSpecChunk._parse(header=header, payload=payload, **kwargs)
         id_, n_ents, start, cfg_data = _unpack("<III", header)
-        cfg = None
+        cfg = BinResCfg()
+        chunk = cls(**d, id=id_, entries=(), configuration=cfg)
         entries = []
         for i in range(n_ents):
             off, = struct.unpack("<I", payload[4 * i:4 * (i + 1)])
-            if off == self.NO_ENTRY:
+            if off == cls.NO_ENTRY:
                 continue
-            o = off + start - self.header_size
+            o = off + start - d["header_size"]
             hdr_sz, flags, key_idx = struct.unpack("<HHI", payload[o:o + 8])
             values = []
-            if flags & self.Entry.FLAG_COMPLEX:
+            if flags & cls.Entry.FLAG_COMPLEX:
                 value = None
                 par_ent, n = struct.unpack("<II", payload[o + 8:o + 16])
                 for j in range(n):
-                    d = payload[o + 16 + 12 * j:o + 16 + 12 * (j + 1)]
-                    k, brv_data = _unpack("<I", d)
+                    data = payload[o + 16 + 12 * j:o + 16 + 12 * (j + 1)]
+                    k, brv_data = _unpack("<I", data)
                     values.append((k, _read_brv(brv_data)))
             else:
                 value = _read_brv(payload[o + 8:o + 16])
                 par_ent = 0
-            e = self.Entry(header_size=hdr_sz, flags=flags, key_index=key_idx,
-                           value=value, values=tuple(values), parent_entry=par_ent,
-                           parent=weakref.ref(self))
+            e = cls.Entry(header_size=hdr_sz, flags=flags, key_index=key_idx,
+                          value=value, values=tuple(values), parent_entry=par_ent,
+                          parent=weakref.ref(chunk))
             entries.append((i, e))
-        _setattrs(self, id=id_, entries=tuple(entries), configuration=cfg)
+        object.__setattr__(chunk, "entries", tuple(entries))
+        return chunk
 
     @property
     def entries_as_dict(self) -> Dict[int, Entry]:
+        """Entries as dict."""
         return dict(self.entries)
 
     @cached_property
     def _entries_dict(self) -> Dict[int, Entry]:
         return self.entries_as_dict
 
-    def string(self, idx: Optional[int]) -> str:
-        if (c := self.resource_table_chunk) is None:
-            raise Error("No ResourceTableChunk parent")
-        return c.string_pool.string(idx)
-
-    def key_name(self, idx: Optional[int]) -> str:
-        if (c := self.package_chunk) is None:
-            raise Error("No PackageChunk parent")
-        return c.key_string_pool.string(idx)
-
-    def contains_resource(self, rid: BinResId) -> bool:
-        if (c := self.package_chunk) is None:
-            raise Error("No PackageChunk parent")
-        if rid.package_id != c.id or rid.type_id != self.id:
-            return False
-        return rid.entry_id in self._entries_dict
-
     # FIXME: weakref?
     @cached_property
     def resource_table_chunk(self) -> Optional[ResourceTableChunk]:
+        """Get ResourceTableChunk parent."""
         r = self.parent
         while r is not None:
             if (p := r()) is None:
-                raise Error("Parent deallocated")
+                raise ParentError("Parent deallocated")
             if isinstance(p, ResourceTableChunk):
                 return p
             r = p.parent
         return None
 
+    def string(self, idx: Optional[int]) -> str:
+        """Get string from resource table parent string pool by index."""
+        if (c := self.resource_table_chunk) is None:
+            raise ParentError("No ResourceTableChunk parent")
+        return c.string_pool.string(idx)
+
+    def key_name(self, idx: Optional[int]) -> str:
+        """Get key from package chunk parent key string pool by index."""
+        if (c := self.package_chunk) is None:
+            raise ParentError("No PackageChunk parent")
+        return c.key_string_pool.string(idx)
+
+    def contains_resource(self, rid: BinResId) -> bool:
+        """Whether the entries contain the resource."""
+        if (c := self.package_chunk) is None:
+            raise ParentError("No PackageChunk parent")
+        return rid.package_id == c.id and rid.type_id == self.id \
+            and rid.entry_id in self._entries_dict
+
 
 @dataclass(frozen=True)
 class TypeSpecChunk(TypeOrSpecChunk):
-    resources: Tuple[int, ...] = field(init=False)
+    """Type spec chunk."""
+    resources: Tuple[int, ...]
 
     TYPE_ID: ClassVar[int] = 0x0202
 
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> TypeSpecChunk:
+        "Parse TypeSpecChunk."""
+        d = TypeOrSpecChunk._parse(header=header, payload=payload, **kwargs)
         id_, n = struct.unpack("<II", header)
-        _setattrs(self, id=id_, resources=struct.unpack(f"<{n}I", payload))
+        return cls(**d, id=id_, resources=struct.unpack(f"<{n}I", payload))
 
 
 # FIXME: untested!
 @dataclass(frozen=True)
 class LibraryChunk(Chunk):
-    entries: Tuple[Entry, ...] = field(init=False)
+    """Library chunk."""
+    entries: Tuple[Entry, ...]
 
     TYPE_ID: ClassVar[int] = 0x0203
 
     @dataclass(frozen=True)
     class Entry:
+        """Library chunk entry."""
         id: int
         package_name: str
 
-    # FIXME: check payload size?
-    def __post_init__(self, header: bytes, payload: bytes) -> None:
+    @classmethod
+    def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> LibraryChunk:
+        """Parse LibraryChunk."""
+        d = Chunk._parse(header=header, payload=payload, **kwargs)
         n, = _unpack("<I", header)
+        if len(payload) != 256 * n:
+            raise ParseError(f"Payload size mismatch: expected {256 * n}, got {len(payload)}")
         entries = []
         for i in range(n):
             id_, name_b, payload = _unpack("<I256s", payload)
-            name = _decode_package_name(name_b)
-            entries.append(self.Entry(id_, name))
-        _setattrs(self, entries=tuple(entries))
+            entries.append(cls.Entry(id_, _decode_package_name(name_b)))
+        return cls(**d, entries=tuple(entries))
 
 
 @dataclass(frozen=True)
 class UnknownChunk(Chunk):
+    """Unknown chunk."""
     header: bytes = field(repr=False)
     payload: bytes = field(repr=False)
     _type_id: int
-
-    def __post_init__(self, header: bytes = b"", payload: bytes = b"") -> None:
-        pass
 
     @property
     def type_id(self) -> int:
         return self._type_id
 
 
-# FIXME: show how? use properly!
-@dataclass(frozen=True)
-class StringPoolSpan:
-    name_idx: int
-    start: int
-    stop: int
-
-
-@dataclass(frozen=True)
-class StringPoolStyle:
-    spans: Tuple[StringPoolSpan, ...]
-
-    SPAN_END: ClassVar[int] = 0xFFFFFFFF
-
-
 @dataclass(frozen=True)
 class BinResVal:
+    """Binary resource value."""
     size: int
     type: Type
     data: int
@@ -698,6 +840,7 @@ class BinResVal:
     COMPLEX_MANTISSA_SHIFT: ClassVar[int] = 8
 
     class Type(Enum):
+        """Binary resource value type."""
         NULL = 0x00                 # 0 = undef, 1 = empty
         REFERENCE = 0x01            # reference to resource table entry
         ATTRIBUTE = 0x02            # attribute resource identifier
@@ -717,6 +860,7 @@ class BinResVal:
 
     @classmethod
     def complex2pair(c, i: int, *, fraction: bool) -> Tuple[float, str]:
+        """Parse dimension/fraction to (float, suffix)."""
         unt = i & c.COMPLEX_UNIT_MASK
         rad = (i >> c.COMPLEX_RADIX_SHIFT) & c.COMPLEX_RADIX_MASK
         man = ((i >> c.COMPLEX_MANTISSA_SHIFT) & c.COMPLEX_MANTISSA_MASK) \
@@ -728,12 +872,14 @@ class BinResVal:
 
 @dataclass(frozen=True)
 class BinResId:
+    """Binary resource ID."""
     package_id: int
     type_id: int
     entry_id: int
 
     @classmethod
     def from_int(cls, i: int) -> BinResId:
+        """Convert from int."""
         p = (i & 0xFF000000) >> 24
         t = (i & 0x00FF0000) >> 16
         e = (i & 0x0000FFFF)
@@ -741,17 +887,19 @@ class BinResId:
 
     @property
     def to_int(self) -> int:
+        """Convert to int."""
         return self.package_id << 24 | self.type_id << 16 | self.entry_id
 
 
-# FIXME
+# FIXME: incomplete
 @dataclass(frozen=True)
 class BinResCfg:
-    ...
+    """Binary resource configuration."""
 
 
 @dataclass(frozen=True)
 class XMLAttr:
+    """XML attribute; contains typed and/or raw value."""
     namespace_idx: Optional[int]
     name_idx: int
     raw_value_idx: Optional[int]
@@ -759,26 +907,31 @@ class XMLAttr:
     parent: XMLNodeChunkRef = field(repr=False, compare=False)
 
     def string(self, idx: Optional[int]) -> str:
+        """Get string from XML node parent by index."""
         if idx is None:
             return ""
         if (p := self.parent()) is not None:
             return p.string(idx)
-        raise Error("Parent deallocated")
+        raise ParentError("Parent deallocated")
 
     @property
     def namespace(self) -> str:
+        """Get namespace string."""
         return self.string(self.namespace_idx)
 
     @property
     def name(self) -> str:
+        """Get name string."""
         return self.string(self.name_idx)
 
     @property
     def name_with_ns(self) -> str:
+        """Get name with namespace (if any) prepended; e.g. '{{foo}}bar'."""
         return f"{{{self.namespace}}}{self.name}" if self.namespace else self.name
 
     @property
     def raw_value(self) -> str:
+        """Get raw value string."""
         return self.string(self.raw_value_idx)
 
 
@@ -807,6 +960,7 @@ VERBOSE_FIELDS = {"comment_idx"}
 # FIXME
 def dump(*files: str, json: bool = False, verbose: bool = False,
          xml: bool = False) -> None:
+    """Parse AXML/ARSC & dump to stdout."""
     one = len(files) == 1
     for file in files:
         with open(file, "rb") as fh:
@@ -818,6 +972,7 @@ def dump(*files: str, json: bool = False, verbose: bool = False,
 # FIXME
 def dump_apk(apk: str, *patterns: str, json: bool = False,
              verbose: bool = False, xml: bool = False) -> None:
+    """Parse AXML/ARSC in APK & dump to stdout."""
     with zipfile.ZipFile(apk) as zf:
         for info in zf.infolist():
             if fnmatches_with_negation(info.filename, *patterns):
@@ -828,6 +983,7 @@ def dump_apk(apk: str, *patterns: str, json: bool = False,
 
 
 def fastid(*apks: str, json: bool = False) -> None:
+    """Quickly get appid & version code/name from APK & print to stdout."""
     if json:
         result = []
         for apk in apks:
@@ -853,6 +1009,7 @@ def _dump(data: bytes, *, json: bool, verbose: bool, xml: bool) -> None:
 
 # FIXME
 def dump_arsc(*chunks: Chunk, json: bool = False, verbose: bool = False) -> None:
+    """Dump ARSC chunks to stdout."""
     if json:
         show_json(*chunks)
     else:
@@ -862,6 +1019,7 @@ def dump_arsc(*chunks: Chunk, json: bool = False, verbose: bool = False) -> None
 # FIXME
 def dump_axml(*chunks: Chunk, json: bool = False, verbose: bool = False,
               xml: bool = False) -> None:
+    """Dump AXML chunks to stdout."""
     if json:
         show_json(*chunks)
     elif xml:
@@ -872,6 +1030,7 @@ def dump_axml(*chunks: Chunk, json: bool = False, verbose: bool = False,
 
 # FIXME
 def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None, verbose: bool) -> None:
+    """Show AXML/ARSC chunks as parse tree."""
     if file is None:
         file = sys.stdout
     for chunk in chunks:
@@ -915,7 +1074,7 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None, verbose: bool) ->
                 else:
                     print(f"{idt}  {k.upper()}:", file=file)
                     for x in v:
-                        if isinstance(x, StringPoolStyle):
+                        if isinstance(x, StringPoolChunk.Style):
                             spans = ", ".join(str(dataclasses.astuple(s)) for s in x.spans)
                             y = f"SPANS: {spans}"
                         else:
@@ -935,8 +1094,10 @@ def _fs_info(fs: List[Tuple[str, Any]]) -> str:
 # FIXME
 # FIXME: LibraryChunk
 def show_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
+    """Show AXML/ARSC chunks as JSON."""
     def for_json(obj: Any) -> Any:
-        if isinstance(obj, (Chunk, XMLAttr, BinResVal, StringPoolStyle, TypeChunk.Entry)):
+        if isinstance(obj, (Chunk, XMLAttr, BinResVal, StringPoolChunk.Style,
+                            TypeChunk.Entry)):
             d: Dict[str, Any] = dict(_type=obj.__class__.__name__)
             for f in dataclasses.fields(obj):
                 k = f.name
@@ -960,7 +1121,7 @@ def show_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
             return d
         if isinstance(obj, BinResVal.Type):
             return dict(name=obj.name, value=obj.value)
-        if isinstance(obj, StringPoolSpan):
+        if isinstance(obj, StringPoolChunk.Span):
             return dataclasses.astuple(obj)
         raise TypeError(f"Unserializable {obj.__class__.__name__}")
     if file is None:
@@ -971,6 +1132,7 @@ def show_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
 
 # FIXME
 def show_xml(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
+    """Show AXML chunks as XML."""
     import xml.etree.ElementTree as ET
 
     def indent(root: ET.Element) -> None:
@@ -1023,6 +1185,7 @@ def show_xml(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
 
 def show_xml_attr(attr: XMLAttr, pre: str = "", *,
                   file: Optional[TextIO] = None) -> None:
+    """Show XMLAttr."""
     if file is None:
         file = sys.stdout
     ns, name, tv = attr.namespace, attr.name, attr.typed_value
@@ -1033,6 +1196,7 @@ def show_xml_attr(attr: XMLAttr, pre: str = "", *,
 
 def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry,
                     pre: str = "", *, file: Optional[TextIO] = None) -> None:
+    """Show TypeChunk.Entry."""
     if file is None:
         file = sys.stdout
     info = f"id=0x{c.resource_id(i).to_int:08x}, key={e.key!r}"
@@ -1052,18 +1216,21 @@ def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry,
 
 
 def brv_repr(brv: BinResVal, raw_value: str) -> str:
+    """repr() for BinResVal."""
     f_repr, _, x = brv_to_py(brv, raw_value)
     return f_repr(x)
 
 
 def brv_str(brv: BinResVal, raw_value: str) -> str:
+    """str() for BinResVal."""
     _, f_str, x = brv_to_py(brv, raw_value)
     return f_str(x)
 
 
-# FIXME
+# FIXME: incomplete
 def brv_to_py(brv: BinResVal, raw_value: str) \
         -> Tuple[Callable[[Any], str], Callable[[Any], str], Any]:
+    """Convert BinResVal to value + repr/str functions to show it."""
     def null2s(i: int) -> str:
         return "@empty" if i == 1 else "@null"
 
@@ -1107,7 +1274,7 @@ def brv_to_py(brv: BinResVal, raw_value: str) \
     elif t is T.FRACTION:
         return c2s, c2s, BinResVal.complex2pair(brv.data, fraction=True)
     elif t in (T.DYNAMIC_REFERENCE, T.DYNAMIC_ATTRIBUTE):
-        raise NotImplementedError("Dynamic reference/attribute is not (yet) supported")
+        raise NotImplementedError("Dynamic reference/attribute not (yet) supported")
     elif t is T.INT_DEC:
         return str, str, brv.data
     elif t is T.INT_HEX:
@@ -1117,47 +1284,50 @@ def brv_to_py(brv: BinResVal, raw_value: str) \
     elif t in (T.INT_COLOR_ARGB8, T.INT_COLOR_RGB8, T.INT_COLOR_ARGB4, T.INT_COLOR_RGB4):
         return clr2s, clr2s, brv.data
     else:
-        raise Error(f"Unsupported value type {t.name}")
+        raise ValueError(f"Unsupported value type {t.name}")
 
 
 def parse(data: bytes) -> Tuple[Chunk, ...]:
+    """Parse raw data to AXML/ARSC chunks."""
     return tuple(c for _, c in read_chunks(data))
 
 
 def read_chunks(data: bytes, parent: Optional[ChunkRef] = None, level: int = 0,
                 offset: int = 0) -> Iterator[Tuple[int, Chunk]]:
+    """Read multiple chunks (+ offsets)."""
     while len(data) >= 8:
         chunk, data, level = read_chunk(data, parent, level, offset)
         yield offset, chunk
         offset += chunk.chunk_size
     if data:
-        raise Error("Expected end of data")
+        raise ParseError("Expected end of data")
 
 
 def read_chunk(data: bytes, parent: Optional[ChunkRef] = None,
                level: int = 0, offset: int = 0) -> Tuple[Chunk, bytes, int]:
+    """Read one chunk; returns chunk, remainder, level."""
     type_id, d, data = _read_chunk(data, parent)
     if ct := CHUNK_TYPES.get(type_id):
         if "End" in ct.__name__:
             level -= 1
-        chunk = ct(**d, level=level, offset=offset)
+        chunk = ct.parse(**d, level=level, offset=offset)
         if "Start" in ct.__name__:
             level += 1
     else:
-        chunk = UnknownChunk(_type_id=type_id, **d, level=level, offset=offset)
+        kw = {**d, **Chunk._parse(**d)}
+        chunk = UnknownChunk(_type_id=type_id, level=level, offset=offset, **kw)
     return chunk, data, level
 
 
 def _read_chunk(data: bytes, parent: Optional[ChunkRef] = None) -> Tuple[int, Dict[str, Any], bytes]:
     type_id, header_size, chunk_size, data = _unpack("<HHI", data)
     if header_size > chunk_size:
-        raise Error("Header size > chunk size")
-    if chunk_size - header_size > len(data):
-        raise Error("Not enough data for chunk")
+        raise ParseError("Header size > chunk size")
+    if chunk_size - 8 > len(data):
+        raise ParseError("Not enough data for chunk")
     header, data = _split(data, header_size - 8)
     chunk_data, data = _split(data, chunk_size - header_size)
-    d = dict(header_size=header_size, chunk_size=chunk_size,
-             parent=parent, header=header, payload=chunk_data)
+    d = dict(header=header, payload=chunk_data, parent=parent)
     return type_id, d, data
 
 
@@ -1169,11 +1339,6 @@ def _unpack(fmt: str, data: bytes) -> Any:
 
 def _split(data: bytes, size: int) -> Tuple[bytes, bytes]:
     return data[:size], data[size:]
-
-
-def _setattrs(obj: Any, **kwargs: Any) -> None:
-    for k, v in kwargs.items():
-        object.__setattr__(obj, k, v)
 
 
 def _noref(idx: int) -> Optional[int]:
@@ -1201,19 +1366,19 @@ def _read_strings(data: bytes, off: int, n: int, codec: str) -> Iterator[str]:
         yield _decode_string(data, off + o, codec)
 
 
-def _read_styles(data: bytes, off: int, n: int, m: int) -> Iterator[StringPoolStyle]:
+def _read_styles(data: bytes, off: int, n: int, m: int) -> Iterator[StringPoolChunk.Style]:
     for i in range(n):
         o, = struct.unpack("<I", data[4 * (m + i):4 * (m + i + 1)])
-        yield StringPoolStyle(tuple(_read_spans(data, off + o)))
+        yield StringPoolChunk.Style(tuple(_read_spans(data, off + o)))
 
 
-def _read_spans(data: bytes, off: int) -> Iterator[StringPoolSpan]:
+def _read_spans(data: bytes, off: int) -> Iterator[StringPoolChunk.Span]:
     while True:
         name_idx, = struct.unpack("<I", data[off:off + 4])
-        if name_idx == StringPoolStyle.SPAN_END:
+        if name_idx == StringPoolChunk.Style.SPAN_END:
             break
         start, stop = struct.unpack("<II", data[off + 4:off + 12])
-        yield StringPoolSpan(name_idx, start, stop)
+        yield StringPoolChunk.Span(name_idx, start, stop)
         off += 12
 
 
@@ -1229,17 +1394,17 @@ def _decode_string(data: bytes, off: int, codec: str) -> str:
             k, s = _decode_utf8_with_surrogates(data[a:b])
         if k != m:
             log = logging.getLogger(__name__)
-            log.debug(f"UTF-8 string length mismatch: expected {m}, got {k}")
+            log.warning(f"UTF-8 string length mismatch: expected {m}, got {k}")
         if data[b] != 0:
-            raise Error("UTF-8 string is not null-terminated")
+            raise ParseError("UTF-8 string not null-terminated")
     elif codec == UTF16:
         i, n = _decode_length(data, off, codec)
         a, b = off + i, off + i + 2 * n
         s = data[a:b].decode(codec)
         if data[b:b + 2] != b"\x00\x00":
-            raise Error("UTF-16 string is not null-terminated")
+            raise ParseError("UTF-16 string not null-terminated")
     else:
-        raise Error(f"Unsupported codec {codec!r}")
+        raise ValueError(f"Unsupported codec {codec!r}")
     return s
 
 
@@ -1268,7 +1433,7 @@ def _decode_length(data: bytes, off: int, codec: str) -> Tuple[int, int]:
         if n & 0x8000:
             i, n = 4, (n & 0x7FFF) << 16 | int.from_bytes(data[off + 2:off + 4], "little")
     else:
-        raise Error(f"Unsupported codec {codec!r}")
+        raise ValueError(f"Unsupported codec {codec!r}")
     return i, n
 
 
@@ -1287,26 +1452,27 @@ def _clsname(cls: type) -> str:
 
 # FIXME
 def quick_get_appid_version(apk: str) -> Tuple[str, int, str]:
-    tid, d, _ = _read_chunk(quick_load_manifest(apk))
+    """Quickly get appid & version code/name from APK."""
+    tid, d, _ = _read_chunk(quick_load(apk, MANIFEST))
     if tid != XMLChunk.TYPE_ID:
-        raise Error("Expected XMLChunk")
+        raise ParseError("Expected XMLChunk")
     data, d["payload"] = d["payload"], b""
-    xml = XMLChunk(**d, level=0, offset=-1)
+    xml = XMLChunk.parse(**d, level=0, offset=-1)
     ref: Optional[ChunkRef] = weakref.ref(xml)
     pool = start = None
     while data:
         tid, d, data = _read_chunk(data, parent=ref)
         if tid == StringPoolChunk.TYPE_ID:
-            pool = StringPoolChunk(**d, level=0, offset=-1)
+            pool = StringPoolChunk.parse(**d, level=0, offset=-1)
         elif tid == XMLElemStartChunk.TYPE_ID:
-            start = XMLElemStartChunk(**d, level=0, offset=-1)
+            start = XMLElemStartChunk.parse(**d, level=0, offset=-1)
         if pool and start:
             break
     else:
-        raise Error("Expected StringPoolChunk and XMLElemStartChunk")
-    _setattrs(xml, children=((-1, pool), (-1, start)))
+        raise ParseError("Expected StringPoolChunk and XMLElemStartChunk")
+    object.__setattr__(xml, "children", ((-1, pool), (-1, start)))
     if start.name != "manifest":
-        raise Error("Expected manifest element")
+        raise ParseError("Expected manifest element")
     appid = vercode = vername = None
     for a in start.attributes:
         if a.name == "package" and not a.namespace:
@@ -1318,15 +1484,16 @@ def quick_get_appid_version(apk: str) -> Tuple[str, int, str]:
         if appid is not None and vercode is not None and vername is not None:
             break
     else:
-        raise Error("Could not find expected attribute(s)")
+        raise ParseError("Could not find required attribute(s)")
     return appid, vercode, vername
 
 
-def quick_load_manifest(apk: str) -> bytes:
+def quick_load(apk: str, filename: str) -> bytes:
+    """Quickly load one file from APK."""
     def _read_cdh(fh: BinaryIO) -> Tuple[bytes, int]:
         hdr = fh.read(46)
         if hdr[:4] != b"\x50\x4b\x01\x02":
-            raise Error("Expected central directory file header signature")
+            raise ZipError("Expected central directory file header signature")
         n, m, k = struct.unpack("<HHH", hdr[28:34])
         hdr += fh.read(n + m + k)
         return hdr[46:46 + n], int.from_bytes(hdr[42:46], "little")
@@ -1335,7 +1502,7 @@ def quick_load_manifest(apk: str) -> bytes:
         fh.seek(offset)
         hdr = fh.read(30)
         if hdr[:4] != b"\x50\x4b\x03\x04":
-            raise Error("Expected local file header signature")
+            raise ZipError("Expected local file header signature")
         n, m = struct.unpack("<HH", hdr[26:30])
         hdr += fh.read(n + m)
         ctype = int.from_bytes(hdr[8:10], "little")
@@ -1345,17 +1512,17 @@ def quick_load_manifest(apk: str) -> bytes:
         elif ctype == 8:
             return zlib.decompress(fh.read(csize), -15)
         else:
-            raise Error(f"Unsupported compress_type {ctype}")
+            raise ZipError(f"Unsupported compress_type {ctype}")
 
-    manifest_name = MANIFEST.encode()
+    filename_b = filename.encode()
     zdata = zip_data(apk)
     with open(apk, "rb") as fh:
         fh.seek(zdata.cd_offset)
         while fh.tell() < zdata.eocd_offset:
             name, offset = _read_cdh(fh)
-            if name == manifest_name:
+            if name == filename_b:
                 return _read_data(fh, offset)
-    raise Error(f"No {MANIFEST} found")
+    raise Error(f"Entry not found: {filename!r}")
 
 
 def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
@@ -1390,12 +1557,13 @@ def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
 
 
 def zip_data(apkfile: str, count: int = 1024) -> ZipData:
+    """Extract central directory, EOCD, and offsets from ZIP."""
     with open(apkfile, "rb") as fh:
         fh.seek(-min(os.path.getsize(apkfile), count), os.SEEK_END)
         data = fh.read()
         pos = data.rfind(b"\x50\x4b\x05\x06")
         if pos == -1:
-            raise Error("Expected end of central directory record (EOCD)")
+            raise ZipError("Expected end of central directory record (EOCD)")
         fh.seek(pos - len(data), os.SEEK_CUR)
         eocd_offset = fh.tell()
         fh.seek(16, os.SEEK_CUR)
