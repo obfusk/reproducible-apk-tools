@@ -1,0 +1,762 @@
+[
+  {
+    "_type": "XMLChunk",
+    "children": [
+      {
+        "_type": "StringPoolChunk",
+        "chunk_size": 580,
+        "flags": 256,
+        "header_size": 28,
+        "level": 1,
+        "offset": 8,
+        "strings": [
+          "textAppearance",
+          "textColor",
+          "gravity",
+          "orientation",
+          "id",
+          "paddingRight",
+          "layout_width",
+          "layout_height",
+          "layout_marginLeft",
+          "layout_marginTop",
+          "layout_marginRight",
+          "layout_marginBottom",
+          "minHeight",
+          "maxLines",
+          "singleLine",
+          "layout_weight",
+          "layout_below",
+          "layout_alignLeft",
+          "paddingEnd",
+          "layout_marginStart",
+          "layout_marginEnd",
+          "layout_alignStart",
+          "LinearLayout",
+          "RelativeLayout",
+          "TextView",
+          "android",
+          "http://schemas.android.com/apk/res/android"
+        ],
+        "styles": []
+      },
+      {
+        "_type": "XMLResourceMapChunk",
+        "chunk_size": 96,
+        "header_size": 8,
+        "level": 1,
+        "offset": 588,
+        "resources": [
+          16842804,
+          16842904,
+          16842927,
+          16842948,
+          16842960,
+          16842968,
+          16842996,
+          16842997,
+          16842999,
+          16843000,
+          16843001,
+          16843002,
+          16843072,
+          16843091,
+          16843101,
+          16843137,
+          16843141,
+          16843143,
+          16843700,
+          16843701,
+          16843702,
+          16843705
+        ]
+      },
+      {
+        "_type": "XMLNSStartChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 1,
+        "lineno": 26,
+        "offset": 684,
+        "prefix": "android",
+        "uri": "http://schemas.android.com/apk/res/android"
+      },
+      {
+        "_type": "XMLElemStartChunk",
+        "attributes": [
+          {
+            "_type": "XMLAttr",
+            "name": "gravity",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16,
+              "size": 8,
+              "type": {
+                "name": "INT_HEX",
+                "value": 17
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "paddingRight",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16842851,
+              "size": 8,
+              "type": {
+                "name": "ATTRIBUTE",
+                "value": 2
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_width",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -1,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_height",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "minHeight",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16842829,
+              "size": 8,
+              "type": {
+                "name": "ATTRIBUTE",
+                "value": 2
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "paddingEnd",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16842851,
+              "size": 8,
+              "type": {
+                "name": "ATTRIBUTE",
+                "value": 2
+              }
+            }
+          }
+        ],
+        "chunk_size": 156,
+        "class_idx": null,
+        "comment": "",
+        "header_size": 16,
+        "id_idx": null,
+        "level": 2,
+        "lineno": 26,
+        "name": "LinearLayout",
+        "namespace": "",
+        "offset": 708,
+        "style_idx": null
+      },
+      {
+        "_type": "XMLElemStartChunk",
+        "attributes": [
+          {
+            "_type": "XMLAttr",
+            "name": "layout_width",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1,
+              "size": 8,
+              "type": {
+                "name": "DIMENSION",
+                "value": 5
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_height",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_marginLeft",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 4098,
+              "size": 8,
+              "type": {
+                "name": "DIMENSION",
+                "value": 5
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_marginTop",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1538,
+              "size": 8,
+              "type": {
+                "name": "DIMENSION",
+                "value": 5
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_marginRight",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1538,
+              "size": 8,
+              "type": {
+                "name": "DIMENSION",
+                "value": 5
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_marginBottom",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1538,
+              "size": 8,
+              "type": {
+                "name": "DIMENSION",
+                "value": 5
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_weight",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1065353216,
+              "size": 8,
+              "type": {
+                "name": "FLOAT",
+                "value": 4
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_marginStart",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 4098,
+              "size": 8,
+              "type": {
+                "name": "DIMENSION",
+                "value": 5
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_marginEnd",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1538,
+              "size": 8,
+              "type": {
+                "name": "DIMENSION",
+                "value": 5
+              }
+            }
+          }
+        ],
+        "chunk_size": 216,
+        "class_idx": null,
+        "comment": "",
+        "header_size": 16,
+        "id_idx": null,
+        "level": 3,
+        "lineno": 37,
+        "name": "RelativeLayout",
+        "namespace": "",
+        "offset": 864,
+        "style_idx": null
+      },
+      {
+        "_type": "XMLElemStartChunk",
+        "attributes": [
+          {
+            "_type": "XMLAttr",
+            "name": "textAppearance",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16842816,
+              "size": 8,
+              "type": {
+                "name": "ATTRIBUTE",
+                "value": 2
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "textColor",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16842808,
+              "size": 8,
+              "type": {
+                "name": "ATTRIBUTE",
+                "value": 2
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "id",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16908310,
+              "size": 8,
+              "type": {
+                "name": "REFERENCE",
+                "value": 1
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_width",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_height",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "singleLine",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 4294967295,
+              "size": 8,
+              "type": {
+                "name": "INT_BOOLEAN",
+                "value": 18
+              }
+            }
+          }
+        ],
+        "chunk_size": 156,
+        "class_idx": null,
+        "comment": "",
+        "header_size": 16,
+        "id_idx": 2,
+        "level": 4,
+        "lineno": 44,
+        "name": "TextView",
+        "namespace": "",
+        "offset": 1080,
+        "style_idx": null
+      },
+      {
+        "_type": "XMLElemEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 4,
+        "lineno": 44,
+        "name": "TextView",
+        "namespace": "",
+        "offset": 1236
+      },
+      {
+        "_type": "XMLElemStartChunk",
+        "attributes": [
+          {
+            "_type": "XMLAttr",
+            "name": "textAppearance",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16842818,
+              "size": 8,
+              "type": {
+                "name": "ATTRIBUTE",
+                "value": 2
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "textColor",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16842808,
+              "size": 8,
+              "type": {
+                "name": "ATTRIBUTE",
+                "value": 2
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "id",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16908304,
+              "size": 8,
+              "type": {
+                "name": "REFERENCE",
+                "value": 1
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_width",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_height",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "maxLines",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_below",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16908310,
+              "size": 8,
+              "type": {
+                "name": "REFERENCE",
+                "value": 1
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_alignLeft",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16908310,
+              "size": 8,
+              "type": {
+                "name": "REFERENCE",
+                "value": 1
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_alignStart",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16908310,
+              "size": 8,
+              "type": {
+                "name": "REFERENCE",
+                "value": 1
+              }
+            }
+          }
+        ],
+        "chunk_size": 216,
+        "class_idx": null,
+        "comment": "",
+        "header_size": 16,
+        "id_idx": 2,
+        "level": 4,
+        "lineno": 54,
+        "name": "TextView",
+        "namespace": "",
+        "offset": 1260,
+        "style_idx": null
+      },
+      {
+        "_type": "XMLElemEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 4,
+        "lineno": 54,
+        "name": "TextView",
+        "namespace": "",
+        "offset": 1476
+      },
+      {
+        "_type": "XMLElemEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 3,
+        "lineno": 37,
+        "name": "RelativeLayout",
+        "namespace": "",
+        "offset": 1500
+      },
+      {
+        "_type": "XMLElemStartChunk",
+        "attributes": [
+          {
+            "_type": "XMLAttr",
+            "name": "gravity",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16,
+              "size": 8,
+              "type": {
+                "name": "INT_HEX",
+                "value": 17
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "orientation",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 1,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "id",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": 16908312,
+              "size": 8,
+              "type": {
+                "name": "REFERENCE",
+                "value": 1
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_width",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -2,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          },
+          {
+            "_type": "XMLAttr",
+            "name": "layout_height",
+            "namespace": "http://schemas.android.com/apk/res/android",
+            "raw_value": "",
+            "typed_value": {
+              "_type": "BinResVal",
+              "data": -1,
+              "size": 8,
+              "type": {
+                "name": "INT_DEC",
+                "value": 16
+              }
+            }
+          }
+        ],
+        "chunk_size": 136,
+        "class_idx": null,
+        "comment": "",
+        "header_size": 16,
+        "id_idx": 2,
+        "level": 3,
+        "lineno": 63,
+        "name": "LinearLayout",
+        "namespace": "",
+        "offset": 1524,
+        "style_idx": null
+      },
+      {
+        "_type": "XMLElemEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 3,
+        "lineno": 63,
+        "name": "LinearLayout",
+        "namespace": "",
+        "offset": 1660
+      },
+      {
+        "_type": "XMLElemEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 2,
+        "lineno": 26,
+        "name": "LinearLayout",
+        "namespace": "",
+        "offset": 1684
+      },
+      {
+        "_type": "XMLNSEndChunk",
+        "chunk_size": 24,
+        "comment": "",
+        "header_size": 16,
+        "level": 1,
+        "lineno": 26,
+        "offset": 1708,
+        "prefix": "android",
+        "uri": "http://schemas.android.com/apk/res/android"
+      }
+    ],
+    "chunk_size": 1732,
+    "header_size": 8,
+    "level": 0,
+    "offset": 0
+  }
+]
