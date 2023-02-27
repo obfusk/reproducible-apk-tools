@@ -3,7 +3,7 @@
 # SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""
+r"""
 parse/dump android binary XML (AXML) or resources (ARSC)
 
 NB: work in progress; output format may change.
@@ -37,15 +37,18 @@ RESOURCE TABLE
     STRING POOL [flags=256, #strings=1, #styles=0]
     TYPE SPEC [id=0x1, #resources=0]
     TYPE SPEC [id=0x2, #resources=1]
-    TYPE [id=0x2, configuration=BinResCfg()]
+    TYPE [id=0x2]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: 'Tiny App for CTS'
-    TYPE [id=0x2, configuration=BinResCfg()]
+      CONFIG [default]
+    TYPE [id=0x2]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
-    TYPE [id=0x2, configuration=BinResCfg()]
+      CONFIG [language='en', region='XA']
+    TYPE [id=0x2]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'
+      CONFIG [language='ar', region='XB']
 
 >>> dump("test/data/AndroidManifest.xml", xml=True)
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1" android:versionName="1" android:compileSdkVersion="29" android:compileSdkVersionCodename="10.0.0" package="com.example" platformBuildVersionCode="29" platformBuildVersionName="10.0.0">
@@ -82,6 +85,7 @@ RESOURCE TABLE
 
 from __future__ import annotations
 
+import binascii
 import dataclasses
 import io
 import json as _json
@@ -645,7 +649,6 @@ class TypeOrSpecChunk(Chunk):
         return BinResId(c.id, self.id, entry_id)
 
 
-# FIXME: incomplete
 @dataclass(frozen=True)
 class TypeChunk(TypeOrSpecChunk):
     """Type chunk; contains entries and configuration."""
@@ -690,15 +693,12 @@ class TypeChunk(TypeOrSpecChunk):
                 return p.key_name(self.key_index)
             raise ParentError("Parent deallocated")
 
-    # FIXME: configuration
-    # FIXME: check payload size
     @classmethod
     def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> TypeChunk:
         """Parse TypeChunk."""
         d = TypeOrSpecChunk._parse(header=header, payload=payload, **kwargs)
         id_, n_ents, start, cfg_data = _unpack("<III", header)
-        cfg = BinResCfg()
-        chunk = cls(**d, id=id_, entries=(), configuration=cfg)
+        chunk = cls(**d, id=id_, entries=(), configuration=_read_cfg(cfg_data))
         entries = []
         for i in range(n_ents):
             off, = struct.unpack("<I", payload[4 * i:4 * (i + 1)])
@@ -891,10 +891,155 @@ class BinResId:
         return self.package_id << 24 | self.type_id << 16 | self.entry_id
 
 
-# FIXME: incomplete
+# FIXME: incomplete?
 @dataclass(frozen=True)
 class BinResCfg:
     """Binary resource configuration."""
+    size: int
+    mcc: int
+    mnc: int
+    language: Optional[str]
+    region: Optional[str]
+    orientation: Orientation
+    touchscreen: Touchscreen
+    density: int
+    keyboard: Keyboard
+    navigation: Navigation
+    input_flags: int            # keys_hidden, nav_hidden
+    screen_width: int
+    screen_height: int
+    sdk_version: int
+    minor_version: int
+    screen_layout: int          # layout_direction, screen_layout_size, screen_layout_long
+    ui_mode: int                # ui_mode_type, ui_mode_night
+    smallest_screen_width_dp: int
+    screen_width_dp: int
+    screen_height_dp: int
+    locale_script: Optional[bytes]
+    locale_variant: Optional[bytes]
+    screen_layout2: int         # screen_round, FIXME
+    unknown: Optional[bytes]
+
+    @property
+    def mobile_country_code(self) -> int:
+        return self.mcc
+
+    @property
+    def mobile_network_code(self) -> int:
+        return self.mnc
+
+    @property
+    def keys_hidden(self) -> KeysHidden:
+        return self.KeysHidden(self.input_flags & 0x3)
+
+    @property
+    def nav_hidden(self) -> NavHidden:
+        return self.NavHidden((self.input_flags >> 2) & 0x3)
+
+    @property
+    def layout_direction(self) -> LayoutDirection:
+        return self.LayoutDirection((self.screen_layout >> 6) & 0x3)
+
+    @property
+    def screen_layout_size(self) -> ScreenLayoutSize:
+        return self.ScreenLayoutSize(self.screen_layout & 0xF)
+
+    @property
+    def screen_layout_long(self) -> ScreenLayoutLong:
+        return self.ScreenLayoutLong((self.screen_layout >> 4) & 0x3)
+
+    @property
+    def screen_round(self) -> ScreenRound:
+        return self.ScreenRound(self.screen_layout2 & 0x3)
+
+    @property
+    def ui_mode_type(self) -> UiModeType:
+        return self.UiModeType(self.ui_mode & 0xF)
+
+    @property
+    def ui_mode_night(self) -> UiModeNight:
+        return self.UiModeNight((self.ui_mode >> 4) & 0x3)
+
+    SUBFIELDS: ClassVar[Dict[str, Tuple[str, ...]]] = dict(
+        input_flags=("keys_hidden", "nav_hidden"),
+        screen_layout=("layout_direction", "screen_layout_size", "screen_layout_long"),
+        screen_layout2=("screen_round",),
+        ui_mode=("ui_mode_type", "ui_mode_night"),
+    )
+
+    Orientation = Enum("Orientation", ("UNSET", "PORT", "LAND", "SQUARE"), start=0)
+    Touchscreen = Enum("Touchscreen", ("UNSET", "NOTOUCH", "STYLUS", "FINGER"), start=0)
+    Keyboard = Enum("Keyboard", ("UNSET", "NOKEYS", "QWERTY", "12KEY"), start=0)
+    Navigation = Enum("Navigation", ("UNSET", "NONAV", "DPAD", "TRACKBALL", "WHEEL"), start=0)
+
+    KeysHidden = Enum("KeysHidden", ("UNSET", "KEYSEXPOSED", "KEYSHIDDEN", "KEYSSOFT"), start=0)
+    NavHidden = Enum("NavHidden", ("UNSET", "NAVEXPOSED", "NAVHIDDEN"), start=0)
+
+    LayoutDirection = Enum("LayoutDirection", ("UNSET", "LDLTR", "LDRTL"), start=0)
+    ScreenLayoutSize = Enum("ScreenLayoutSize", ("UNSET", "SMALL", "NORMAL",
+                                                 "LARGE", "XLARGE"), start=0)
+    ScreenLayoutLong = Enum("ScreenLayoutLong", ("UNSET", "NOTLONG", "LONG"), start=0)
+    ScreenRound = Enum("ScreenRound", ("UNSET", "NOTROUND", "ROUND"), start=0)
+
+    UiModeType = Enum("UiModeType", ("UNSET", "NORMAL", "DESK", "CAR", "TELEVISION",
+                                     "APPLIANCE", "WATCH", "VR"), start=0)
+    UiModeNight = Enum("UiModeNight", ("UNSET", "NOTNIGHT", "NIGHT"), start=0)
+
+    # WideColorGamut = Enum("WideColorGamut", ("UNSET", "NOWIDECG", "WIDECG"), start=0)
+    # Hdr = Enum("Hdr", ("UNSET", "LOWDR", "HIGHDR"), start=0)
+
+    class Density(Enum):
+        UNDEFINED = 0
+        LDPI = 120
+        MDPI = 160
+        TVDPI = 213
+        HDPI = 240
+        XHDPI = 320
+        XXHDPI = 480
+        XXXHDPI = 640
+        ANYDPI = 0xFFFE
+        NODPI = 0xFFFF
+
+    @property
+    def is_default(self) -> bool:
+        return not self.non_default_fields
+
+    @property
+    def non_default_fields(self) -> Dict[str, Any]:
+        d = {}
+        for k in self._fields():
+            v = getattr(self, k)
+            if k == "density":
+                try:
+                    v = self.Density(v)
+                except ValueError:
+                    v = f"{v}dpi"
+            if isinstance(v, Enum):
+                if v.value == 0:
+                    continue
+                v = v.name.lower()
+            elif v in (0, None):
+                continue
+            d[k] = v
+        return d
+
+    @classmethod
+    def _fields(cls) -> Tuple[str, ...]:
+        if cls._fields_cached is not None:
+            return cls._fields_cached
+        fs = []
+        for f in dataclasses.fields(cls):
+            if f.name in ("size", "unknown"):
+                continue
+            if sfs := cls.SUBFIELDS.get(f.name):
+                for sf in sfs:
+                    fs.append(sf)
+            else:
+                fs.append(f.name)
+        cls._fields_cached = tuple(fs)
+        return cls._fields_cached
+
+    _fields_cached: ClassVar[Optional[Tuple[str, ...]]] = None
 
 
 @dataclass(frozen=True)
@@ -964,8 +1109,13 @@ def dump(*files: str, json: bool = False, verbose: bool = False,
     one = len(files) == 1
     for file in files:
         with open(file, "rb") as fh:
-            if not (one or json or xml):
-                print(f"file={file!r}")
+            if not one:
+                if json:
+                    print(_json.dumps([dict(file=file)]))
+                elif xml:
+                    print(f"<!-- file={file!r} -->")
+                else:
+                    print(f"file={file!r}")
             _dump(fh.read(), json=json, verbose=verbose, xml=xml)
 
 
@@ -976,7 +1126,11 @@ def dump_apk(apk: str, *patterns: str, json: bool = False,
     with zipfile.ZipFile(apk) as zf:
         for info in zf.infolist():
             if fnmatches_with_negation(info.filename, *patterns):
-                if not (json or xml):
+                if json:
+                    print(_json.dumps([dict(entry=info.filename)]))
+                elif xml:
+                    print(f"<!-- entry={info.filename!r} -->")
+                else:
                     print(f"entry={info.filename!r}")
                 with zf.open(info.filename) as fh:
                     _dump(fh.read(), json=json, verbose=verbose, xml=xml)
@@ -1054,7 +1208,7 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None, verbose: bool) ->
                         sub.append((k, v))
                 else:
                     fs.append((f"#{k}", len(v)))
-            elif ver:
+            elif ver or k == "configuration":
                 sub.append((k, v))
             else:
                 fs.append((k, v))
@@ -1080,6 +1234,8 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None, verbose: bool) ->
                         else:
                             y = hex(x) if isinstance(x, int) else repr(x)
                         print(f"{idt}    {y}", file=file)
+            elif isinstance(v, BinResCfg):
+                show_cfg(v, f"{idt}  CONFIG", file=file)
             else:
                 print(f"{idt}  {k.upper()}: {v!r}", file=file)
         if hasattr(chunk, "children"):
@@ -1097,7 +1253,7 @@ def show_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
     """Show AXML/ARSC chunks as JSON."""
     def for_json(obj: Any) -> Any:
         if isinstance(obj, (Chunk, XMLAttr, BinResVal, StringPoolChunk.Style,
-                            TypeChunk.Entry)):
+                            TypeChunk.Entry, BinResCfg)):
             d: Dict[str, Any] = dict(_type=obj.__class__.__name__)
             for f in dataclasses.fields(obj):
                 k = f.name
@@ -1108,19 +1264,22 @@ def show_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
                 if k.endswith("_idx") and hasattr(obj, k[:-4]):
                     k = k[:-4]
                 v = getattr(obj, k)
-                if k == "children":
+                if isinstance(v, bytes):
+                    d[k] = dict(_type="bytes", value=binascii.hexlify(v).decode())
+                elif isinstance(v, Enum):
+                    d[k] = dict(name=v.name, value=v.value)
+                elif k == "children":
                     d[k] = [for_json(c) for _, c in v]
-                elif k in ("attributes", "styles", "spans", "values"):
+                elif k in ("attributes", "styles", "spans"):
                     d[k] = [for_json(c) for c in v]
-                elif k in ("packages", "types", "type_specs", "entries"):
+                elif k in ("packages", "types", "type_specs", "entries", "values"):
                     d[k] = [(x, for_json(c)) for x, c in v]
-                elif k in ("type", "typed_value", "string_pool", "library_chunk", "value"):
+                elif k in ("type", "typed_value", "string_pool", "library_chunk",
+                           "value", "configuration"):
                     d[k] = for_json(v) if v is not None else None
                 else:
                     d[k] = v
             return d
-        if isinstance(obj, BinResVal.Type):
-            return dict(name=obj.name, value=obj.value)
         if isinstance(obj, StringPoolChunk.Span):
             return dataclasses.astuple(obj)
         raise TypeError(f"Unserializable {obj.__class__.__name__}")
@@ -1213,6 +1372,16 @@ def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry,
         r = c.string(brv.data) if brv.type is BinResVal.Type.STRING else ""
         v = brv_repr(brv, r)
         print(f"{pre}  VALUE{'' if k is None else f' 0x{k:08x}'}: {v}")
+
+
+def show_cfg(c: BinResCfg, pre: str = "", *, file: Optional[TextIO] = None) -> None:
+    """Show BinResCfg."""
+    if file is None:
+        file = sys.stdout
+    if fs := list(c.non_default_fields.items()):
+        print(f"{pre}{_fs_info(fs)}")
+    else:
+        print(f"{pre} [default]")
 
 
 def brv_repr(brv: BinResVal, raw_value: str) -> str:
@@ -1380,6 +1549,57 @@ def _read_spans(data: bytes, off: int) -> Iterator[StringPoolChunk.Span]:
         start, stop = struct.unpack("<II", data[off + 4:off + 12])
         yield StringPoolChunk.Span(name_idx, start, stop)
         off += 12
+
+
+def _read_cfg(data: bytes) -> BinResCfg:
+    size, mcc, mnc, lang, reg, orientation, touchscreen, density, \
+        keyboard, navigation, input_flags, _, screen_width, screen_height, \
+        sdk_version, minor_version = struct.unpack("<IHH2s2sBBHBBBBHHHH", data[:28])
+    data = data[28:]
+    language, region = _unpack_lang(lang, 0x61), _unpack_lang(reg, 0x30)
+    screen_layout = ui_mode = smallest_screen_width_dp = 0
+    screen_width_dp = screen_height_dp = 0
+    locale_script = locale_variant = None
+    screen_layout2 = 0
+    if len(data) >= 4:
+        screen_layout, ui_mode, smallest_screen_width_dp, data = _unpack("<BBH", data)
+        if len(data) >= 4:
+            screen_width_dp, screen_height_dp, data = _unpack("<HH", data)
+            if len(data) >= 12:
+                locale_script, locale_variant = struct.unpack("<4s8s", data[:12])
+                data = data[12:]
+                if locale_script == 4 * b"\x00":
+                    locale_script = None
+                if locale_variant == 8 * b"\x00":
+                    locale_variant = None
+                if len(data) >= 4:
+                    screen_layout2, _, _, data = _unpack("<BBH", data)
+    unknown = data or None
+    return BinResCfg(
+        size=size, mcc=mcc, mnc=mnc, language=language, region=region,
+        orientation=BinResCfg.Orientation(orientation),
+        touchscreen=BinResCfg.Touchscreen(touchscreen), density=density,
+        keyboard=BinResCfg.Keyboard(keyboard),
+        navigation=BinResCfg.Navigation(navigation), input_flags=input_flags,
+        screen_width=screen_width, screen_height=screen_height, sdk_version=sdk_version,
+        minor_version=minor_version, screen_layout=screen_layout, ui_mode=ui_mode,
+        smallest_screen_width_dp=smallest_screen_width_dp,
+        screen_width_dp=screen_width_dp, screen_height_dp=screen_height_dp,
+        locale_script=locale_script, locale_variant=locale_variant,
+        screen_layout2=screen_layout2, unknown=unknown,
+    )
+
+
+def _unpack_lang(b: bytes, base: int) -> Optional[str]:
+    if len(b) != 2:
+        raise ParseError("Expected language/region of 2 bytes")
+    if b == b"\x00\x00":
+        return None
+    if b[0] & 0x80:
+        b = bytes([base + (b[1] & 0x1F),
+                   base + ((b[1] & 0xE0) >> 5) + ((b[0] & 0x03) << 3),
+                   base + ((b[0] & 0x7C) >> 2)])
+    return b.decode("ascii")
 
 
 def _decode_string(data: bytes, off: int, codec: str) -> str:
