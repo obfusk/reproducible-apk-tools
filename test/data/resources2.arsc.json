@@ -1,0 +1,1340 @@
+[
+  {
+    "_type": "ResourceTableChunk",
+    "children": [
+      {
+        "_type": "StringPoolChunk",
+        "chunk_size": 180,
+        "flags": 256,
+        "header_size": 28,
+        "level": 1,
+        "offset": 12,
+        "strings": [
+          "3bd5987b1d0faebbdd76745afdbe992dcb331c73",
+          "Sokoban(g)",
+          "res/drawable/icon.png",
+          "res/drawable/presplash.jpg",
+          "res/layout/main.xml"
+        ],
+        "styles": []
+      },
+      {
+        "_type": "PackageChunk",
+        "children": [
+          {
+            "_type": "StringPoolChunk",
+            "chunk_size": 92,
+            "flags": 0,
+            "header_size": 28,
+            "level": 2,
+            "offset": 288,
+            "strings": [
+              "drawable",
+              "layout",
+              "string"
+            ],
+            "styles": []
+          },
+          {
+            "_type": "StringPoolChunk",
+            "chunk_size": 104,
+            "flags": 256,
+            "header_size": 28,
+            "level": 2,
+            "offset": 380,
+            "strings": [
+              "icon",
+              "presplash",
+              "main",
+              "app_name",
+              "private_version"
+            ],
+            "styles": []
+          },
+          {
+            "_type": "TypeSpecChunk",
+            "chunk_size": 24,
+            "header_size": 16,
+            "id": 1,
+            "level": 2,
+            "offset": 484,
+            "resources": [
+              0,
+              0
+            ]
+          },
+          {
+            "_type": "TypeChunk",
+            "chunk_size": 124,
+            "configuration": {
+              "_type": "BinResCfg",
+              "density": 0,
+              "input_flags": 0,
+              "keyboard": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "language": null,
+              "locale_script": null,
+              "locale_variant": null,
+              "mcc": 0,
+              "minor_version": 0,
+              "mnc": 0,
+              "navigation": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "orientation": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "region": null,
+              "screen_height": 0,
+              "screen_height_dp": 0,
+              "screen_layout": 0,
+              "screen_layout2": 0,
+              "screen_width": 0,
+              "screen_width_dp": 0,
+              "sdk_version": 0,
+              "size": 64,
+              "smallest_screen_width_dp": 0,
+              "touchscreen": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "ui_mode": 0,
+              "unknown": {
+                "_type": "bytes",
+                "value": "000000000000000000000000"
+              }
+            },
+            "entries": [
+              [
+                0,
+                {
+                  "_type": "Entry",
+                  "flags": 0,
+                  "header_size": 8,
+                  "key_index": 0,
+                  "parent_entry": 0,
+                  "value": {
+                    "_type": "BinResVal",
+                    "data": 2,
+                    "size": 8,
+                    "type": {
+                      "name": "STRING",
+                      "value": 3
+                    }
+                  },
+                  "values": []
+                }
+              ],
+              [
+                1,
+                {
+                  "_type": "Entry",
+                  "flags": 0,
+                  "header_size": 8,
+                  "key_index": 1,
+                  "parent_entry": 0,
+                  "value": {
+                    "_type": "BinResVal",
+                    "data": 3,
+                    "size": 8,
+                    "type": {
+                      "name": "STRING",
+                      "value": 3
+                    }
+                  },
+                  "values": []
+                }
+              ]
+            ],
+            "header_size": 84,
+            "id": 1,
+            "level": 2,
+            "offset": 508
+          },
+          {
+            "_type": "TypeSpecChunk",
+            "chunk_size": 20,
+            "header_size": 16,
+            "id": 2,
+            "level": 2,
+            "offset": 632,
+            "resources": [
+              0
+            ]
+          },
+          {
+            "_type": "TypeChunk",
+            "chunk_size": 104,
+            "configuration": {
+              "_type": "BinResCfg",
+              "density": 0,
+              "input_flags": 0,
+              "keyboard": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "language": null,
+              "locale_script": null,
+              "locale_variant": null,
+              "mcc": 0,
+              "minor_version": 0,
+              "mnc": 0,
+              "navigation": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "orientation": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "region": null,
+              "screen_height": 0,
+              "screen_height_dp": 0,
+              "screen_layout": 0,
+              "screen_layout2": 0,
+              "screen_width": 0,
+              "screen_width_dp": 0,
+              "sdk_version": 0,
+              "size": 64,
+              "smallest_screen_width_dp": 0,
+              "touchscreen": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "ui_mode": 0,
+              "unknown": {
+                "_type": "bytes",
+                "value": "000000000000000000000000"
+              }
+            },
+            "entries": [
+              [
+                0,
+                {
+                  "_type": "Entry",
+                  "flags": 0,
+                  "header_size": 8,
+                  "key_index": 2,
+                  "parent_entry": 0,
+                  "value": {
+                    "_type": "BinResVal",
+                    "data": 4,
+                    "size": 8,
+                    "type": {
+                      "name": "STRING",
+                      "value": 3
+                    }
+                  },
+                  "values": []
+                }
+              ]
+            ],
+            "header_size": 84,
+            "id": 2,
+            "level": 2,
+            "offset": 652
+          },
+          {
+            "_type": "TypeSpecChunk",
+            "chunk_size": 24,
+            "header_size": 16,
+            "id": 3,
+            "level": 2,
+            "offset": 756,
+            "resources": [
+              0,
+              0
+            ]
+          },
+          {
+            "_type": "TypeChunk",
+            "chunk_size": 124,
+            "configuration": {
+              "_type": "BinResCfg",
+              "density": 0,
+              "input_flags": 0,
+              "keyboard": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "language": null,
+              "locale_script": null,
+              "locale_variant": null,
+              "mcc": 0,
+              "minor_version": 0,
+              "mnc": 0,
+              "navigation": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "orientation": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "region": null,
+              "screen_height": 0,
+              "screen_height_dp": 0,
+              "screen_layout": 0,
+              "screen_layout2": 0,
+              "screen_width": 0,
+              "screen_width_dp": 0,
+              "sdk_version": 0,
+              "size": 64,
+              "smallest_screen_width_dp": 0,
+              "touchscreen": {
+                "name": "UNSET",
+                "value": 0
+              },
+              "ui_mode": 0,
+              "unknown": {
+                "_type": "bytes",
+                "value": "000000000000000000000000"
+              }
+            },
+            "entries": [
+              [
+                0,
+                {
+                  "_type": "Entry",
+                  "flags": 0,
+                  "header_size": 8,
+                  "key_index": 3,
+                  "parent_entry": 0,
+                  "value": {
+                    "_type": "BinResVal",
+                    "data": 1,
+                    "size": 8,
+                    "type": {
+                      "name": "STRING",
+                      "value": 3
+                    }
+                  },
+                  "values": []
+                }
+              ],
+              [
+                1,
+                {
+                  "_type": "Entry",
+                  "flags": 0,
+                  "header_size": 8,
+                  "key_index": 4,
+                  "parent_entry": 0,
+                  "value": {
+                    "_type": "BinResVal",
+                    "data": 0,
+                    "size": 8,
+                    "type": {
+                      "name": "STRING",
+                      "value": 3
+                    }
+                  },
+                  "values": []
+                }
+              ]
+            ],
+            "header_size": 84,
+            "id": 3,
+            "level": 2,
+            "offset": 780
+          }
+        ],
+        "chunk_size": 904,
+        "header_size": 288,
+        "id": 127,
+        "level": 1,
+        "library_chunk": null,
+        "offset": 192,
+        "package_name": "dev.obfusk.sokobang",
+        "type_specs": [
+          [
+            1,
+            {
+              "_type": "TypeSpecChunk",
+              "chunk_size": 24,
+              "header_size": 16,
+              "id": 1,
+              "level": 2,
+              "offset": 484,
+              "resources": [
+                0,
+                0
+              ]
+            }
+          ],
+          [
+            2,
+            {
+              "_type": "TypeSpecChunk",
+              "chunk_size": 20,
+              "header_size": 16,
+              "id": 2,
+              "level": 2,
+              "offset": 632,
+              "resources": [
+                0
+              ]
+            }
+          ],
+          [
+            3,
+            {
+              "_type": "TypeSpecChunk",
+              "chunk_size": 24,
+              "header_size": 16,
+              "id": 3,
+              "level": 2,
+              "offset": 756,
+              "resources": [
+                0,
+                0
+              ]
+            }
+          ]
+        ],
+        "types": [
+          [
+            1,
+            {
+              "_type": "TypeChunk",
+              "chunk_size": 124,
+              "configuration": {
+                "_type": "BinResCfg",
+                "density": 0,
+                "input_flags": 0,
+                "keyboard": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "language": null,
+                "locale_script": null,
+                "locale_variant": null,
+                "mcc": 0,
+                "minor_version": 0,
+                "mnc": 0,
+                "navigation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "orientation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "region": null,
+                "screen_height": 0,
+                "screen_height_dp": 0,
+                "screen_layout": 0,
+                "screen_layout2": 0,
+                "screen_width": 0,
+                "screen_width_dp": 0,
+                "sdk_version": 0,
+                "size": 64,
+                "smallest_screen_width_dp": 0,
+                "touchscreen": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "ui_mode": 0,
+                "unknown": {
+                  "_type": "bytes",
+                  "value": "000000000000000000000000"
+                }
+              },
+              "entries": [
+                [
+                  0,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 0,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 2,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ],
+                [
+                  1,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 1,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 3,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ]
+              ],
+              "header_size": 84,
+              "id": 1,
+              "level": 2,
+              "offset": 508
+            }
+          ],
+          [
+            2,
+            {
+              "_type": "TypeChunk",
+              "chunk_size": 104,
+              "configuration": {
+                "_type": "BinResCfg",
+                "density": 0,
+                "input_flags": 0,
+                "keyboard": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "language": null,
+                "locale_script": null,
+                "locale_variant": null,
+                "mcc": 0,
+                "minor_version": 0,
+                "mnc": 0,
+                "navigation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "orientation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "region": null,
+                "screen_height": 0,
+                "screen_height_dp": 0,
+                "screen_layout": 0,
+                "screen_layout2": 0,
+                "screen_width": 0,
+                "screen_width_dp": 0,
+                "sdk_version": 0,
+                "size": 64,
+                "smallest_screen_width_dp": 0,
+                "touchscreen": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "ui_mode": 0,
+                "unknown": {
+                  "_type": "bytes",
+                  "value": "000000000000000000000000"
+                }
+              },
+              "entries": [
+                [
+                  0,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 2,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 4,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ]
+              ],
+              "header_size": 84,
+              "id": 2,
+              "level": 2,
+              "offset": 652
+            }
+          ],
+          [
+            3,
+            {
+              "_type": "TypeChunk",
+              "chunk_size": 124,
+              "configuration": {
+                "_type": "BinResCfg",
+                "density": 0,
+                "input_flags": 0,
+                "keyboard": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "language": null,
+                "locale_script": null,
+                "locale_variant": null,
+                "mcc": 0,
+                "minor_version": 0,
+                "mnc": 0,
+                "navigation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "orientation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "region": null,
+                "screen_height": 0,
+                "screen_height_dp": 0,
+                "screen_layout": 0,
+                "screen_layout2": 0,
+                "screen_width": 0,
+                "screen_width_dp": 0,
+                "sdk_version": 0,
+                "size": 64,
+                "smallest_screen_width_dp": 0,
+                "touchscreen": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "ui_mode": 0,
+                "unknown": {
+                  "_type": "bytes",
+                  "value": "000000000000000000000000"
+                }
+              },
+              "entries": [
+                [
+                  0,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 3,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 1,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ],
+                [
+                  1,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 4,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 0,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ]
+              ],
+              "header_size": 84,
+              "id": 3,
+              "level": 2,
+              "offset": 780
+            }
+          ]
+        ]
+      }
+    ],
+    "chunk_size": 1096,
+    "header_size": 12,
+    "level": 0,
+    "offset": 0,
+    "packages": [
+      [
+        "dev.obfusk.sokobang",
+        {
+          "_type": "PackageChunk",
+          "children": [
+            {
+              "_type": "StringPoolChunk",
+              "chunk_size": 92,
+              "flags": 0,
+              "header_size": 28,
+              "level": 2,
+              "offset": 288,
+              "strings": [
+                "drawable",
+                "layout",
+                "string"
+              ],
+              "styles": []
+            },
+            {
+              "_type": "StringPoolChunk",
+              "chunk_size": 104,
+              "flags": 256,
+              "header_size": 28,
+              "level": 2,
+              "offset": 380,
+              "strings": [
+                "icon",
+                "presplash",
+                "main",
+                "app_name",
+                "private_version"
+              ],
+              "styles": []
+            },
+            {
+              "_type": "TypeSpecChunk",
+              "chunk_size": 24,
+              "header_size": 16,
+              "id": 1,
+              "level": 2,
+              "offset": 484,
+              "resources": [
+                0,
+                0
+              ]
+            },
+            {
+              "_type": "TypeChunk",
+              "chunk_size": 124,
+              "configuration": {
+                "_type": "BinResCfg",
+                "density": 0,
+                "input_flags": 0,
+                "keyboard": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "language": null,
+                "locale_script": null,
+                "locale_variant": null,
+                "mcc": 0,
+                "minor_version": 0,
+                "mnc": 0,
+                "navigation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "orientation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "region": null,
+                "screen_height": 0,
+                "screen_height_dp": 0,
+                "screen_layout": 0,
+                "screen_layout2": 0,
+                "screen_width": 0,
+                "screen_width_dp": 0,
+                "sdk_version": 0,
+                "size": 64,
+                "smallest_screen_width_dp": 0,
+                "touchscreen": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "ui_mode": 0,
+                "unknown": {
+                  "_type": "bytes",
+                  "value": "000000000000000000000000"
+                }
+              },
+              "entries": [
+                [
+                  0,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 0,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 2,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ],
+                [
+                  1,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 1,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 3,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ]
+              ],
+              "header_size": 84,
+              "id": 1,
+              "level": 2,
+              "offset": 508
+            },
+            {
+              "_type": "TypeSpecChunk",
+              "chunk_size": 20,
+              "header_size": 16,
+              "id": 2,
+              "level": 2,
+              "offset": 632,
+              "resources": [
+                0
+              ]
+            },
+            {
+              "_type": "TypeChunk",
+              "chunk_size": 104,
+              "configuration": {
+                "_type": "BinResCfg",
+                "density": 0,
+                "input_flags": 0,
+                "keyboard": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "language": null,
+                "locale_script": null,
+                "locale_variant": null,
+                "mcc": 0,
+                "minor_version": 0,
+                "mnc": 0,
+                "navigation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "orientation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "region": null,
+                "screen_height": 0,
+                "screen_height_dp": 0,
+                "screen_layout": 0,
+                "screen_layout2": 0,
+                "screen_width": 0,
+                "screen_width_dp": 0,
+                "sdk_version": 0,
+                "size": 64,
+                "smallest_screen_width_dp": 0,
+                "touchscreen": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "ui_mode": 0,
+                "unknown": {
+                  "_type": "bytes",
+                  "value": "000000000000000000000000"
+                }
+              },
+              "entries": [
+                [
+                  0,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 2,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 4,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ]
+              ],
+              "header_size": 84,
+              "id": 2,
+              "level": 2,
+              "offset": 652
+            },
+            {
+              "_type": "TypeSpecChunk",
+              "chunk_size": 24,
+              "header_size": 16,
+              "id": 3,
+              "level": 2,
+              "offset": 756,
+              "resources": [
+                0,
+                0
+              ]
+            },
+            {
+              "_type": "TypeChunk",
+              "chunk_size": 124,
+              "configuration": {
+                "_type": "BinResCfg",
+                "density": 0,
+                "input_flags": 0,
+                "keyboard": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "language": null,
+                "locale_script": null,
+                "locale_variant": null,
+                "mcc": 0,
+                "minor_version": 0,
+                "mnc": 0,
+                "navigation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "orientation": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "region": null,
+                "screen_height": 0,
+                "screen_height_dp": 0,
+                "screen_layout": 0,
+                "screen_layout2": 0,
+                "screen_width": 0,
+                "screen_width_dp": 0,
+                "sdk_version": 0,
+                "size": 64,
+                "smallest_screen_width_dp": 0,
+                "touchscreen": {
+                  "name": "UNSET",
+                  "value": 0
+                },
+                "ui_mode": 0,
+                "unknown": {
+                  "_type": "bytes",
+                  "value": "000000000000000000000000"
+                }
+              },
+              "entries": [
+                [
+                  0,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 3,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 1,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ],
+                [
+                  1,
+                  {
+                    "_type": "Entry",
+                    "flags": 0,
+                    "header_size": 8,
+                    "key_index": 4,
+                    "parent_entry": 0,
+                    "value": {
+                      "_type": "BinResVal",
+                      "data": 0,
+                      "size": 8,
+                      "type": {
+                        "name": "STRING",
+                        "value": 3
+                      }
+                    },
+                    "values": []
+                  }
+                ]
+              ],
+              "header_size": 84,
+              "id": 3,
+              "level": 2,
+              "offset": 780
+            }
+          ],
+          "chunk_size": 904,
+          "header_size": 288,
+          "id": 127,
+          "level": 1,
+          "library_chunk": null,
+          "offset": 192,
+          "package_name": "dev.obfusk.sokobang",
+          "type_specs": [
+            [
+              1,
+              {
+                "_type": "TypeSpecChunk",
+                "chunk_size": 24,
+                "header_size": 16,
+                "id": 1,
+                "level": 2,
+                "offset": 484,
+                "resources": [
+                  0,
+                  0
+                ]
+              }
+            ],
+            [
+              2,
+              {
+                "_type": "TypeSpecChunk",
+                "chunk_size": 20,
+                "header_size": 16,
+                "id": 2,
+                "level": 2,
+                "offset": 632,
+                "resources": [
+                  0
+                ]
+              }
+            ],
+            [
+              3,
+              {
+                "_type": "TypeSpecChunk",
+                "chunk_size": 24,
+                "header_size": 16,
+                "id": 3,
+                "level": 2,
+                "offset": 756,
+                "resources": [
+                  0,
+                  0
+                ]
+              }
+            ]
+          ],
+          "types": [
+            [
+              1,
+              {
+                "_type": "TypeChunk",
+                "chunk_size": 124,
+                "configuration": {
+                  "_type": "BinResCfg",
+                  "density": 0,
+                  "input_flags": 0,
+                  "keyboard": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "language": null,
+                  "locale_script": null,
+                  "locale_variant": null,
+                  "mcc": 0,
+                  "minor_version": 0,
+                  "mnc": 0,
+                  "navigation": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "orientation": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "region": null,
+                  "screen_height": 0,
+                  "screen_height_dp": 0,
+                  "screen_layout": 0,
+                  "screen_layout2": 0,
+                  "screen_width": 0,
+                  "screen_width_dp": 0,
+                  "sdk_version": 0,
+                  "size": 64,
+                  "smallest_screen_width_dp": 0,
+                  "touchscreen": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "ui_mode": 0,
+                  "unknown": {
+                    "_type": "bytes",
+                    "value": "000000000000000000000000"
+                  }
+                },
+                "entries": [
+                  [
+                    0,
+                    {
+                      "_type": "Entry",
+                      "flags": 0,
+                      "header_size": 8,
+                      "key_index": 0,
+                      "parent_entry": 0,
+                      "value": {
+                        "_type": "BinResVal",
+                        "data": 2,
+                        "size": 8,
+                        "type": {
+                          "name": "STRING",
+                          "value": 3
+                        }
+                      },
+                      "values": []
+                    }
+                  ],
+                  [
+                    1,
+                    {
+                      "_type": "Entry",
+                      "flags": 0,
+                      "header_size": 8,
+                      "key_index": 1,
+                      "parent_entry": 0,
+                      "value": {
+                        "_type": "BinResVal",
+                        "data": 3,
+                        "size": 8,
+                        "type": {
+                          "name": "STRING",
+                          "value": 3
+                        }
+                      },
+                      "values": []
+                    }
+                  ]
+                ],
+                "header_size": 84,
+                "id": 1,
+                "level": 2,
+                "offset": 508
+              }
+            ],
+            [
+              2,
+              {
+                "_type": "TypeChunk",
+                "chunk_size": 104,
+                "configuration": {
+                  "_type": "BinResCfg",
+                  "density": 0,
+                  "input_flags": 0,
+                  "keyboard": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "language": null,
+                  "locale_script": null,
+                  "locale_variant": null,
+                  "mcc": 0,
+                  "minor_version": 0,
+                  "mnc": 0,
+                  "navigation": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "orientation": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "region": null,
+                  "screen_height": 0,
+                  "screen_height_dp": 0,
+                  "screen_layout": 0,
+                  "screen_layout2": 0,
+                  "screen_width": 0,
+                  "screen_width_dp": 0,
+                  "sdk_version": 0,
+                  "size": 64,
+                  "smallest_screen_width_dp": 0,
+                  "touchscreen": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "ui_mode": 0,
+                  "unknown": {
+                    "_type": "bytes",
+                    "value": "000000000000000000000000"
+                  }
+                },
+                "entries": [
+                  [
+                    0,
+                    {
+                      "_type": "Entry",
+                      "flags": 0,
+                      "header_size": 8,
+                      "key_index": 2,
+                      "parent_entry": 0,
+                      "value": {
+                        "_type": "BinResVal",
+                        "data": 4,
+                        "size": 8,
+                        "type": {
+                          "name": "STRING",
+                          "value": 3
+                        }
+                      },
+                      "values": []
+                    }
+                  ]
+                ],
+                "header_size": 84,
+                "id": 2,
+                "level": 2,
+                "offset": 652
+              }
+            ],
+            [
+              3,
+              {
+                "_type": "TypeChunk",
+                "chunk_size": 124,
+                "configuration": {
+                  "_type": "BinResCfg",
+                  "density": 0,
+                  "input_flags": 0,
+                  "keyboard": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "language": null,
+                  "locale_script": null,
+                  "locale_variant": null,
+                  "mcc": 0,
+                  "minor_version": 0,
+                  "mnc": 0,
+                  "navigation": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "orientation": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "region": null,
+                  "screen_height": 0,
+                  "screen_height_dp": 0,
+                  "screen_layout": 0,
+                  "screen_layout2": 0,
+                  "screen_width": 0,
+                  "screen_width_dp": 0,
+                  "sdk_version": 0,
+                  "size": 64,
+                  "smallest_screen_width_dp": 0,
+                  "touchscreen": {
+                    "name": "UNSET",
+                    "value": 0
+                  },
+                  "ui_mode": 0,
+                  "unknown": {
+                    "_type": "bytes",
+                    "value": "000000000000000000000000"
+                  }
+                },
+                "entries": [
+                  [
+                    0,
+                    {
+                      "_type": "Entry",
+                      "flags": 0,
+                      "header_size": 8,
+                      "key_index": 3,
+                      "parent_entry": 0,
+                      "value": {
+                        "_type": "BinResVal",
+                        "data": 1,
+                        "size": 8,
+                        "type": {
+                          "name": "STRING",
+                          "value": 3
+                        }
+                      },
+                      "values": []
+                    }
+                  ],
+                  [
+                    1,
+                    {
+                      "_type": "Entry",
+                      "flags": 0,
+                      "header_size": 8,
+                      "key_index": 4,
+                      "parent_entry": 0,
+                      "value": {
+                        "_type": "BinResVal",
+                        "data": 0,
+                        "size": 8,
+                        "type": {
+                          "name": "STRING",
+                          "value": 3
+                        }
+                      },
+                      "values": []
+                    }
+                  ]
+                ],
+                "header_size": 84,
+                "id": 3,
+                "level": 2,
+                "offset": 780
+              }
+            ]
+          ]
+        }
+      ]
+    ],
+    "string_pool": {
+      "_type": "StringPoolChunk",
+      "chunk_size": 180,
+      "flags": 256,
+      "header_size": 28,
+      "level": 1,
+      "offset": 12,
+      "strings": [
+        "3bd5987b1d0faebbdd76745afdbe992dcb331c73",
+        "Sokoban(g)",
+        "res/drawable/icon.png",
+        "res/drawable/presplash.jpg",
+        "res/layout/main.xml"
+      ],
+      "styles": []
+    }
+  }
+]

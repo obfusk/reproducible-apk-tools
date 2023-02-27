@@ -1,0 +1,20 @@
+entry='resources.arsc'
+RESOURCE TABLE
+  STRING POOL [flags=256, #strings=3, #styles=0]
+  PACKAGE [id=0x7f, package_name='android.appsecurity.cts.tinyapp']
+    STRING POOL [flags=256, #strings=2, #styles=0]
+    STRING POOL [flags=256, #strings=1, #styles=0]
+    TYPE SPEC [id=0x1, #resources=0]
+    TYPE SPEC [id=0x2, #resources=1]
+    TYPE [id=0x2]
+      ENTRY [id=0x7f020000, key='app_name']
+        VALUE: 'Tiny App for CTS'
+      CONFIG [default]
+    TYPE [id=0x2]
+      ENTRY [id=0x7f020000, key='app_name']
+        VALUE: '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
+      CONFIG [language='en', region='XA']
+    TYPE [id=0x2]
+      ENTRY [id=0x7f020000, key='app_name']
+        VALUE: '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'
+      CONFIG [language='ar', region='XB']
