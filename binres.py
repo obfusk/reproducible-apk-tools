@@ -172,7 +172,7 @@ class Chunk:
 @dataclass(frozen=True)
 class ParentChunk(Chunk):
     """Base class for chunks with children."""
-    children: Tuple[Tuple[int, Chunk], ...] = field(repr=False, compare=False)
+    children: Tuple[Chunk, ...] = field(repr=False, compare=False)
 
     @classmethod
     def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
@@ -263,7 +263,7 @@ class ResourceTableChunk(ParentChunk):
         chunk = cls(**d, string_pool=cast(StringPoolChunk, None), packages=())
         chunk._parse_children(payload)
         string_pool, packages = None, []
-        for _, c in chunk.children:
+        for c in chunk.children:
             if isinstance(c, PackageChunk):
                 packages.append((c.package_name, c))
             elif isinstance(c, StringPoolChunk):
@@ -307,7 +307,7 @@ class XMLChunk(ParentChunk):
     @cached_property
     def string_pool(self) -> StringPoolChunk:
         """Get string pool child."""
-        for _, c in self.children:
+        for c in self.children:
             if isinstance(c, StringPoolChunk):
                 return c
         raise ChildError("No StringPoolChunk child")
@@ -537,7 +537,7 @@ class PackageChunk(ParentChunk):
                     library_chunk=None, _key_strings_offset=k_off, _type_strings_offset=t_off)
         chunk._parse_children(payload)
         type_specs, types, library_chunk = [], [], None
-        for _, c in chunk.children:
+        for c in chunk.children:
             if isinstance(c, TypeSpecChunk):
                 type_specs.append((c.id, c))
             elif isinstance(c, TypeChunk):
@@ -604,8 +604,8 @@ class PackageChunk(ParentChunk):
 
     def _string_pool(self, offset: int, what: str) -> StringPoolChunk:
         pool = None
-        for o, c in self.children:
-            if o == offset:
+        for c in self.children:
+            if c.offset == offset:
                 pool = c
                 break
         if not isinstance(pool, StringPoolChunk):
@@ -1239,7 +1239,7 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None, verbose: bool) ->
             else:
                 print(f"{idt}  {k.upper()}: {v!r}", file=file)
         if hasattr(chunk, "children"):
-            show_chunks(*(c for _, c in chunk.children), file=file, verbose=verbose)
+            show_chunks(*chunk.children, file=file, verbose=verbose)
 
 
 def _fs_info(fs: List[Tuple[str, Any]]) -> str:
@@ -1268,9 +1268,7 @@ def show_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
                     d[k] = dict(_type="bytes", value=binascii.hexlify(v).decode())
                 elif isinstance(v, Enum):
                     d[k] = dict(name=v.name, value=v.value)
-                elif k == "children":
-                    d[k] = [for_json(c) for _, c in v]
-                elif k in ("attributes", "styles", "spans"):
+                elif k in ("children", "attributes", "styles", "spans"):
                     d[k] = [for_json(c) for c in v]
                 elif k in ("packages", "types", "type_specs", "entries", "values"):
                     d[k] = [(x, for_json(c)) for x, c in v]
@@ -1320,7 +1318,7 @@ def show_xml(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
             nsmap = ET._namespace_map.copy()    # type: ignore[attr-defined]
             try:
                 tb = ET.TreeBuilder()
-                for _, c in chunk.children:
+                for c in chunk.children:
                     if isinstance(c, XMLNSStartChunk):
                         ET.register_namespace(c.prefix, c.uri)
                     elif isinstance(c, XMLElemStartChunk):
@@ -1458,16 +1456,16 @@ def brv_to_py(brv: BinResVal, raw_value: str) \
 
 def parse(data: bytes) -> Tuple[Chunk, ...]:
     """Parse raw data to AXML/ARSC chunks."""
-    return tuple(c for _, c in read_chunks(data))
+    return tuple(read_chunks(data))
 
 
 def read_chunks(data: bytes, parent: Optional[ChunkRef] = None, level: int = 0,
-                offset: int = 0) -> Iterator[Tuple[int, Chunk]]:
+                offset: int = 0) -> Iterator[Chunk]:
     """Read multiple chunks (+ offsets)."""
     while len(data) >= 8:
         chunk, data, level = read_chunk(data, parent, level, offset)
-        yield offset, chunk
         offset += chunk.chunk_size
+        yield chunk
     if data:
         raise ParseError("Expected end of data")
 
@@ -1690,7 +1688,7 @@ def quick_get_appid_version(apk: str) -> Tuple[str, int, str]:
             break
     else:
         raise ParseError("Expected StringPoolChunk and XMLElemStartChunk")
-    object.__setattr__(xml, "children", ((-1, pool), (-1, start)))
+    object.__setattr__(xml, "children", (pool, start))
     if start.name != "manifest":
         raise ParseError("Expected manifest element")
     appid = vercode = vername = None
