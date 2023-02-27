@@ -80,12 +80,31 @@ test-examples:
 	cp test/data/baseline1.profm.apk .tmp/baseline1.profm-inplace.apk
 	repro-apk-inplace-fix --zipalign sort-baseline --apk .tmp/baseline1.profm-inplace.apk
 	cmp test/data/baseline2.profm.apk .tmp/baseline1.profm-inplace.apk
-	# binres dump
+	# binres dump axml
+	cd test/data && diff -Naur AndroidManifest.xml.brdump \
+	  <( repro-apk binres dump AndroidManifest.xml )
+	cd test/data && diff -Naur AndroidManifest.xml.brxml \
+	  <( repro-apk binres dump AndroidManifest.xml --xml )
 	cd test/data && diff -Naur AndroidManifest.xml.json \
-	  <( repro-apk binres dump --json AndroidManifest.xml )
+	  <( repro-apk binres dump AndroidManifest.xml --json )
 	cd test/data && diff -Naur resource.xml.brdump \
 	  <( repro-apk binres dump resource.xml )
-	# TODO: arsc
+	cd test/data && diff -Naur resource.xml.brxml \
+	  <( repro-apk binres dump resource.xml --xml )
+	cd test/data && diff -Naur resource.xml.json \
+	  <( repro-apk binres dump resource.xml --json )
+	# binres dump axml --apk
+	cd test/data && diff -Naur golden-aligned-in-arsc.brdump \
+	  <( repro-apk binres dump --apk golden-aligned-in.apk resources.arsc )
+	# binres dump arsc
+	cd test/data && diff -Naur resources1.arsc.brdump \
+	  <( repro-apk binres dump resources1.arsc )
+	cd test/data && diff -Naur resources1.arsc.json \
+	  <( repro-apk binres dump resources1.arsc --json )
+	cd test/data && diff -Naur resources2.arsc.brdump \
+	  <( repro-apk binres dump resources2.arsc )
+	cd test/data && diff -Naur resources2.arsc.json \
+	  <( repro-apk binres dump resources2.arsc --json )
 	# binres fastid
 	cd test/data && diff -Naur <( echo "android.appsecurity.cts.tinyapp 10 1.0" ) \
 	  <( repro-apk binres fastid unix.apk )
