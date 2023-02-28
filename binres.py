@@ -190,13 +190,6 @@ class ParentChunk(Chunk):
         object.__setattr__(self, "children", c)
 
 
-# FIXME: unused, no .parse()
-@dataclass(frozen=True)
-class NullChunk(Chunk):
-    """Null chunk."""
-    TYPE_ID: ClassVar[int] = 0x0000
-
-
 @dataclass(frozen=True)
 class StringPoolChunk(Chunk):
     """String pool."""
@@ -1228,7 +1221,7 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None,
             show_chunks(*children, file=file, verbose=verbose)
 
 
-# FIXME
+# FIXME: LibraryChunk, StringPoolChunk.Style/Span
 def _show_subs(chunk: Chunk, subs: List[Tuple[str, Any]], indent: int, *,
                file: Optional[TextIO] = None) -> None:
     if file is None:
