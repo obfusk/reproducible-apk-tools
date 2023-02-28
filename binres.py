@@ -1828,8 +1828,10 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
     for c in chunk.children:
         if isinstance(c, XMLElemStartChunk):
             # FIXME: check level == 3?
-            if c.name == "uses-permission":
+            if c.name in ("uses-permission", "uses-permission-sdk-23"):
                 perm, more = None, []
+                if c.name == "uses-permission-sdk-23":
+                    more.append(("minSdkVersion", "23"))
                 for a in c.attributes:
                     if a.name == "name" and a.namespace == SCHEMA_ANDROID:
                         perm = a.raw_value
