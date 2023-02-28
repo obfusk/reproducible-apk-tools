@@ -13,7 +13,7 @@ XML
   STRING POOL [flags=0, #strings=16, #styles=0]
   XML RESOURCE MAP [#resources=6]
   XML NS START [lineno=1, prefix='android', uri='http://schemas.android.com/apk/res/android']
-    XML ELEM START [lineno=1, name='manifest']
+    XML ELEM START [lineno=1, name='manifest', #attributes=7]
       ATTR: http://schemas.android.com/apk/res/android:versionCode=1
       ATTR: http://schemas.android.com/apk/res/android:versionName='1'
       ATTR: http://schemas.android.com/apk/res/android:compileSdkVersion=29
@@ -21,7 +21,7 @@ XML
       ATTR: package='com.example'
       ATTR: platformBuildVersionCode=29
       ATTR: platformBuildVersionName='10.0.0'
-      XML ELEM START [lineno=2, name='uses-sdk']
+      XML ELEM START [lineno=2, name='uses-sdk', #attributes=2]
         ATTR: http://schemas.android.com/apk/res/android:minSdkVersion=21
         ATTR: http://schemas.android.com/apk/res/android:targetSdkVersion=29
       XML ELEM END [lineno=2, name='uses-sdk']
@@ -37,15 +37,15 @@ RESOURCE TABLE
     STRING POOL [flags=256, #strings=1, #styles=0]
     TYPE SPEC [id=0x1, #resources=0]
     TYPE SPEC [id=0x2, #resources=1]
-    TYPE [id=0x2]
+    TYPE [id=0x2, #entries=1]
       CONFIG [default]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: 'Tiny App for CTS'
-    TYPE [id=0x2]
+    TYPE [id=0x2, #entries=1]
       CONFIG [language='en', region='XA']
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
-    TYPE [id=0x2]
+    TYPE [id=0x2, #entries=1]
       CONFIG [language='ar', region='XB']
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'
@@ -88,6 +88,7 @@ from __future__ import annotations
 import binascii
 import dataclasses
 import io
+import itertools
 import json as _json
 import logging
 import os
@@ -105,8 +106,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from fnmatch import fnmatch
 from functools import cached_property, lru_cache
-from typing import (cast, Any, BinaryIO, Callable, ClassVar, Dict, Iterator,
-                    List, Optional, TextIO, Tuple, Union, TYPE_CHECKING)
+from typing import (cast, Any, BinaryIO, Callable, ClassVar, Dict, Iterable,
+                    Iterator, List, Optional, TextIO, Tuple, Union, TYPE_CHECKING)
 
 # https://android.googlesource.com/platform/tools/base
 #   apkparser/binary-resources/src/main/java/com/google/devrel/gmscore/tools/apk/arsc/*.java
@@ -209,13 +210,28 @@ class StringPoolChunk(Chunk):
 
         SPAN_END: ClassVar[int] = 0xFFFFFFFF
 
-    # FIXME: show how? use properly!
+        @classmethod
+        def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
+            return _fields(cls)     # type: ignore[arg-type]
+
     @dataclass(frozen=True)
     class Span:
         """String pool style span."""
         name_idx: int
         start: int
         stop: int
+        parent: StringPoolChunkRef = field(repr=False, compare=False)
+
+        @property
+        def name(self) -> str:
+            """Get name from parent."""
+            if (p := self.parent()) is not None:
+                return p.string(self.name_idx)
+            raise ParentError("Parent deallocated")
+
+        @classmethod
+        def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
+            return _fields(cls)     # type: ignore[arg-type]
 
     # FIXME: check payload size
     @classmethod
@@ -225,8 +241,11 @@ class StringPoolChunk(Chunk):
         n_strs, n_styles, flags, strs_start, styles_start = struct.unpack("<IIIII", header)
         codec = UTF8 if flags & cls.FLAG_UTF8 else UTF16
         strings = tuple(_read_strings(payload, strs_start - d["header_size"], n_strs, codec))
-        styles = tuple(_read_styles(payload, styles_start - d["header_size"], n_styles, n_strs))
-        return cls(**d, flags=flags, strings=strings, styles=styles)
+        chunk = cls(**d, flags=flags, strings=strings, styles=())
+        styles = tuple(_read_styles(payload, styles_start - d["header_size"],
+                                    n_styles, n_strs, weakref.ref(chunk)))
+        object.__setattr__(chunk, "styles", styles)
+        return chunk
 
     @property
     def is_sorted(self) -> bool:
@@ -245,6 +264,11 @@ class StringPoolChunk(Chunk):
     def style(self, idx: int) -> Style:
         """Get style by index."""
         return self.styles[idx]
+
+    @property
+    def styled_strings(self) -> Iterable[Tuple[Optional[str], Optional[Style]]]:
+        """Paired strings & styles."""
+        return itertools.zip_longest(self.strings, self.styles)
 
 
 @dataclass(frozen=True)
@@ -1085,10 +1109,12 @@ class XMLAttr:
 
 if TYPE_CHECKING:
     ChunkRef = weakref.ReferenceType[Chunk]
+    StringPoolChunkRef = weakref.ReferenceType[StringPoolChunk]
     XMLNodeChunkRef = weakref.ReferenceType[XMLNodeChunk]
     TypeChunkRef = weakref.ReferenceType[TypeChunk]
 else:
     ChunkRef = weakref.ReferenceType
+    StringPoolChunkRef = weakref.ReferenceType
     XMLNodeChunkRef = weakref.ReferenceType
     TypeChunkRef = weakref.ReferenceType
 
@@ -1206,10 +1232,11 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None,
             elif v in ("", None) or "Chunk" in t or k == "typed_value":
                 continue
             elif isinstance(v, tuple):
+                fs.append((f"#{k}", len(v)))
+                if k in ("strings", "styles"):
+                    continue
                 if (verbose or k in ("attributes", "entries")) and v:
                     subs.append((k, v))
-                else:
-                    fs.append((f"#{k}", len(v)))
             else:
                 fs.append((k, v))
         print(f"{' ' * indent}{_clsname(chunk.__class__)}{_fs_info(fs)}", file=file)
@@ -1217,11 +1244,13 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None,
             show_cfg(v, indent + 2, file=file)
         if subs:
             _show_subs(chunk, subs, indent + 2, file=file)
+        if verbose and isinstance(chunk, StringPoolChunk):
+            _show_strings_styles(chunk, indent + 2, file=file)
         if children is not None:
             show_chunks(*children, file=file, verbose=verbose)
 
 
-# FIXME: LibraryChunk, StringPoolChunk.Style/Span
+# FIXME: LibraryChunk not implemented
 def _show_subs(chunk: Chunk, subs: List[Tuple[str, Any]], indent: int, *,
                file: Optional[TextIO] = None) -> None:
     if file is None:
@@ -1241,15 +1270,26 @@ def _show_subs(chunk: Chunk, subs: List[Tuple[str, Any]], indent: int, *,
             else:
                 print(f"{' ' * indent}{k.upper()}:", file=file)
                 for x in v:
-                    # FIXME: show spans properly?!
-                    if isinstance(x, StringPoolChunk.Style):
-                        spans = ", ".join(str(dataclasses.astuple(s)) for s in x.spans)
-                        y = f"SPANS: {spans}"
-                    else:
-                        y = f"0x{x:08x}" if isinstance(x, int) else repr(x)
+                    y = f"0x{x:08x}" if isinstance(x, int) else repr(x)
                     print(f"{' ' * indent}  {y}", file=file)
         else:
             print(f"{' ' * indent}{k.upper()}: {v!r}", file=file)
+
+
+def _show_strings_styles(chunk: StringPoolChunk, indent: int, *,
+                         file: Optional[TextIO] = None) -> None:
+    if file is None:
+        file = sys.stdout
+    if chunk.styles:
+        print(f"{' ' * indent}STRINGS (SOME STYLED):", file=file)
+        for string, style in chunk.styled_strings:
+            s = repr(string) if string is not None else "[no string]"
+            print(f"{' ' * indent}  {s}", file=file)
+            if style is not None:
+                spans = ", ".join(f"{s.name!r}:{s.start}-{s.stop}" for s in style.spans)
+                print(f"{' ' * indent}    STYLE: {spans}", file=file)
+    elif chunk.strings:
+        _show_subs(chunk, [("strings", chunk.strings)], indent, file=file)
 
 
 def show_unknown_chunk(c: UnknownChunk, indent: int, *,
@@ -1334,13 +1374,13 @@ def json_serialisable(obj: Any) -> Any:
     if isinstance(obj, Enum):
         return dict(name=obj.name, value=obj.value)
     d: Dict[str, Any] = dict(_type=obj.__class__.__name__)
-    if isinstance(obj, (Chunk, BinResCfg, XMLAttr, TypeChunk.Entry)):
+    if isinstance(obj, (Chunk, BinResCfg, XMLAttr, TypeChunk.Entry,
+                        StringPoolChunk.Style, StringPoolChunk.Span)):
         for k, t, _, _ in obj.fields():
             if not t.rstrip("]").endswith("Ref"):
                 d[k] = json_serialisable(getattr(obj, k))
         return d
-    if isinstance(obj, (BinResVal, StringPoolChunk.Style, StringPoolChunk.Span,
-                        LibraryChunk.Entry)):
+    if isinstance(obj, (BinResVal, LibraryChunk.Entry)):
         d.update(dataclasses.asdict(obj))
         return json_serialisable(d)
     raise TypeError(f"Unserializable {obj.__class__.__name__}")
@@ -1559,19 +1599,21 @@ def _read_strings(data: bytes, off: int, n: int, codec: str) -> Iterator[str]:
         yield _decode_string(data, off + o, codec)
 
 
-def _read_styles(data: bytes, off: int, n: int, m: int) -> Iterator[StringPoolChunk.Style]:
+def _read_styles(data: bytes, off: int, n: int, m: int,
+                 parent: StringPoolChunkRef) -> Iterator[StringPoolChunk.Style]:
     for i in range(n):
         o, = struct.unpack("<I", data[4 * (m + i):4 * (m + i + 1)])
-        yield StringPoolChunk.Style(tuple(_read_spans(data, off + o)))
+        yield StringPoolChunk.Style(tuple(_read_spans(data, off + o, parent)))
 
 
-def _read_spans(data: bytes, off: int) -> Iterator[StringPoolChunk.Span]:
+def _read_spans(data: bytes, off: int,
+                parent: StringPoolChunkRef) -> Iterator[StringPoolChunk.Span]:
     while True:
         name_idx, = struct.unpack("<I", data[off:off + 4])
         if name_idx == StringPoolChunk.Style.SPAN_END:
             break
         start, stop = struct.unpack("<II", data[off + 4:off + 12])
-        yield StringPoolChunk.Span(name_idx, start, stop)
+        yield StringPoolChunk.Span(name_idx, start, stop, parent)
         off += 12
 
 
