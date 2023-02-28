@@ -89,6 +89,15 @@ def main() -> None:
     def binres_fastid(apks: Tuple[str, ...], json: bool) -> None:
         _binres.fastid(*apks, json=json)
 
+    @binres.command(help="""
+        Quickly get permissions from APK(s).
+    """, name="fastperms")
+    @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.argument("apks", metavar="APK...", nargs=-1, required=True,
+                    type=click.Path(exists=True, dir_okay=False))
+    def binres_fastperms(apks: Tuple[str, ...], json: bool) -> None:
+        _binres.fastperms(*apks, json=json)
+
     @cli.command(help="""
         Diff ZIP file metadata.
     """)

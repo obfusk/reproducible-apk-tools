@@ -1165,14 +1165,30 @@ def dump_apk(apk: str, *patterns: str, json: bool = False,
 def fastid(*apks: str, json: bool = False) -> None:
     """Quickly get appid & version code/name from APK & print to stdout."""
     if json:
-        result = []
-        for apk in apks:
-            appid, code, name = quick_get_appid_version(apk)
-            result.append(dict(package=appid, versionCode=code, versionName=name))
+        result = [dict(zip(["package", "versionCode", "versionName"],
+                           quick_get_idver(apk))) for apk in apks]
         print(_json.dumps(result, indent=2))
     else:
         for apk in apks:
-            print(*quick_get_appid_version(apk))
+            appid, code, name = quick_get_idver(apk)
+            print(f"{_safe(appid)} {code} {_safe(name)}")
+
+
+def fastperms(*apks: str, json: bool = False) -> None:
+    """Quickly get permissions from APK & print to stdout."""
+    if json:
+        result = [[dict(permission=perm, attributes=dict(more))
+                   for perm, more in quick_get_perms(apk)]
+                  for apk in apks]
+        print(_json.dumps(result, indent=2))
+    else:
+        one = len(apks) == 1
+        for apk in apks:
+            if not one:
+                print(f"file={apk!r}")
+            for perm, more in quick_get_perms(apk):
+                info = ", ".join(f"{_safe(k)}={_safe(v)}" for k, v in more)
+                print(f"{_safe(perm)}{f' [{info}]' if info else ''}")
 
 
 def _dump(data: bytes, *, json: bool, verbose: bool, xml: bool) -> None:
@@ -1772,31 +1788,21 @@ def _split(data: bytes, size: int) -> Tuple[bytes, bytes]:
     return data[:size], data[size:]
 
 
+def _safe(x: Any) -> str:
+    return repr(x)[1:-1] if isinstance(x, str) else repr(x)
+
+
+# FIXME: unused
+def _show(x: Any) -> str:
+    return x if isinstance(x, str) and x.isprintable() else repr(x)
+
+
 # FIXME
-def quick_get_appid_version(apk: str) -> Tuple[str, int, str]:
+def quick_get_idver(apk: str, *, chunk: Optional[XMLChunk] = None) -> Tuple[str, int, str]:
     """Quickly get appid & version code/name from APK."""
-    tid, d, _ = _read_chunk(quick_load(apk, MANIFEST))
-    if tid != XMLChunk.TYPE_ID:
-        raise ParseError("Expected XMLChunk")
-    data, d["payload"] = d["payload"], b""
-    xml = XMLChunk.parse(**d, level=0, offset=-1)
-    ref: Optional[ChunkRef] = weakref.ref(xml)
-    pool = start = None
-    while data:
-        tid, d, data = _read_chunk(data, parent=ref)
-        if tid == StringPoolChunk.TYPE_ID:
-            pool = StringPoolChunk.parse(**d, level=0, offset=-1)
-        elif tid == XMLElemStartChunk.TYPE_ID:
-            start = XMLElemStartChunk.parse(**d, level=0, offset=-1)
-        if pool and start:
-            break
-    else:
-        raise ParseError("Expected StringPoolChunk and XMLElemStartChunk")
-    object.__setattr__(xml, "children", (pool, start))
-    if start.name != "manifest":
-        raise ParseError("Expected manifest element")
+    manifest = quick_get_manifest(apk, chunk=chunk)
     appid = vercode = vername = None
-    for a in start.attributes:
+    for a in manifest.attributes:
         if a.name == "package" and not a.namespace:
             appid = a.raw_value
         elif a.name == "versionCode" and a.namespace == SCHEMA_ANDROID:
@@ -1808,6 +1814,64 @@ def quick_get_appid_version(apk: str) -> Tuple[str, int, str]:
     else:
         raise ParseError("Could not find required attribute(s)")
     return appid, vercode, vername
+
+
+# FIXME
+def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
+        -> Iterator[Tuple[str, Tuple[Tuple[str, str], ...]]]:
+    """Quickly get permissions from APK."""
+    if chunk is None:
+        first = read_chunk(quick_load(apk, MANIFEST))[0]
+        if not isinstance(first, XMLChunk):
+            raise Error("Expected XMLChunk")
+        chunk = first
+    for c in chunk.children:
+        if isinstance(c, XMLElemStartChunk):
+            # FIXME: check level == 3?
+            if c.name == "uses-permission":
+                perm, more = None, []
+                for a in c.attributes:
+                    if a.name == "name" and a.namespace == SCHEMA_ANDROID:
+                        perm = a.raw_value
+                    else:
+                        more.append((a.name, brv_str(a.typed_value, a.raw_value)))
+                if perm is None:
+                    raise ParseError("Could not find required attribute 'name'")
+                yield perm, tuple(more)
+
+
+# FIXME
+def quick_get_manifest(apk: str, *, chunk: Optional[XMLChunk] = None) -> XMLElemStartChunk:
+    """Quickly get manifest XMLElemStartChunk (w/o children) from APK."""
+    if chunk is None:
+        tid, d, _ = _read_chunk(quick_load(apk, MANIFEST))
+        if tid != XMLChunk.TYPE_ID:
+            raise ParseError("Expected XMLChunk")
+        data, d["payload"] = d["payload"], b""
+        xml = XMLChunk.parse(**d, level=0, offset=-1)
+        ref: Optional[ChunkRef] = weakref.ref(xml)
+        pool = start = None
+        while data:
+            tid, d, data = _read_chunk(data, parent=ref)
+            if tid == StringPoolChunk.TYPE_ID:
+                pool = StringPoolChunk.parse(**d, level=0, offset=-1)
+            elif tid == XMLElemStartChunk.TYPE_ID:
+                start = XMLElemStartChunk.parse(**d, level=0, offset=-1)
+            if pool and start:
+                break
+        else:
+            raise ParseError("Expected StringPoolChunk and XMLElemStartChunk")
+        object.__setattr__(xml, "children", (pool, start))
+    else:
+        for c in chunk.children:
+            if isinstance(c, XMLElemStartChunk):
+                start = c
+                break
+        else:
+            raise ParseError("Expected XMLElemStartChunk")
+    if start.name != "manifest":
+        raise ParseError("Expected manifest element")
+    return start
 
 
 def quick_load(apk: str, filename: str) -> bytes:
@@ -1909,6 +1973,9 @@ if __name__ == "__main__":
     sub_fastid = subs.add_parser("fastid", help="quickly get appid & version code/name")
     sub_fastid.add_argument("--json", action="store_true", help="output JSON")
     sub_fastid.add_argument("apks", metavar="APK", nargs="+")
+    sub_fastperms = subs.add_parser("fastperms", help="quickly get permissions")
+    sub_fastperms.add_argument("--json", action="store_true", help="output JSON")
+    sub_fastperms.add_argument("apks", metavar="APK", nargs="+")
     args = parser.parse_args()
     try:
         if args.command == "dump":
@@ -1922,6 +1989,8 @@ if __name__ == "__main__":
                      verbose=args.verbose, xml=args.xml)
         elif args.command == "fastid":
             fastid(*args.apks, json=args.json)
+        elif args.command == "fastperms":
+            fastperms(*args.apks, json=args.json)
         else:
             raise Error(f"Unknown command: {args.command}")
     except Error as e:

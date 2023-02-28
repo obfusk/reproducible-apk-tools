@@ -303,7 +303,7 @@ XML
   STRING POOL [flags=0, #strings=16, #styles=0]
   XML RESOURCE MAP [#resources=6]
   XML NS START [lineno=1, prefix='android', uri='http://schemas.android.com/apk/res/android']
-    XML ELEM START [lineno=1, name='manifest']
+    XML ELEM START [lineno=1, name='manifest', #attributes=7]
       ATTR: http://schemas.android.com/apk/res/android:versionCode=1
       ATTR: http://schemas.android.com/apk/res/android:versionName='1'
       ATTR: http://schemas.android.com/apk/res/android:compileSdkVersion=29
@@ -311,7 +311,7 @@ XML
       ATTR: package='com.example'
       ATTR: platformBuildVersionCode=29
       ATTR: platformBuildVersionName='10.0.0'
-      XML ELEM START [lineno=2, name='uses-sdk']
+      XML ELEM START [lineno=2, name='uses-sdk', #attributes=2]
         ATTR: http://schemas.android.com/apk/res/android:minSdkVersion=21
         ATTR: http://schemas.android.com/apk/res/android:targetSdkVersion=29
       XML ELEM END [lineno=2, name='uses-sdk']
@@ -344,6 +344,33 @@ $ binres.py fastid --json some.apk
     "versionCode": 1,
     "versionName": "1"
   }
+]
+```
+
+#### fastperms
+
+Quickly get permissions from APK(s).
+
+```bash
+$ binres.py fastperms --help
+usage: binres.py fastperms [-h] [--json] APK [APK ...]
+$ binres.py fastperms some.apk
+android.permission.CAMERA
+android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
+$ binres.py fastperms --json some.apk
+[
+  [
+    {
+      "permission": "android.permission.CAMERA",
+      "attributes": {}
+    },
+    {
+      "permission": "android.permission.READ_EXTERNAL_STORAGE",
+      "attributes": {
+        "maxSdkVersion": "23"
+      }
+    }
+  ]
 ]
 ```
 
@@ -698,6 +725,8 @@ $ repro-apk binres dump AndroidManifest.xml
 $ repro-apk binres dump --apk some.apk '*.arsc' '*.xml'
 $ repro-apk binres fastid some.apk
 $ repro-apk binres fastid --json some.apk
+$ repro-apk binres fastperms some.apk
+$ repro-apk binres fastperms --json some.apk
 $ repro-apk diff-zip-meta a.apk b.apk
 $ repro-apk diff-zip-meta a.apk c.apk --no-offsets --no-ordering
 $ repro-apk dump-arsc resources.arsc
@@ -727,6 +756,7 @@ $ repro-apk --help
 $ repro-apk binres --help
 $ repro-apk binres dump --help
 $ repro-apk binres fastid --help
+$ repro-apk binres fastperms --help
 $ repro-apk diff-zip-meta --help
 $ repro-apk dump-arsc --help
 $ repro-apk dump-axml --help
