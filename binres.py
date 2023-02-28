@@ -38,17 +38,17 @@ RESOURCE TABLE
     TYPE SPEC [id=0x1, #resources=0]
     TYPE SPEC [id=0x2, #resources=1]
     TYPE [id=0x2]
+      CONFIG [default]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: 'Tiny App for CTS'
-      CONFIG [default]
     TYPE [id=0x2]
+      CONFIG [language='en', region='XA']
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
-      CONFIG [language='en', region='XA']
     TYPE [id=0x2]
+      CONFIG [language='ar', region='XB']
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'
-      CONFIG [language='ar', region='XB']
 
 >>> dump("test/data/AndroidManifest.xml", xml=True)
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1" android:versionName="1" android:compileSdkVersion="29" android:compileSdkVersionCodename="10.0.0" package="com.example" platformBuildVersionCode="29" platformBuildVersionName="10.0.0">
@@ -94,7 +94,9 @@ import os
 import re
 import struct
 import sys
+import textwrap
 import weakref
+import xml.etree.ElementTree as ET
 import zipfile
 import zlib
 
@@ -102,7 +104,7 @@ from collections import namedtuple
 from dataclasses import dataclass, field
 from enum import Enum
 from fnmatch import fnmatch
-from functools import cached_property
+from functools import cached_property, lru_cache
 from typing import (cast, Any, BinaryIO, Callable, ClassVar, Dict, Iterator,
                     List, Optional, TextIO, Tuple, Union, TYPE_CHECKING)
 
@@ -155,6 +157,7 @@ class Chunk:
     offset: int = field(compare=False)
 
     TYPE_ID: ClassVar[Optional[int]] = None
+    HIDDEN_FIELDS: ClassVar[Tuple[str, ...]] = ("header_size", "chunk_size", "level", "offset")
 
     @classmethod
     def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
@@ -167,6 +170,10 @@ class Chunk:
         if self.__class__.TYPE_ID is not None:
             return self.__class__.TYPE_ID
         raise NotImplementedError("No .TYPE_ID or custom .type_id")
+
+    @classmethod
+    def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
+        return _fields(cls)     # type: ignore[arg-type]
 
 
 @dataclass(frozen=True)
@@ -183,7 +190,7 @@ class ParentChunk(Chunk):
         object.__setattr__(self, "children", c)
 
 
-# FIXME: unused
+# FIXME: unused, no .parse()
 @dataclass(frozen=True)
 class NullChunk(Chunk):
     """Null chunk."""
@@ -520,8 +527,8 @@ class PackageChunk(ParentChunk):
     type_specs: Tuple[Tuple[int, TypeSpecChunk], ...] = field(repr=False, compare=False)
     types: Tuple[Tuple[int, TypeChunk], ...] = field(repr=False, compare=False)
     library_chunk: Optional[LibraryChunk] = field(repr=False, compare=False)
-    _type_strings_offset: int = field(repr=False, compare=False)
-    _key_strings_offset: int = field(repr=False, compare=False)
+    type_strings_offset: int = field(compare=False)
+    key_strings_offset: int = field(compare=False)
 
     TYPE_ID: ClassVar[int] = 0x0200
 
@@ -534,7 +541,7 @@ class PackageChunk(ParentChunk):
             struct.unpack("<I256sIIIII", header)
         name = _decode_package_name(name_b)
         chunk = cls(**d, id=id_, package_name=name, type_specs=(), types=(),
-                    library_chunk=None, _key_strings_offset=k_off, _type_strings_offset=t_off)
+                    library_chunk=None, key_strings_offset=k_off, type_strings_offset=t_off)
         chunk._parse_children(payload)
         type_specs, types, library_chunk = [], [], None
         for c in chunk.children:
@@ -595,12 +602,12 @@ class PackageChunk(ParentChunk):
     @cached_property
     def type_string_pool(self) -> StringPoolChunk:
         """Get type string pool child."""
-        return self._string_pool(self._type_strings_offset, "type")
+        return self._string_pool(self.type_strings_offset, "type")
 
     @cached_property
     def key_string_pool(self) -> StringPoolChunk:
         """Get key string pool child."""
-        return self._string_pool(self._key_strings_offset, "key")
+        return self._string_pool(self.key_strings_offset, "key")
 
     def _string_pool(self, offset: int, what: str) -> StringPoolChunk:
         pool = None
@@ -664,11 +671,13 @@ class TypeChunk(TypeOrSpecChunk):
         """Type chunk entry."""
         header_size: int
         flags: int
-        key_index: int
+        key_idx: int
         value: Optional[BinResVal]
         values: Tuple[Tuple[int, BinResVal], ...]
         parent_entry: int
         parent: TypeChunkRef = field(repr=False, compare=False)
+
+        HIDDEN_FIELDS: ClassVar[Tuple[str, ...]] = ("header_size",)
 
         FLAG_COMPLEX: ClassVar[int] = 0x1
 
@@ -690,8 +699,12 @@ class TypeChunk(TypeOrSpecChunk):
         def key(self) -> str:
             """Get key name from TypeChunk parent."""
             if (p := self.parent()) is not None:
-                return p.key_name(self.key_index)
+                return p.key_name(self.key_idx)
             raise ParentError("Parent deallocated")
+
+        @classmethod
+        def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
+            return _fields(cls)     # type: ignore[arg-type]
 
     @classmethod
     def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> TypeChunk:
@@ -717,7 +730,7 @@ class TypeChunk(TypeOrSpecChunk):
             else:
                 value = _read_brv(payload[o + 8:o + 16])
                 par_ent = 0
-            e = cls.Entry(header_size=hdr_sz, flags=flags, key_index=key_idx,
+            e = cls.Entry(header_size=hdr_sz, flags=flags, key_idx=key_idx,
                           value=value, values=tuple(values), parent_entry=par_ent,
                           parent=weakref.ref(chunk))
             entries.append((i, e))
@@ -815,6 +828,8 @@ class UnknownChunk(Chunk):
     header: bytes = field(repr=False)
     payload: bytes = field(repr=False)
     _type_id: int
+
+    SUBFIELDS: ClassVar[Dict[str, Tuple[str, ...]]] = dict(_type_id=("type_id",))
 
     @property
     def type_id(self) -> int:
@@ -960,6 +975,7 @@ class BinResCfg:
     def ui_mode_night(self) -> UiModeNight:
         return self.UiModeNight((self.ui_mode >> 4) & 0x3)
 
+    HIDDEN_FIELDS: ClassVar[Tuple[str, ...]] = ("size", "unknown")
     SUBFIELDS: ClassVar[Dict[str, Tuple[str, ...]]] = dict(
         input_flags=("keys_hidden", "nav_hidden"),
         screen_layout=("layout_direction", "screen_layout_size", "screen_layout_long"),
@@ -1002,12 +1018,16 @@ class BinResCfg:
 
     @property
     def is_default(self) -> bool:
-        return not self.non_default_fields
+        """Whether any fields have non-default values."""
+        return not self.fields_to_show
 
     @property
-    def non_default_fields(self) -> Dict[str, Any]:
+    def fields_to_show(self) -> Dict[str, Any]:
+        """Fields (with non-default values) to show."""
         d = {}
-        for k in self._fields():
+        for k, _, h, _ in self.fields():
+            if h:
+                continue
             v = getattr(self, k)
             if k == "density":
                 try:
@@ -1024,22 +1044,8 @@ class BinResCfg:
         return d
 
     @classmethod
-    def _fields(cls) -> Tuple[str, ...]:
-        if cls._fields_cached is not None:
-            return cls._fields_cached
-        fs = []
-        for f in dataclasses.fields(cls):
-            if f.name in ("size", "unknown"):
-                continue
-            if sfs := cls.SUBFIELDS.get(f.name):
-                for sf in sfs:
-                    fs.append(sf)
-            else:
-                fs.append(f.name)
-        cls._fields_cached = tuple(fs)
-        return cls._fields_cached
-
-    _fields_cached: ClassVar[Optional[Tuple[str, ...]]] = None
+    def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
+        return _fields(cls)     # type: ignore[arg-type]
 
 
 @dataclass(frozen=True)
@@ -1079,6 +1085,10 @@ class XMLAttr:
         """Get raw value string."""
         return self.string(self.raw_value_idx)
 
+    @classmethod
+    def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
+        return _fields(cls)     # type: ignore[arg-type]
+
 
 if TYPE_CHECKING:
     ChunkRef = weakref.ReferenceType[Chunk]
@@ -1097,9 +1107,6 @@ def _subclasses(cls: Any) -> Iterator[Any]:
 
 
 CHUNK_TYPES = {c.TYPE_ID: c for c in _subclasses(Chunk) if c.TYPE_ID is not None}
-
-HIDDEN_FIELDS = {"chunk_size", "header_size", "level", "parent", "offset", "typed_value"}
-VERBOSE_FIELDS = {"comment_idx"}
 
 
 # FIXME
@@ -1141,8 +1148,8 @@ def fastid(*apks: str, json: bool = False) -> None:
     if json:
         result = []
         for apk in apks:
-            appid, vercode, vername = quick_get_appid_version(apk)
-            result.append(dict(package=appid, versionCode=vercode, versionName=vername))
+            appid, code, name = quick_get_appid_version(apk)
+            result.append(dict(package=appid, versionCode=code, versionName=name))
         print(_json.dumps(result, indent=2))
     else:
         for apk in apks:
@@ -1165,7 +1172,7 @@ def _dump(data: bytes, *, json: bool, verbose: bool, xml: bool) -> None:
 def dump_arsc(*chunks: Chunk, json: bool = False, verbose: bool = False) -> None:
     """Dump ARSC chunks to stdout."""
     if json:
-        show_json(*chunks)
+        show_chunks_json(*chunks)
     else:
         show_chunks(*chunks, verbose=verbose)
 
@@ -1175,191 +1182,117 @@ def dump_axml(*chunks: Chunk, json: bool = False, verbose: bool = False,
               xml: bool = False) -> None:
     """Dump AXML chunks to stdout."""
     if json:
-        show_json(*chunks)
+        show_chunks_json(*chunks)
     elif xml:
-        show_xml(*chunks)
+        show_chunks_xml(*chunks)
     else:
         show_chunks(*chunks, verbose=verbose)
 
 
 # FIXME
-def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None, verbose: bool) -> None:
+def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None,
+                verbose: bool = False) -> None:
     """Show AXML/ARSC chunks as parse tree."""
     if file is None:
         file = sys.stdout
     for chunk in chunks:
-        idt, name = "  " * chunk.level, _clsname(chunk.__class__)
-        fs, sub = [], []
-        for f in dataclasses.fields(chunk):
-            k = f.name
-            hid, ver = k in HIDDEN_FIELDS, k in VERBOSE_FIELDS
-            if not f.repr or hid or (not verbose and ver):
+        indent = 2 * chunk.level
+        if isinstance(chunk, UnknownChunk):
+            show_unknown_chunk(chunk, indent, file=file, verbose=verbose)
+            continue
+        fs, subs, children, cfg = [], [], None, None
+        for k, t, h, _ in chunk.fields():
+            if h or t.rstrip("]").endswith("Ref") or k.endswith("_offset") \
+                    or k.endswith("_idx"):
                 continue
-            if k.endswith("_idx"):
-                if not hasattr(chunk, k[:-4]):
-                    continue
-                k = k[:-4]
             v = getattr(chunk, k)
-            if v == "":
-                pass
+            if k == "children":
+                children = v
+            elif k == "configuration":
+                cfg = v
+            elif v in ("", None) or "Chunk" in t or k == "typed_value":
+                continue
             elif isinstance(v, tuple):
-                if verbose or k in ("attributes", "entries"):
-                    if v:
-                        sub.append((k, v))
+                if (verbose or k in ("attributes", "entries")) and v:
+                    subs.append((k, v))
                 else:
                     fs.append((f"#{k}", len(v)))
-            elif ver or k == "configuration":
-                sub.append((k, v))
             else:
                 fs.append((k, v))
-        print(f"{idt}{name}{_fs_info(fs)}", file=file)
-        for k, v in sub:
-            if isinstance(v, tuple):
-                if k == "attributes":
-                    for x in v:
-                        show_xml_attr(x, f"{idt}  ATTR: ", file=file)
-                elif k == "entries":
-                    if isinstance(chunk, TypeChunk):
-                        for i, x in v:
-                            show_type_entry(chunk, i, x, f"{idt}  ", file=file)
-                    else:
-                        # FIXME: LibraryChunk
-                        raise NotImplementedError("FIXME")
+        print(f"{' ' * indent}{_clsname(chunk.__class__)}{_fs_info(fs)}", file=file)
+        if cfg is not None:
+            show_cfg(v, indent + 2, file=file)
+        if subs:
+            _show_subs(chunk, subs, indent + 2, file=file)
+        if children is not None:
+            show_chunks(*children, file=file, verbose=verbose)
+
+
+# FIXME
+def _show_subs(chunk: Chunk, subs: List[Tuple[str, Any]], indent: int, *,
+               file: Optional[TextIO] = None) -> None:
+    if file is None:
+        file = sys.stdout
+    for k, v in subs:
+        if isinstance(v, tuple):
+            if k == "attributes":
+                for attr in v:
+                    show_xmlattr(attr, indent, file=file)
+            elif k == "entries":
+                if isinstance(chunk, TypeChunk):
+                    for i, entry in v:
+                        show_type_entry(chunk, i, entry, indent, file=file)
                 else:
-                    print(f"{idt}  {k.upper()}:", file=file)
-                    for x in v:
-                        if isinstance(x, StringPoolChunk.Style):
-                            spans = ", ".join(str(dataclasses.astuple(s)) for s in x.spans)
-                            y = f"SPANS: {spans}"
-                        else:
-                            y = hex(x) if isinstance(x, int) else repr(x)
-                        print(f"{idt}    {y}", file=file)
-            elif isinstance(v, BinResCfg):
-                show_cfg(v, f"{idt}  CONFIG", file=file)
+                    # FIXME: LibraryChunk
+                    raise NotImplementedError("FIXME")
             else:
-                print(f"{idt}  {k.upper()}: {v!r}", file=file)
-        if hasattr(chunk, "children"):
-            show_chunks(*chunk.children, file=file, verbose=verbose)
+                print(f"{' ' * indent}{k.upper()}:", file=file)
+                for x in v:
+                    # FIXME: show spans properly?!
+                    if isinstance(x, StringPoolChunk.Style):
+                        spans = ", ".join(str(dataclasses.astuple(s)) for s in x.spans)
+                        y = f"SPANS: {spans}"
+                    else:
+                        y = f"0x{x:08x}" if isinstance(x, int) else repr(x)
+                    print(f"{' ' * indent}  {y}", file=file)
+        else:
+            print(f"{' ' * indent}{k.upper()}: {v!r}", file=file)
 
 
-def _fs_info(fs: List[Tuple[str, Any]]) -> str:
-    fs_joined = ", ".join(f"{k}={hex(v) if k == 'id' else repr(v)}" for k, v in fs)
-    return f" [{fs_joined}]" if fs else ""
-
-
-# FIXME
-# FIXME: LibraryChunk
-def show_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
-    """Show AXML/ARSC chunks as JSON."""
-    def for_json(obj: Any) -> Any:
-        if isinstance(obj, (Chunk, XMLAttr, BinResVal, StringPoolChunk.Style,
-                            TypeChunk.Entry, BinResCfg)):
-            d: Dict[str, Any] = dict(_type=obj.__class__.__name__)
-            for f in dataclasses.fields(obj):
-                k = f.name
-                if k == "_type_id":
-                    k = k[1:]
-                elif k == "parent" or k.startswith("_"):
-                    continue
-                if k.endswith("_idx") and hasattr(obj, k[:-4]):
-                    k = k[:-4]
-                v = getattr(obj, k)
-                if isinstance(v, bytes):
-                    d[k] = dict(_type="bytes", value=binascii.hexlify(v).decode())
-                elif isinstance(v, Enum):
-                    d[k] = dict(name=v.name, value=v.value)
-                elif k in ("children", "attributes", "styles", "spans"):
-                    d[k] = [for_json(c) for c in v]
-                elif k in ("packages", "types", "type_specs", "entries", "values"):
-                    d[k] = [(x, for_json(c)) for x, c in v]
-                elif k in ("type", "typed_value", "string_pool", "library_chunk",
-                           "value", "configuration"):
-                    d[k] = for_json(v) if v is not None else None
-                else:
-                    d[k] = v
-            return d
-        if isinstance(obj, StringPoolChunk.Span):
-            return dataclasses.astuple(obj)
-        raise TypeError(f"Unserializable {obj.__class__.__name__}")
+def show_unknown_chunk(c: UnknownChunk, indent: int, *,
+                       file: Optional[TextIO] = None, verbose: bool = False) -> None:
+    """Show UnknownChunk."""
+    def wrap(s: str, i: str) -> str:
+        return "\n".join(textwrap.wrap(s, width=80, initial_indent=i, subsequent_indent=i))
     if file is None:
         file = sys.stdout
-    _json.dump([for_json(c) for c in chunks], file, indent=2, sort_keys=True)
-    print(file=file)
+    print(f"{' ' * indent}UNKNOWN CHUNK [type_id={c.type_id}]", file=file)
+    if verbose:
+        print(f"{' ' * indent}  HEADER (HEX):", file=file)
+        print(wrap(binascii.hexlify(c.header).decode(), " " * (indent + 4)), file=file)
+        print(f"{' ' * indent}  PAYLOAD (HEX):", file=file)
+        print(wrap(binascii.hexlify(c.payload).decode(), " " * (indent + 4)), file=file)
 
 
-# FIXME
-def show_xml(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
-    """Show AXML chunks as XML."""
-    import xml.etree.ElementTree as ET
-
-    def indent(root: ET.Element) -> None:
-        def _indent_children(elem: ET.Element, level: int) -> None:
-            if not elem.text or not elem.text.strip():
-                elem.text = "\n" + "  " * (level + 1)
-            for child in elem:
-                if len(child):
-                    _indent_children(child, level + 1)
-                if not child.tail or not child.tail.strip():
-                    last_tail = child.tail = "\n" + "  " * (level + 1)
-                else:
-                    last_tail = None
-            if child.tail and last_tail is not None:
-                child.tail = child.tail[:-2]
-        if len(root):
-            _indent_children(root, 0)
-
-    if file is None:
-        file = sys.stdout
-    bio = io.BytesIO()
-    found = False
-    for chunk in chunks:
-        if isinstance(chunk, XMLChunk):
-            found = True
-            nsmap = ET._namespace_map.copy()    # type: ignore[attr-defined]
-            try:
-                tb = ET.TreeBuilder()
-                for c in chunk.children:
-                    if isinstance(c, XMLNSStartChunk):
-                        ET.register_namespace(c.prefix, c.uri)
-                    elif isinstance(c, XMLElemStartChunk):
-                        attrs = {}
-                        for a in c.attributes:
-                            attrs[a.name_with_ns] = brv_str(a.typed_value, a.raw_value)
-                        tb.start(c.name, attrs)
-                    elif isinstance(c, XMLElemEndChunk):
-                        tb.end(c.name)
-                    elif isinstance(c, XMLCDATAChunk):
-                        tb.data(brv_str(c.typed_value, c.raw_value))
-                tree = ET.ElementTree(tb.close())
-                indent(tree.getroot())
-                tree.write(bio)
-            finally:
-                ET._namespace_map = nsmap       # type: ignore[attr-defined]
-            print(bio.getvalue().decode(), file=file)
-    if not found:
-        raise Error("No XML chunks")
-
-
-def show_xml_attr(attr: XMLAttr, pre: str = "", *,
-                  file: Optional[TextIO] = None) -> None:
+def show_xmlattr(attr: XMLAttr, indent: int, *, file: Optional[TextIO] = None) -> None:
     """Show XMLAttr."""
     if file is None:
         file = sys.stdout
     ns, name, tv = attr.namespace, attr.name, attr.typed_value
     ns_info = f"{repr(ns)[1:-1]}:" if ns else ""
     v = brv_repr(tv, attr.raw_value)
-    print(f"{pre}{ns_info}{repr(name)[1:-1]}={v}", file=file)
+    print(f"{' ' * indent}ATTR: {ns_info}{repr(name)[1:-1]}={v}", file=file)
 
 
-def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry,
-                    pre: str = "", *, file: Optional[TextIO] = None) -> None:
+def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry, indent: int, *,
+                    file: Optional[TextIO] = None) -> None:
     """Show TypeChunk.Entry."""
     if file is None:
         file = sys.stdout
     info = f"id=0x{c.resource_id(i).to_int:08x}, key={e.key!r}"
     if e.parent_entry:
         info += f", parent=0x{e.parent_entry:08x}"
-    print(f"{pre}ENTRY [{info}]", file=file)
+    print(f"{' ' * indent}ENTRY [{info}]", file=file)
     values: Tuple[Tuple[Optional[int], BinResVal], ...]
     if e.is_complex:
         values = e.values
@@ -1369,17 +1302,130 @@ def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry,
     for k, brv in values:
         r = c.string(brv.data) if brv.type is BinResVal.Type.STRING else ""
         v = brv_repr(brv, r)
-        print(f"{pre}  VALUE{'' if k is None else f' 0x{k:08x}'}: {v}")
+        print(f"{' ' * indent}  VALUE{'' if k is None else f' 0x{k:08x}'}: {v}", file=file)
 
 
-def show_cfg(c: BinResCfg, pre: str = "", *, file: Optional[TextIO] = None) -> None:
+# FIXME: show size?
+def show_cfg(c: BinResCfg, indent: int, *, file: Optional[TextIO] = None) -> None:
     """Show BinResCfg."""
     if file is None:
         file = sys.stdout
-    if fs := list(c.non_default_fields.items()):
-        print(f"{pre}{_fs_info(fs)}")
-    else:
-        print(f"{pre} [default]")
+    info = _fs_info(list(c.fields_to_show.items())) or " [default]"
+    print(f"{' ' * indent}CONFIG{info}", file=file)
+
+
+def _fs_info(fs: List[Tuple[str, Any]]) -> str:
+    fs_joined = ", ".join(f"{k}={hex(v) if k == 'id' else repr(v)}" for k, v in fs)
+    return f" [{fs_joined}]" if fs else ""
+
+
+def show_chunks_json(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
+    """Show AXML/ARSC chunks as JSON."""
+    if file is None:
+        file = sys.stdout
+    _json.dump(json_serialisable(chunks), file, indent=2, sort_keys=True)
+    print(file=file)
+
+
+# FIXME
+def json_serialisable(obj: Any) -> Any:
+    """Convert Chunk etc. to JSON serialisable data."""
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    if isinstance(obj, (tuple, list)):
+        return [json_serialisable(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: json_serialisable(v) for k, v in obj.items()}
+    if isinstance(obj, bytes):
+        return dict(_type="bytes", value=binascii.hexlify(obj).decode())
+    if isinstance(obj, Enum):
+        return dict(name=obj.name, value=obj.value)
+    d: Dict[str, Any] = dict(_type=obj.__class__.__name__)
+    if isinstance(obj, (Chunk, BinResCfg, XMLAttr, TypeChunk.Entry)):
+        for k, t, _, _ in obj.fields():
+            if not t.rstrip("]").endswith("Ref"):
+                d[k] = json_serialisable(getattr(obj, k))
+        return d
+    if isinstance(obj, (BinResVal, StringPoolChunk.Style, StringPoolChunk.Span,
+                        LibraryChunk.Entry)):
+        d.update(dataclasses.asdict(obj))
+        return json_serialisable(d)
+    raise TypeError(f"Unserializable {obj.__class__.__name__}")
+
+
+def show_chunks_xml(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
+    """Show XML chunk(s) in AXML chunks as XML."""
+    if file is None:
+        file = sys.stdout
+    found = False
+    for chunk in chunks:
+        if isinstance(chunk, XMLChunk):
+            found = True
+            bio = io.BytesIO()
+            tree = xmlchunk_to_etree(chunk)
+            tree.write(bio)
+            print(bio.getvalue().decode(), file=file)
+    if not found:
+        raise Error("No XML chunks")
+
+
+def xmlchunk_to_etree(chunk: XMLChunk, *, indent: int = 2) -> ET.ElementTree:
+    """
+    Convert XML chunk to xml.etree.ElementTree.ElementTree.
+
+    NB: not thread-safe as it has to temporarily replace _namespace_map in the
+    xml.etree.ElementTree module during this function and any later .write()
+    since .register_namespace() uses a global registry.
+    """
+    def indent_tree(root: ET.Element, indent: str) -> None:
+        def _indent_children(elem: ET.Element, level: int) -> None:
+            if not elem.text or not elem.text.strip():
+                elem.text = "\n" + indent * (level + 1)
+            for child in elem:
+                if len(child):
+                    _indent_children(child, level + 1)
+                if not child.tail or not child.tail.strip():
+                    last_tail = child.tail = "\n" + indent * (level + 1)
+                else:
+                    last_tail = None
+            if child.tail and last_tail is not None:
+                child.tail = child.tail[:-2]
+        if len(root):
+            _indent_children(root, 0)
+
+    def write(orig_write: Callable[..., None], nsmap: Dict[str, str]) -> Callable[..., None]:
+        def f(*args: Any, **kwargs: Any) -> None:
+            old_nsmap = ET._namespace_map           # type: ignore[attr-defined]
+            ET._namespace_map = nsmap               # type: ignore[attr-defined]
+            try:
+                orig_write(*args, **kwargs)
+            finally:
+                ET._namespace_map = old_nsmap       # type: ignore[attr-defined]
+        return f
+
+    old_nsmap = ET._namespace_map                   # type: ignore[attr-defined]
+    ET._namespace_map = nsmap = old_nsmap.copy()    # type: ignore[attr-defined]
+    try:
+        tb = ET.TreeBuilder()
+        for c in chunk.children:
+            if isinstance(c, XMLNSStartChunk):
+                ET.register_namespace(c.prefix, c.uri)
+            elif isinstance(c, XMLElemStartChunk):
+                attrs = {}
+                for a in c.attributes:
+                    attrs[a.name_with_ns] = brv_str(a.typed_value, a.raw_value)
+                tb.start(c.name, attrs)
+            elif isinstance(c, XMLElemEndChunk):
+                tb.end(c.name)
+            elif isinstance(c, XMLCDATAChunk):
+                tb.data(brv_str(c.typed_value, c.raw_value))
+        tree = ET.ElementTree(tb.close())
+        if indent:
+            indent_tree(tree.getroot(), " " * indent)
+        setattr(tree, "write", write(tree.write, nsmap))
+    finally:
+        ET._namespace_map = old_nsmap               # type: ignore[attr-defined]
+    return tree
 
 
 def brv_repr(brv: BinResVal, raw_value: str) -> str:
@@ -1461,7 +1507,7 @@ def parse(data: bytes) -> Tuple[Chunk, ...]:
 
 def read_chunks(data: bytes, parent: Optional[ChunkRef] = None, level: int = 0,
                 offset: int = 0) -> Iterator[Chunk]:
-    """Read multiple chunks (+ offsets)."""
+    """Read multiple chunks."""
     while len(data) >= 8:
         chunk, data, level = read_chunk(data, parent, level, offset)
         offset += chunk.chunk_size
@@ -1486,7 +1532,8 @@ def read_chunk(data: bytes, parent: Optional[ChunkRef] = None,
     return chunk, data, level
 
 
-def _read_chunk(data: bytes, parent: Optional[ChunkRef] = None) -> Tuple[int, Dict[str, Any], bytes]:
+def _read_chunk(data: bytes, parent: Optional[ChunkRef] = None) \
+        -> Tuple[int, Dict[str, Any], bytes]:
     type_id, header_size, chunk_size, data = _unpack("<HHI", data)
     if header_size > chunk_size:
         raise ParseError("Header size > chunk size")
@@ -1496,20 +1543,6 @@ def _read_chunk(data: bytes, parent: Optional[ChunkRef] = None) -> Tuple[int, Di
     chunk_data, data = _split(data, chunk_size - header_size)
     d = dict(header=header, payload=chunk_data, parent=parent)
     return type_id, d, data
-
-
-def _unpack(fmt: str, data: bytes) -> Any:
-    assert all(c in "<BHI" for c in fmt)
-    size = fmt.count("B") + 2 * fmt.count("H") + 4 * fmt.count("I")
-    return struct.unpack(fmt, data[:size]) + (data[size:],)
-
-
-def _split(data: bytes, size: int) -> Tuple[bytes, bytes]:
-    return data[:size], data[size:]
-
-
-def _noref(idx: int) -> Optional[int]:
-    return None if idx in (-1, -1 & 0xFFFFFFFF) else idx
 
 
 def _read_attrs(data: bytes, parent: XMLNodeChunkRef,
@@ -1602,8 +1635,8 @@ def _unpack_lang(b: bytes, base: int) -> Optional[str]:
 
 def _decode_string(data: bytes, off: int, codec: str) -> str:
     if codec == UTF8:
-        i, m = _decode_length(data, off, codec)
-        j, n = _decode_length(data, off + i, codec)
+        i, m = _decode_strlen(data, off, codec)
+        j, n = _decode_strlen(data, off + i, codec)
         a, b = off + i + j, off + i + j + n
         try:
             s = data[a:b].decode(codec)
@@ -1616,7 +1649,7 @@ def _decode_string(data: bytes, off: int, codec: str) -> str:
         if data[b] != 0:
             raise ParseError("UTF-8 string not null-terminated")
     elif codec == UTF16:
-        i, n = _decode_length(data, off, codec)
+        i, n = _decode_strlen(data, off, codec)
         a, b = off + i, off + i + 2 * n
         s = data[a:b].decode(codec)
         if data[b:b + 2] != b"\x00\x00":
@@ -1641,7 +1674,7 @@ def _decode_utf8_with_surrogates(b: bytes) -> Tuple[int, str]:
     return n, "".join(t)
 
 
-def _decode_length(data: bytes, off: int, codec: str) -> Tuple[int, int]:
+def _decode_strlen(data: bytes, off: int, codec: str) -> Tuple[int, int]:
     if codec == UTF8:
         i, n = 1, data[off]
         if n & 0x80:
@@ -1662,10 +1695,46 @@ def _decode_package_name(b: bytes) -> str:
     return b[:i].decode(UTF16)
 
 
+def _noref(idx: int) -> Optional[int]:
+    return None if idx in (-1, -1 & 0xFFFFFFFF) else idx
+
+
 def _clsname(cls: type) -> str:
     name = cls.__name__.replace("Chunk", "").replace("XML", "XML ")
     name_sp = re.sub(r"([A-Z][a-z])", r" \1", name)
     return " ".join(x.upper() for x in name_sp.split())
+
+
+@lru_cache(maxsize=None)
+def _fields(cls: Any) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
+    # key, type, hidden (0=no, 1=yes, 2=sub(no), 3=sub(yes)), orig_key
+    hf = getattr(cls, "HIDDEN_FIELDS", ())
+    sf = getattr(cls, "SUBFIELDS", {})
+    fs: List[Tuple[str, str, int, Optional[str]]] = []
+    for f in dataclasses.fields(cls):
+        assert isinstance(f.type, str)
+        h = f.name in hf
+        if names := sf.get(f.name):
+            fs.append((f.name, f.type, h + 2, None))
+            for name in names:
+                t = getattr(cls, name).fget.__annotations__["return"]
+                fs.append((name, t, h, f.name))
+        elif f.name.endswith("_idx") and hasattr(cls, k := f.name[:-4]):
+            t = getattr(cls, k).fget.__annotations__["return"]
+            fs.append((k, t, h, f.name))
+        else:
+            fs.append((f.name, f.type, h, None))
+    return tuple(fs)
+
+
+def _unpack(fmt: str, data: bytes) -> Any:
+    assert all(c in "<BHI" for c in fmt)
+    size = fmt.count("B") + 2 * fmt.count("H") + 4 * fmt.count("I")
+    return struct.unpack(fmt, data[:size]) + (data[size:],)
+
+
+def _split(data: bytes, size: int) -> Tuple[bytes, bytes]:
+    return data[:size], data[size:]
 
 
 # FIXME
