@@ -87,19 +87,22 @@ def main() -> None:
         Quickly get appid & version code/name from APK(s).
     """, name="fastid")
     @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.option("--short", is_flag=True, help="Only show values.")
     @click.argument("apks", metavar="APK...", nargs=-1, required=True,
                     type=click.Path(exists=True, dir_okay=False))
-    def binres_fastid(apks: Tuple[str, ...], json: bool) -> None:
-        _binres.fastid(*apks, json=json)
+    def binres_fastid(apks: Tuple[str, ...], json: bool, short: bool) -> None:
+        _binres.fastid(*apks, json=json, short=short)
 
     @binres.command(help="""
         Quickly get permissions from APK(s).
     """, name="fastperms")
     @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.option("--with-id", is_flag=True,
+                  help="Also get appid & version code/name.")
     @click.argument("apks", metavar="APK...", nargs=-1, required=True,
                     type=click.Path(exists=True, dir_okay=False))
-    def binres_fastperms(apks: Tuple[str, ...], json: bool) -> None:
-        _binres.fastperms(*apks, json=json)
+    def binres_fastperms(apks: Tuple[str, ...], json: bool, with_id: bool) -> None:
+        _binres.fastperms(*apks, json=json, with_id=with_id)
 
     @cli.command(help="""
         Diff ZIP file metadata.
