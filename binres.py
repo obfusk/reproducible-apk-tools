@@ -1328,9 +1328,9 @@ def show_xmlattr(attr: XMLAttr, indent: int, *, file: Optional[TextIO] = None) -
     if file is None:
         file = sys.stdout
     ns, name, tv = attr.namespace, attr.name, attr.typed_value
-    ns_info = f"{repr(ns)[1:-1]}:" if ns else ""
+    ns_info = f"{_safe(ns)}:" if ns else ""
     v = brv_repr(tv, attr.raw_value)
-    print(f"{' ' * indent}ATTR: {ns_info}{repr(name)[1:-1]}={v}", file=file)
+    print(f"{' ' * indent}ATTR: {ns_info}{_safe(name)}={v}", file=file)
 
 
 def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry, indent: int, *,
@@ -1789,12 +1789,9 @@ def _split(data: bytes, size: int) -> Tuple[bytes, bytes]:
 
 
 def _safe(x: Any) -> str:
-    return repr(x)[1:-1] if isinstance(x, str) else repr(x)
-
-
-# FIXME: unused
-def _show(x: Any) -> str:
-    return x if isinstance(x, str) and x.isprintable() else repr(x)
+    if not isinstance(x, str):
+        return repr(x)
+    return "".join(c if c.isprintable() and c != '\\' else repr(c)[1:-1] for c in x)
 
 
 # FIXME
