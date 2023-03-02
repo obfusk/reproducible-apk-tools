@@ -1,0 +1,2 @@
+permission=android.permission.CAMERA
+permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
