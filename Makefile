@@ -102,7 +102,10 @@ test-examples:
 	  <( repro-apk binres dump resources2.arsc --json )
 	# binres fastid
 	cd test/data && diff -Naur <( echo "android.appsecurity.cts.tinyapp 10 1.0" ) \
-	  <( repro-apk binres fastid unix.apk )
+	  <( repro-apk binres fastid --short unix.apk )
+	# binres fastperms
+	cd test/data && diff -Naur perms.apk.perms \
+	  <( repro-apk binres fastperms perms.apk )
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( repro-apk diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )
