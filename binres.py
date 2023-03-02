@@ -81,6 +81,35 @@ RESOURCE TABLE
   </domain-config>
 </network-security-config>
 
+>>> fastid("test/data/golden-aligned-in.apk")
+package=android.appsecurity.cts.tinyapp versionCode=10 versionName=1.0
+
+>>> fastperms("test/data/perms.apk", with_id=True)
+package=com.example versionCode=1 versionName=1
+permission=android.permission.CAMERA
+permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
+
+>>> fastperms("test/data/perms.apk", json=True, with_id=True)
+[
+  {
+    "package": "com.example",
+    "versionCode": 1,
+    "versionName": "1",
+    "permissions": [
+      {
+        "permission": "android.permission.CAMERA",
+        "attributes": {}
+      },
+      {
+        "permission": "android.permission.READ_EXTERNAL_STORAGE",
+        "attributes": {
+          "maxSdkVersion": "23"
+        }
+      }
+    ]
+  }
+]
+
 """
 
 from __future__ import annotations
@@ -1162,33 +1191,49 @@ def dump_apk(apk: str, *patterns: str, json: bool = False,
                     _dump(fh.read(), json=json, verbose=verbose, xml=xml)
 
 
-def fastid(*apks: str, json: bool = False) -> None:
+def fastid(*apks: str, json: bool = False, short: bool = False) -> None:
     """Quickly get appid & version code/name from APK & print to stdout."""
     if json:
-        result = [dict(zip(["package", "versionCode", "versionName"],
-                           quick_get_idver(apk))) for apk in apks]
-        print(_json.dumps(result, indent=2))
+        print(_json.dumps([dict(_idver_kv(quick_get_idver(apk))) for apk in apks], indent=2))
     else:
-        for apk in apks:
-            appid, code, name = quick_get_idver(apk)
-            print(f"{_safe(appid)} {code} {_safe(name)}")
+        for idver in map(quick_get_idver, apks):
+            if short:
+                print(" ".join(map(_safe, idver)))
+            else:
+                print(" ".join(f"{k}={_safe(v)}" for k, v in _idver_kv(idver)))
 
 
-def fastperms(*apks: str, json: bool = False) -> None:
+def fastperms(*apks: str, json: bool = False, with_id: bool = False) -> None:
     """Quickly get permissions from APK & print to stdout."""
     if json:
-        result = [[dict(permission=perm, attributes=dict(more))
-                   for perm, more in quick_get_perms(apk)]
-                  for apk in apks]
+        result = []
+        for apk in apks:
+            if with_id:
+                idver, perms = quick_get_idver_perms(apk)
+                d = dict(_idver_kv(idver))
+            else:
+                perms, d = quick_get_perms(apk), {}
+            d["permissions"] = [dict(permission=perm, attributes=dict(attrs))
+                                for perm, attrs in perms]
+            result.append(d)
         print(_json.dumps(result, indent=2))
     else:
         one = len(apks) == 1
         for apk in apks:
             if not one:
                 print(f"file={apk!r}")
-            for perm, more in quick_get_perms(apk):
-                info = ", ".join(f"{_safe(k)}={_safe(v)}" for k, v in more)
-                print(f"{_safe(perm)}{f' [{info}]' if info else ''}")
+            if with_id:
+                idver, perms = quick_get_idver_perms(apk)
+                print(" ".join(f"{k}={_safe(v)}" for k, v in _idver_kv(idver)))
+            else:
+                perms = quick_get_perms(apk)
+            for perm, attrs in perms:
+                info = ", ".join(f"{_safe(k)}={_safe(v)}" for k, v in attrs)
+                print(f"permission={_safe(perm)}{f' [{info}]' if info else ''}")
+
+
+def _idver_kv(idver: Tuple[str, int, str]) -> Iterator[Tuple[str, Any]]:
+    return zip(["package", "versionCode", "versionName"], idver)
 
 
 def _dump(data: bytes, *, json: bool, verbose: bool, xml: bool) -> None:
@@ -1826,17 +1871,25 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
         if isinstance(c, XMLElemStartChunk):
             # FIXME: check level == 3?
             if c.name in ("uses-permission", "uses-permission-sdk-23"):
-                perm, more = None, []
+                perm, attrs = None, []
                 if c.name == "uses-permission-sdk-23":
-                    more.append(("minSdkVersion", "23"))
+                    attrs.append(("minSdkVersion", "23"))
                 for a in c.attributes:
                     if a.name == "name" and a.namespace == SCHEMA_ANDROID:
                         perm = a.raw_value
                     else:
-                        more.append((a.name, brv_str(a.typed_value, a.raw_value)))
+                        attrs.append((a.name, brv_str(a.typed_value, a.raw_value)))
                 if perm is None:
                     raise ParseError("Could not find required attribute 'name'")
-                yield perm, tuple(more)
+                yield perm, tuple(attrs)
+
+
+def quick_get_idver_perms(apk: str) \
+        -> Tuple[Tuple[str, int, str], Iterator[Tuple[str, Tuple[Tuple[str, str], ...]]]]:
+    chunk = read_chunk(quick_load(apk, MANIFEST))[0]
+    if not isinstance(chunk, XMLChunk):
+        raise Error("Expected XMLChunk")
+    return quick_get_idver(apk, chunk=chunk), quick_get_perms(apk, chunk=chunk)
 
 
 # FIXME
@@ -1875,23 +1928,24 @@ def quick_get_manifest(apk: str, *, chunk: Optional[XMLChunk] = None) -> XMLElem
 
 def quick_load(apk: str, filename: str) -> bytes:
     """Quickly load one file from APK."""
-    def _read_cdh(fh: BinaryIO) -> Tuple[bytes, int]:
+    def _read_cdh(fh: BinaryIO) -> Tuple[bytes, int, int, int]:
         hdr = fh.read(46)
         if hdr[:4] != b"\x50\x4b\x01\x02":
             raise ZipError("Expected central directory file header signature")
         n, m, k = struct.unpack("<HHH", hdr[28:34])
         hdr += fh.read(n + m + k)
-        return hdr[46:46 + n], int.from_bytes(hdr[42:46], "little")
+        ctype = int.from_bytes(hdr[10:12], "little")
+        csize = int.from_bytes(hdr[20:24], "little")
+        offset = int.from_bytes(hdr[42:46], "little")
+        return hdr[46:46 + n], offset, ctype, csize
 
-    def _read_data(fh: BinaryIO, offset: int) -> bytes:
+    def _read_data(fh: BinaryIO, offset: int, ctype: int, csize: int) -> bytes:
         fh.seek(offset)
         hdr = fh.read(30)
         if hdr[:4] != b"\x50\x4b\x03\x04":
             raise ZipError("Expected local file header signature")
         n, m = struct.unpack("<HH", hdr[26:30])
         hdr += fh.read(n + m)
-        ctype = int.from_bytes(hdr[8:10], "little")
-        csize = int.from_bytes(hdr[18:22], "little")
         if ctype == 0:
             return fh.read(csize)
         elif ctype == 8:
@@ -1904,9 +1958,9 @@ def quick_load(apk: str, filename: str) -> bytes:
     with open(apk, "rb") as fh:
         fh.seek(zdata.cd_offset)
         while fh.tell() < zdata.eocd_offset:
-            name, offset = _read_cdh(fh)
+            name, offset, ctype, csize = _read_cdh(fh)
             if name == filename_b:
-                return _read_data(fh, offset)
+                return _read_data(fh, offset, ctype, csize)
     raise Error(f"Entry not found: {filename!r}")
 
 
@@ -1971,9 +2025,12 @@ if __name__ == "__main__":
     sub_dump.add_argument("files_or_patterns", metavar="FILE_OR_PATTERN", nargs="+")
     sub_fastid = subs.add_parser("fastid", help="quickly get appid & version code/name")
     sub_fastid.add_argument("--json", action="store_true", help="output JSON")
+    sub_fastid.add_argument("--short", action="store_true", help="only show values")
     sub_fastid.add_argument("apks", metavar="APK", nargs="+")
     sub_fastperms = subs.add_parser("fastperms", help="quickly get permissions")
     sub_fastperms.add_argument("--json", action="store_true", help="output JSON")
+    sub_fastperms.add_argument("--with-id", action="store_true",
+                               help="also get appid & version code/name")
     sub_fastperms.add_argument("apks", metavar="APK", nargs="+")
     args = parser.parse_args()
     try:
@@ -1987,9 +2044,9 @@ if __name__ == "__main__":
                 dump(*args.files_or_patterns, json=args.json,
                      verbose=args.verbose, xml=args.xml)
         elif args.command == "fastid":
-            fastid(*args.apks, json=args.json)
+            fastid(*args.apks, json=args.json, short=args.short)
         elif args.command == "fastperms":
-            fastperms(*args.apks, json=args.json)
+            fastperms(*args.apks, json=args.json, with_id=args.with_id)
         else:
             raise Error(f"Unknown command: {args.command}")
     except Error as e:

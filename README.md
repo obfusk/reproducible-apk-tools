@@ -333,8 +333,10 @@ Quickly get appid & version code/name from APK(s).
 
 ```bash
 $ binres.py fastid --help
-usage: binres.py fastid [-h] [--json] APK [APK ...]
+usage: binres.py fastid [-h] [--json] [--short] APK [APK ...]
 $ binres.py fastid some.apk
+package=com.example versionCode=1 versionName=1
+$ binres.py fastid --short some.apk
 com.example 1 1
 $ binres.py fastid --json some.apk
 [
@@ -352,24 +354,50 @@ Quickly get permissions from APK(s).
 
 ```bash
 $ binres.py fastperms --help
-usage: binres.py fastperms [-h] [--json] APK [APK ...]
+usage: binres.py fastperms [-h] [--json] [--with-id] APK [APK ...]
 $ binres.py fastperms some.apk
-android.permission.CAMERA
-android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
+permission=android.permission.CAMERA
+permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
+$ binres.py fastperms --with-id some.apk
+package=com.example versionCode=1 versionName=1
+permission=android.permission.CAMERA
+permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
 $ binres.py fastperms --json some.apk
 [
-  [
-    {
-      "permission": "android.permission.CAMERA",
-      "attributes": {}
-    },
-    {
-      "permission": "android.permission.READ_EXTERNAL_STORAGE",
-      "attributes": {
-        "maxSdkVersion": "23"
+  {
+    "permissions": [
+      {
+        "permission": "android.permission.CAMERA",
+        "attributes": {}
+      },
+      {
+        "permission": "android.permission.READ_EXTERNAL_STORAGE",
+        "attributes": {
+          "maxSdkVersion": "23"
+        }
       }
-    }
-  ]
+    ]
+  }
+]
+$ binres.py fastperms --json --with-id some.apk
+[
+  {
+    "package": "com.example",
+    "versionCode": 1,
+    "versionName": "1",
+    "permissions": [
+      {
+        "permission": "android.permission.CAMERA",
+        "attributes": {}
+      },
+      {
+        "permission": "android.permission.READ_EXTERNAL_STORAGE",
+        "attributes": {
+          "maxSdkVersion": "23"
+        }
+      }
+    ]
+  }
 ]
 ```
 
@@ -720,9 +748,12 @@ NB: you can just use the scripts stand-alone; alternatively, you can install the
 $ repro-apk binres dump AndroidManifest.xml
 $ repro-apk binres dump --apk some.apk '*.arsc' '*.xml'
 $ repro-apk binres fastid some.apk
+$ repro-apk binres fastid --short some.apk
 $ repro-apk binres fastid --json some.apk
 $ repro-apk binres fastperms some.apk
+$ repro-apk binres fastperms --with-id some.apk
 $ repro-apk binres fastperms --json some.apk
+$ repro-apk binres fastperms --json --with-id some.apk
 $ repro-apk diff-zip-meta a.apk b.apk
 $ repro-apk diff-zip-meta a.apk c.apk --no-offsets --no-ordering
 $ repro-apk dump-arsc resources.arsc
