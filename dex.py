@@ -15,17 +15,16 @@ import binascii
 import dataclasses
 import hashlib
 import json as _json
-import os
 import re
 import struct
 import sys
 import zipfile
 import zlib
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, Flag
 from fnmatch import fnmatch
-from typing import Any, IO, Optional, Tuple
+from typing import Any, Dict, Iterator, Tuple
 
 # https://source.android.com/docs/core/runtime/dex-format
 
@@ -60,8 +59,8 @@ class AccessFlags(Flag):
     SYNCHRONIZED = 0x20
     VOLATILE = 0x40
     BRIDGE = 0x40
-    TRANSIENT = 0x80        # field
-    VARARGS = 0x80          # method
+    TRANSIENT = 0x80                # field
+    VARARGS = 0x80                  # method
     NATIVE = 0x100
     INTERFACE = 0x200
     ABSTRACT = 0x400
@@ -73,6 +72,7 @@ class AccessFlags(Flag):
     DECLARED_SYNCHRONIZED = 0x20000
 
 
+# FIXME: unused
 class Visibility(Enum):
     """Annotation item visibility."""
     BUILD = 0x00
@@ -107,12 +107,101 @@ class EncodedValue:
         BOOLEAN = 0x1f
 
 
+# FIXME: unused
+@dataclass(frozen=True)
+class MapItem:
+    """Map item."""
+    type: Type
+    size: int
+    offset: int
+
+    class Type(Enum):
+        HEADER_ITEM = 0x0000
+        STRING_ID_ITEM = 0x0001
+        TYPE_ID_ITEM = 0x0002
+        PROTO_ID_ITEM = 0x0003
+        FIELD_ID_ITEM = 0x0004
+        METHOD_ID_ITEM = 0x0005
+        CLASS_DEF_ITEM = 0x0006
+        CALL_SITE_ID_ITEM = 0x0007
+        METHOD_HANDLE_ITEM = 0x0008
+        MAP_LIST = 0x1000
+        TYPE_LIST = 0x1001
+        ANNOTATION_SET_REF_LIST = 0x1002
+        ANNOTATION_SET_ITEM = 0x1003
+        CLASS_DATA_ITEM = 0x2000
+        CODE_ITEM = 0x2001
+        STRING_DATA_ITEM = 0x2002
+        DEBUG_INFO_ITEM = 0x2003
+        ANNOTATION_ITEM = 0x2004
+        ENCODED_ARRAY_ITEM = 0x2005
+        ANNOTATIONS_DIRECTORY_ITEM = 0x2006
+        HIDDENAPI_CLASS_DATA_ITEM = 0xF000
+
+
+@dataclass(frozen=True)
+class ProtoID:
+    shorty_idx: int                 # strings index
+    return_type_idx: int            # types index
+    parameters_off: int
+
+
+@dataclass(frozen=True)
+class FieldID:
+    class_idx: int                  # types index
+    type_idx: int                   # types index
+    name_idx: int                   # strings index
+
+
+@dataclass(frozen=True)
+class MethodID:
+    class_idx: int                  # types index
+    proto_idx: int                  # protos index
+    name_idx: int                   # strings index
+
+
+@dataclass(frozen=True)
+class ClassDef:
+    class_idx: int                  # types index
+    access_flags: AccessFlags
+    superclass_idx: int             # types index or NO_INDEX
+    interfaces_off: int
+    source_file_idx: int            # string index
+    annotations_off: int
+    class_data_off: int
+    static_values_off: int
+
+
+# FIXME
+@dataclass(frozen=True)
+class ClassData:
+    ...
+
+
+# FIXME: unused
+@dataclass(frozen=True)
+class MethodHandle:
+    method_handle_type: Type
+    field_or_method_id: int
+
+    class Type(Enum):
+        STATIC_PUT = 0x00
+        STATIC_GET = 0x01
+        INSTANCE_PUT = 0x02
+        INSTANCE_GET = 0x03
+        INVOKE_STATIC = 0x04
+        INVOKE_INSTANCE = 0x05
+        INVOKE_CONSTRUCTOR = 0x06
+        INVOKE_DIRECT = 0x07
+        INVOKE_INTERFACE = 0x08
+
+
 @dataclass(frozen=True)
 class Header:
     """DEX header."""
     magic: bytes
-    checksum: int           # Adler-32 of data[12:]
-    signature: str          # SHA-1 of data[32:]
+    checksum: int                   # Adler-32 of data[12:]
+    signature: str                  # SHA-1 of data[32:]
     file_size: int
     header_size: int
     endian_tag: int
@@ -136,15 +225,43 @@ class Header:
 
     @property
     def version(self) -> int:
+        """Version from magic."""
         return int(self.magic[4:7])
 
 
-# FIXME
+# FIXME: incomplete
+# FIXME: protos, fields, methods, class defs, ...
 @dataclass(frozen=True)
 class DexFile:
     """DEX file."""
     header: Header
-    ...
+    map_list: Tuple[MapItem, ...]
+    string_offsets: Tuple[int, ...]
+    type_ids: Tuple[int, ...]       # strings indices
+    proto_ids: Tuple[ProtoID, ...]
+    field_ids: Tuple[FieldID, ...]
+    method_ids: Tuple[MethodID, ...]
+    class_defs: Tuple[ClassDef, ...]
+    raw_data: bytes
+    _string_cache: Dict[int, str] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_string_cache", {})
+
+    @property
+    def map_as_dict(self) -> Dict[MapItem.Type, MapItem]:
+        """Map as dict."""
+        return {x.type: x for x in self.map_list}
+
+    def string(self, i: int) -> str:
+        """Get string by index."""
+        if i not in self._string_cache:
+            o = self.string_offsets[i]
+            _utf16_size, dat = uleb128(self.raw_data[o:o + 5])
+            if b"\x00" not in dat:
+                dat += self.raw_data[o + 5:self.raw_data.index(b"\x00", o + 5) + 1]
+            self._string_cache[i] = mutf8(dat)[0]
+        return self._string_cache[i]
 
 
 # FIXME
@@ -159,9 +276,7 @@ def dump(*files: str, check_sums: bool = True, json: bool = False,
                     print(_json.dumps([dict(file=file)]))
                 else:
                     print(f"file={file!r}")
-            filesize = os.path.getsize(fh.fileno())
-            _dump(fh, check_sums=check_sums, filesize=filesize,
-                  json=json, verbose=verbose)
+            _dump(fh.read(), check_sums=check_sums, json=json, verbose=verbose)
 
 
 # FIXME
@@ -176,22 +291,18 @@ def dump_apk(apk: str, *patterns: str, check_sums: bool = True,
                 else:
                     print(f"entry={info.filename!r}")
                 with zf.open(info.filename) as fh:
-                    filesize = info.file_size
-                    _dump(fh, check_sums=check_sums, filesize=filesize,
-                          json=json, verbose=verbose)
+                    _dump(fh.read(), check_sums=check_sums, json=json, verbose=verbose)
 
 
-def _dump(fh: IO[bytes], *, check_sums: bool, filesize: int, json: bool, verbose: bool) -> None:
-    header_data = fh.read(HEADER_SIZE)
-    magic = header_data[:8]
+def _dump(data: bytes, *, check_sums: bool, json: bool, verbose: bool) -> None:
+    magic = data[:8]
     if magic[:4] == DEX_MAGIC and DEX_MAGIC_RE.match(magic):
-        dump_dex(parse(header_data, fh, check_sums=check_sums, filesize=filesize),
-                 json=json, verbose=verbose)
+        dump_dex(parse(data, check_sums=check_sums), json=json, verbose=verbose)
     else:
         raise Error(f"Unsupported magic {magic!r}")
 
 
-# FIXME
+# FIXME: incomplete, no JSON
 def dump_dex(dex: DexFile, *, json: bool, verbose: bool) -> None:
     """Dump DexFile to stdout."""
     if json:
@@ -207,91 +318,124 @@ def dump_dex(dex: DexFile, *, json: bool, verbose: bool) -> None:
         ...
 
 
-# FIXME
-def parse(header_data: bytes, fh: IO[bytes], *, check_sums: bool = True,
-          filesize: Optional[int] = None) -> DexFile:
+# FIXME: incomplete
+# FIXME: link_{size,off}?!
+def parse(data: bytes, *, check_sums: bool = True) -> DexFile:
     """Parse DEX data to DexFile."""
-    header = parse_header(header_data)
+    header = parse_header(data)
     if check_sums:
-        pos = fh.tell()
-        csum = zlib.adler32(header_data[12:])
-        sha1 = hashlib.sha1(header_data[32:])
-        while data := fh.read(4096):
-            csum = zlib.adler32(data, csum)
-            sha1.update(data)
+        csum = zlib.adler32(data[12:])
+        sha1 = hashlib.sha1(data[32:])
         if csum != header.checksum:
             raise ChecksumError("Checksum mismatch (Adler-32): "
                                 f"expected {header.checksum}, got {csum}")
         if (sign := sha1.hexdigest()) != header.signature:
             raise ChecksumError("Checksum mismatch (SHA-1): "
                                 f"expected {header.signature}, got {sign}")
-        fh.seek(pos)
-    if filesize is not None and filesize != header.file_size:
-        raise ParseError(f"Filesize mismatch: expected {header.file_size}, got {filesize}")
-    ...
-    return DexFile(header)
+    if len(data) != header.file_size:
+        raise ParseError(f"Filesize mismatch: expected {header.file_size}, got {len(data)}")
+    map_list = tuple(parse_map_list(data, header.map_off))
+    string_offsets = parse_string_ids(data, header.string_ids_size, header.string_ids_off)
+    type_ids = parse_type_ids(data, header.type_ids_size, header.type_ids_off)
+    proto_ids = parse_proto_ids(data, header.proto_ids_size, header.proto_ids_off)
+    field_ids = parse_field_ids(data, header.field_ids_size, header.field_ids_off)
+    method_ids = parse_method_ids(data, header.method_ids_size, header.method_ids_off)
+    class_defs = parse_class_defs(data, header.class_defs_size, header.class_defs_off)
+    return DexFile(header=header, map_list=map_list, string_offsets=string_offsets,
+                   type_ids=type_ids, proto_ids=proto_ids, field_ids=field_ids,
+                   method_ids=method_ids, class_defs=class_defs, raw_data=data)
 
 
 def parse_header(data: bytes) -> Header:
     """Parse DEX header data to Header."""
-    magic, checksum, signature, file_size, header_size, endian_tag = struct.unpack(
-        "<8sI20sIII", data[:44])
+    magic, checksum, signature, file_size, header_size, endian_tag \
+        = struct.unpack("<8sI20sIII", data[:44])
     data = data[44:]
     assert header_size == HEADER_SIZE
     assert endian_tag == ENDIAN_CONSTANT
-    rest = struct.unpack("<17I", data)
+    rest = struct.unpack("<17I", data[:68])
     return Header(magic, checksum, binascii.hexlify(signature).decode(),
                   file_size, header_size, endian_tag, *rest)
 
 
-# FIXME
-def parse_string_ids():
-    ...
+def parse_map_list(data: bytes, off: int) -> Iterator[MapItem]:
+    n_items, = struct.unpack("<I", data[off:off + 4])
+    for i in range(n_items):
+        dat = data[off + 4 + 12 * i:off + 4 + 12 * (i + 1)]
+        typ, _, size, offset = struct.unpack("<HHII", dat)
+        yield MapItem(MapItem.Type(typ), size, offset)
 
 
-# FIXME
-def parse_type_ids():
-    ...
+def parse_string_ids(data: bytes, size: int, off: int) -> Tuple[int, ...]:
+    if not size:
+        return ()
+    return struct.unpack(f"<{size}I", data[off:off + 4 * size])
 
 
-# FIXME
-def parse_proto_ids():
-    ...
+def parse_type_ids(data: bytes, size: int, off: int) -> Tuple[int, ...]:
+    if not size:
+        return ()
+    return struct.unpack(f"<{size}I", data[off:off + 4 * size])
 
 
-# FIXME
-def parse_field_ids():
-    ...
+def parse_proto_ids(data: bytes, size: int, off: int) -> Tuple[ProtoID, ...]:
+    if not size:
+        return ()
+    result = []
+    for i in range(size):
+        values = struct.unpack("<III", data[off + 12 * i:off + 12 * (i + 1)])
+        result.append(ProtoID(*values))
+    return tuple(result)
 
 
-# FIXME
-def parse_method_ids():
-    ...
+def parse_field_ids(data: bytes, size: int, off: int) -> Tuple[FieldID, ...]:
+    if not size:
+        return ()
+    result = []
+    for i in range(size):
+        values = struct.unpack("<HHI", data[off + 8 * i:off + 8 * (i + 1)])
+        result.append(FieldID(*values))
+    return tuple(result)
 
 
-# FIXME
-def parse_class_defs():
-    ...
+def parse_method_ids(data: bytes, size: int, off: int) -> Tuple[MethodID, ...]:
+    if not size:
+        return ()
+    result = []
+    for i in range(size):
+        values = struct.unpack("<HHI", data[off + 8 * i:off + 8 * (i + 1)])
+        result.append(MethodID(*values))
+    return tuple(result)
 
 
-# FIXME
-def parse_call_site_ids():
-    ...
+def parse_class_defs(data: bytes, size: int, off: int) -> Tuple[ClassDef, ...]:
+    if not size:
+        return ()
+    result = []
+    for i in range(size):
+        class_idx, access_flags, *rest = \
+            struct.unpack("<8I", data[off + 32 * i:off + 32 * (i + 1)])
+        result.append(ClassDef(class_idx, AccessFlags(access_flags), *rest))
+    return tuple(result)
 
 
-# FIXME
-def parse_method_handles():
-    ...
+# FIXME: unused
+def parse_call_site_ids(data: bytes, size: int, off: int) -> Tuple[int, ...]:
+    if not size:
+        return ()
+    return struct.unpack(f"<{size}I", data[off:off + 4 * size])
 
 
-# FIXME
-def parse_data():
-    ...
-
-
-# FIXME
-def parse_link_data():
-    ...
+# FIXME: unused
+def parse_method_handles(data: bytes, size: int, off: int) -> Tuple[MethodHandle, ...]:
+    if not size:
+        return ()
+    result = []
+    for i in range(size):
+        method_handle_type, _, field_or_method_id, _ = \
+            struct.unpack("<4H", data[off + 16 * i:off + 16 * (i + 1)])
+        result.append(MethodHandle(MethodHandle.Type(method_handle_type), field_or_method_id))
+    return tuple(result)
 
 
 # FIXME
