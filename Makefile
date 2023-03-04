@@ -18,7 +18,7 @@ test-cli:
 
 doctest:
 	# NB: uses test/ & requires zipalign on $PATH
-	TZ=UTC $(PYTHON) -m doctest binres.py diff-zip-meta.py fix-compresslevel.py \
+	TZ=UTC $(PYTHON) -m doctest binres.py dex.py diff-zip-meta.py fix-compresslevel.py \
 	  fix-files.py fix-newlines.py inplace-fix.py list-compresslevel.py rm-files.py \
 	  zipinfo.py
 
@@ -111,6 +111,14 @@ test-examples:
 	# binres fastperms
 	cd test/data && diff -Naur perms.apk.perms \
 	  <( repro-apk binres fastperms perms.apk -q )
+	# dex dump
+	# FIXME
+	# dex types
+	cd test/data && diff -Naur classes.dex.types \
+	  <( repro-apk dex types classes.dex -q )
+	# dex types --apk
+	cd test/data && diff -Naur classes.dex.types \
+	  <( repro-apk dex types --apk golden-aligned-in.apk classes.dex -q )
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( repro-apk diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )

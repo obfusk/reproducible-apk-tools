@@ -1,0 +1,12 @@
+android/app/Activity
+android/appsecurity/cts/tinyapp/MainActivity
+android/appsecurity/cts/tinyapp/R
+android/appsecurity/cts/tinyapp/R$attr
+android/appsecurity/cts/tinyapp/R$string
+android/os/Bundle
+dalvik/annotation/EnclosingClass
+dalvik/annotation/InnerClass
+dalvik/annotation/MemberClasses
+int
+java/lang/Object
+void
