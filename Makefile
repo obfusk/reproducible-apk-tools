@@ -18,7 +18,7 @@ test-cli:
 
 doctest:
 	# NB: uses test/ & requires zipalign on $PATH
-	TZ=UTC $(PYTHON) -m doctest binres.py fix-compresslevel.py fix-files.py \
+	TZ=UTC $(PYTHON) -m doctest binres.py dex.py fix-compresslevel.py fix-files.py \
 	  fix-newlines.py inplace-fix.py list-compresslevel.py rm-files.py zipinfo.py
 
 test-examples:
@@ -81,35 +81,43 @@ test-examples:
 	cmp test/data/baseline2.profm.apk .tmp/baseline1.profm-inplace.apk
 	# binres dump axml
 	cd test/data && diff -Naur AndroidManifest.xml.brdump \
-	  <( repro-apk binres dump AndroidManifest.xml )
+	  <( repro-apk binres dump AndroidManifest.xml -q )
 	cd test/data && diff -Naur AndroidManifest.xml.brxml \
-	  <( repro-apk binres dump AndroidManifest.xml --xml )
+	  <( repro-apk binres dump AndroidManifest.xml --xml -q )
 	cd test/data && diff -Naur AndroidManifest.xml.json \
-	  <( repro-apk binres dump AndroidManifest.xml --json )
+	  <( repro-apk binres dump AndroidManifest.xml --json -q )
 	cd test/data && diff -Naur resource.xml.brdump \
-	  <( repro-apk binres dump resource.xml )
+	  <( repro-apk binres dump resource.xml -q )
 	cd test/data && diff -Naur resource.xml.brxml \
-	  <( repro-apk binres dump resource.xml --xml )
+	  <( repro-apk binres dump resource.xml --xml -q )
 	cd test/data && diff -Naur resource.xml.json \
-	  <( repro-apk binres dump resource.xml --json )
+	  <( repro-apk binres dump resource.xml --json -q )
 	# binres dump axml --apk
 	cd test/data && diff -Naur golden-aligned-in-arsc.brdump \
 	  <( repro-apk binres dump --apk golden-aligned-in.apk resources.arsc )
 	# binres dump arsc
 	cd test/data && diff -Naur resources1.arsc.brdump \
-	  <( repro-apk binres dump resources1.arsc )
+	  <( repro-apk binres dump resources1.arsc -q )
 	cd test/data && diff -Naur resources1.arsc.json \
-	  <( repro-apk binres dump resources1.arsc --json )
+	  <( repro-apk binres dump resources1.arsc --json -q )
 	cd test/data && diff -Naur resources2.arsc.brdump \
-	  <( repro-apk binres dump resources2.arsc )
+	  <( repro-apk binres dump resources2.arsc -q )
 	cd test/data && diff -Naur resources2.arsc.json \
-	  <( repro-apk binres dump resources2.arsc --json )
+	  <( repro-apk binres dump resources2.arsc --json -q )
 	# binres fastid
 	cd test/data && diff -Naur <( echo "android.appsecurity.cts.tinyapp 10 1.0" ) \
 	  <( repro-apk binres fastid --short unix.apk )
 	# binres fastperms
 	cd test/data && diff -Naur perms.apk.perms \
-	  <( repro-apk binres fastperms perms.apk )
+	  <( repro-apk binres fastperms perms.apk -q )
+	# dex dump
+	# FIXME
+	# dex types
+	cd test/data && diff -Naur classes.dex.types \
+	  <( repro-apk dex types classes.dex -q )
+	# dex types --apk
+	cd test/data && diff -Naur classes.dex.types \
+	  <( repro-apk dex types --apk golden-aligned-in.apk classes.dex -q )
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( repro-apk diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )
