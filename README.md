@@ -306,6 +306,7 @@ other differences; you can skip/ignore these using `--no-lfh-extra`,
 $ diff-zip-meta.py --help
 usage: diff-zip-meta.py [-h] [--no-additional] [--no-lfh-extra] [--no-offsets] [--no-ordering]
                         ZIPFILE1 ZIPFILE2
+[...]
 $ diff-zip-meta.py a.apk b.apk
 --- a.apk
 +++ b.apk
