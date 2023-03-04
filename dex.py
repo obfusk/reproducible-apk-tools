@@ -7,6 +7,22 @@ r"""
 parse/dump android DEX
 
 NB: work in progress; output format may change.
+
+>>> types_apk("test/data/golden-aligned-in.apk", "*.dex")
+entry='classes.dex'
+android/app/Activity
+android/appsecurity/cts/tinyapp/MainActivity
+android/appsecurity/cts/tinyapp/R
+android/appsecurity/cts/tinyapp/R$attr
+android/appsecurity/cts/tinyapp/R$string
+android/os/Bundle
+dalvik/annotation/EnclosingClass
+dalvik/annotation/InnerClass
+dalvik/annotation/MemberClasses
+int
+java/lang/Object
+void
+
 """
 
 from __future__ import annotations
@@ -15,6 +31,7 @@ import binascii
 import dataclasses
 import hashlib
 import json as _json
+import logging
 import re
 import struct
 import sys
@@ -24,7 +41,8 @@ import zlib
 from dataclasses import dataclass, field
 from enum import Enum, Flag
 from fnmatch import fnmatch
-from typing import Any, Dict, Iterator, Tuple
+from functools import cached_property
+from typing import Any, Callable, Dict, FrozenSet, Tuple
 
 # https://source.android.com/docs/core/runtime/dex-format
 
@@ -35,6 +53,10 @@ HEADER_SIZE = 0x70
 ENDIAN_CONSTANT = 0x12345678
 REVERSE_ENDIAN_CONSTANT = 0x78563412
 NO_INDEX = 0xFFFFFFFF
+
+PRIMITIVES = dict(V="void", Z="boolean", B="byte", S="short", C="char",
+                  I="int", J="long", F="float", D="double")
+QUALIFIEDNAME = re.compile(r"L((?:[\w$ -]+/)*(?:[\w$ -]+));")
 
 
 class Error(Exception):
@@ -253,6 +275,11 @@ class DexFile:
         """Map as dict."""
         return {x.type: x for x in self.map_list}
 
+    @cached_property
+    def types(self) -> FrozenSet[str]:
+        """Types used in this DEX."""
+        return frozenset(type_name(self.string(tid)) for tid in self.type_ids)
+
     def string(self, i: int) -> str:
         """Get string by index."""
         if i not in self._string_cache:
@@ -264,41 +291,66 @@ class DexFile:
         return self._string_cache[i]
 
 
-# FIXME
-def dump(*files: str, check_sums: bool = True, json: bool = False,
-         verbose: bool = False) -> None:
+def dump(*files: str, json: bool = False, quiet: bool = False, verbose: bool = False) -> None:
     """Parse DEX & dump to stdout."""
-    one = len(files) == 1
+    _process_files(_dump, *files, json=json, quiet=quiet, verbose=verbose)
+
+
+def dump_apk(apk: str, *patterns: str, json: bool = False, quiet: bool = False,
+             verbose: bool = False) -> None:
+    """Parse DEX in APK & dump to stdout."""
+    _process_apk(_dump, apk, *patterns, json=json, quiet=quiet, verbose=verbose)
+
+
+def types(*files: str, json: bool = False, quiet: bool = False) -> None:
+    """List types used in DEX to stdout."""
+    _process_files(_types, *files, json=json, quiet=quiet)
+
+
+def types_apk(apk: str, *patterns: str, json: bool = False, quiet: bool = False) -> None:
+    """List types used in DEX in APK to stdout."""
+    _process_apk(_types, apk, *patterns, json=json, quiet=quiet)
+
+
+def _process_files(f: Callable[..., None], *files: str, json: bool,
+                   quiet: bool, **kwargs: Any) -> None:
     for file in files:
         with open(file, "rb") as fh:
-            if not one:
+            if not quiet:
                 if json:
                     print(_json.dumps([dict(file=file)]))
                 else:
                     print(f"file={file!r}")
-            _dump(fh.read(), check_sums=check_sums, json=json, verbose=verbose)
+            f(fh.read(), json=json, **kwargs)
 
 
-# FIXME
-def dump_apk(apk: str, *patterns: str, check_sums: bool = True,
-             json: bool = False, verbose: bool = False) -> None:
-    """Parse DEX in APK & dump to stdout."""
+def _process_apk(f: Callable[..., None], apk: str, *patterns: str,
+                 json: bool, quiet: bool, **kwargs: Any) -> None:
     with zipfile.ZipFile(apk) as zf:
         for info in zf.infolist():
             if fnmatches_with_negation(info.filename, *patterns):
-                if json:
-                    print(_json.dumps([dict(entry=info.filename)]))
-                else:
-                    print(f"entry={info.filename!r}")
+                if not quiet:
+                    if json:
+                        print(_json.dumps([dict(entry=info.filename)]))
+                    else:
+                        print(f"entry={info.filename!r}")
                 with zf.open(info.filename) as fh:
-                    _dump(fh.read(), check_sums=check_sums, json=json, verbose=verbose)
+                    f(fh.read(), json=json, **kwargs)
 
 
-def _dump(data: bytes, *, check_sums: bool, json: bool, verbose: bool) -> None:
+def _dump(data: bytes, *, json: bool, verbose: bool) -> None:
+    _check_magic(data)
+    dump_dex(parse(data), json=json, verbose=verbose)
+
+
+def _types(data: bytes, *, json: bool) -> None:
+    _check_magic(data)
+    types_dex(parse(data), json=json)
+
+
+def _check_magic(data: bytes) -> None:
     magic = data[:8]
-    if magic[:4] == DEX_MAGIC and DEX_MAGIC_RE.match(magic):
-        dump_dex(parse(data, check_sums=check_sums), json=json, verbose=verbose)
-    else:
+    if magic[:4] != DEX_MAGIC or not DEX_MAGIC_RE.fullmatch(magic):
         raise Error(f"Unsupported magic {magic!r}")
 
 
@@ -318,23 +370,35 @@ def dump_dex(dex: DexFile, *, json: bool, verbose: bool) -> None:
         ...
 
 
+def types_dex(dex: DexFile, *, json: bool) -> None:
+    """List types in DexFile to stdout."""
+    if json:
+        _json.dump(sorted(dex.types), sys.stdout, indent=2)
+        print()
+    else:
+        for t in sorted(dex.types):
+            print(_safe(t))
+
+
 # FIXME: incomplete
 # FIXME: link_{size,off}?!
-def parse(data: bytes, *, check_sums: bool = True) -> DexFile:
+def parse(data: bytes, *, verify_checksum: bool = True,
+          verify_signature: bool = False) -> DexFile:
     """Parse DEX data to DexFile."""
     header = parse_header(data)
-    if check_sums:
-        csum = zlib.adler32(data[12:])
-        sha1 = hashlib.sha1(data[32:])
-        if csum != header.checksum:
-            raise ChecksumError("Checksum mismatch (Adler-32): "
-                                f"expected {header.checksum}, got {csum}")
-        if (sign := sha1.hexdigest()) != header.signature:
-            raise ChecksumError("Checksum mismatch (SHA-1): "
-                                f"expected {header.signature}, got {sign}")
+    if (csum := zlib.adler32(data[12:])) != header.checksum:
+        msg = f"Checksum mismatch (Adler-32): expected {header.checksum}, got {csum}"
+        if verify_checksum:
+            raise ChecksumError(msg)
+        logging.getLogger(__name__).warning(msg)
+    if (sign := hashlib.sha1(data[32:]).hexdigest()) != header.signature:
+        msg = f"Checksum mismatch (SHA-1): expected {header.signature}, got {sign}"
+        if verify_signature:
+            raise ChecksumError(msg)
+        logging.getLogger(__name__).warning(msg)
     if len(data) != header.file_size:
         raise ParseError(f"Filesize mismatch: expected {header.file_size}, got {len(data)}")
-    map_list = tuple(parse_map_list(data, header.map_off))
+    map_list = parse_map_list(data, header.map_off)
     string_offsets = parse_string_ids(data, header.string_ids_size, header.string_ids_off)
     type_ids = parse_type_ids(data, header.type_ids_size, header.type_ids_off)
     proto_ids = parse_proto_ids(data, header.proto_ids_size, header.proto_ids_off)
@@ -358,12 +422,14 @@ def parse_header(data: bytes) -> Header:
                   file_size, header_size, endian_tag, *rest)
 
 
-def parse_map_list(data: bytes, off: int) -> Iterator[MapItem]:
+def parse_map_list(data: bytes, off: int) -> Tuple[MapItem, ...]:
     n_items, = struct.unpack("<I", data[off:off + 4])
+    result = []
     for i in range(n_items):
         dat = data[off + 4 + 12 * i:off + 4 + 12 * (i + 1)]
         typ, _, size, offset = struct.unpack("<HHII", dat)
-        yield MapItem(MapItem.Type(typ), size, offset)
+        result.append(MapItem(MapItem.Type(typ), size, offset))
+    return tuple(result)
 
 
 def parse_string_ids(data: bytes, size: int, off: int) -> Tuple[int, ...]:
@@ -436,6 +502,28 @@ def parse_method_handles(data: bytes, size: int, off: int) -> Tuple[MethodHandle
             struct.unpack("<4H", data[off + 16 * i:off + 16 * (i + 1)])
         result.append(MethodHandle(MethodHandle.Type(method_handle_type), field_or_method_id))
     return tuple(result)
+
+
+def type_name(s: str) -> str:
+    """
+    Type descriptor to type name.
+
+    >>> type_name("Z")
+    'boolean'
+    >>> type_name("[[I")
+    'int[][]'
+    >>> type_name("Ljava/lang/Object;")
+    'java/lang/Object'
+
+    """
+    if s.startswith("["):
+        t = s.lstrip("[")
+        return type_name(t) + "[]" * (len(s) - len(t))
+    if s in PRIMITIVES:
+        return PRIMITIVES[s]
+    if m := QUALIFIEDNAME.fullmatch(s):
+        return m[1]
+    raise Error("Unsupported type descriptor: {s!r}")
 
 
 # FIXME
@@ -634,19 +722,28 @@ if __name__ == "__main__":
     sub_dump = subs.add_parser("dump", help="parse & dump DEX")
     sub_dump.add_argument("--apk", help="APK that contains the DEX file(s)")
     sub_dump.add_argument("--json", action="store_true", help="output JSON")
-    sub_dump.add_argument("--no-check-sums", dest="check_sums", action="store_false",
-                          help="don't check Adler-32/SHA-1")
+    sub_dump.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_dump.add_argument("-v", "--verbose", action="store_true")
     sub_dump.add_argument("files_or_patterns", metavar="FILE_OR_PATTERN", nargs="+")
+    sub_types = subs.add_parser("types", help="list types used in DEX")
+    sub_types.add_argument("--apk", help="APK that contains the DEX file(s)")
+    sub_types.add_argument("--json", action="store_true", help="output JSON")
+    sub_types.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
+    sub_types.add_argument("files_or_patterns", metavar="FILE_OR_PATTERN", nargs="+")
     args = parser.parse_args()
     try:
         if args.command == "dump":
             if args.apk:
-                dump_apk(args.apk, *args.files_or_patterns, check_sums=args.check_sums,
-                         json=args.json, verbose=args.verbose)
+                dump_apk(args.apk, *args.files_or_patterns, json=args.json,
+                         quiet=args.quiet, verbose=args.verbose)
             else:
-                dump(*args.files_or_patterns, check_sums=args.check_sums,
-                     json=args.json, verbose=args.verbose)
+                dump(*args.files_or_patterns, json=args.json, quiet=args.quiet,
+                     verbose=args.verbose)
+        elif args.command == "types":
+            if args.apk:
+                types_apk(args.apk, *args.files_or_patterns, json=args.json, quiet=args.quiet)
+            else:
+                types(*args.files_or_patterns, json=args.json, quiet=args.quiet)
         else:
             raise Error(f"Unknown command: {args.command}")
     except Error as e:

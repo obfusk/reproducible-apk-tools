@@ -9,6 +9,7 @@ parse/dump android binary XML (AXML) or resources (ARSC)
 NB: work in progress; output format may change.
 
 >>> dump("test/data/AndroidManifest.xml")
+file='test/data/AndroidManifest.xml'
 XML
   STRING POOL [flags=0, #strings=16, #styles=0]
   XML RESOURCE MAP [#resources=6]
@@ -51,11 +52,13 @@ RESOURCE TABLE
         VALUE: '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'
 
 >>> dump("test/data/AndroidManifest.xml", xml=True)
+<!-- file='test/data/AndroidManifest.xml' -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1" android:versionName="1" android:compileSdkVersion="29" android:compileSdkVersionCodename="10.0.0" package="com.example" platformBuildVersionCode="29" platformBuildVersionName="10.0.0">
   <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
 </manifest>
 
 >>> dump("test/data/network_security_config.xml", xml=True)
+<!-- file='test/data/network_security_config.xml' -->
 <network-security-config>
   <base-config cleartextTrafficPermitted="true" />
   <domain-config cleartextTrafficPermitted="false">
@@ -85,6 +88,7 @@ RESOURCE TABLE
 package=android.appsecurity.cts.tinyapp versionCode=10 versionName=1.0
 
 >>> fastperms("test/data/perms.apk", with_id=True)
+file='test/data/perms.apk'
 package=com.example versionCode=1 versionName=1
 permission=android.permission.CAMERA
 permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
@@ -1158,13 +1162,12 @@ CHUNK_TYPES = {c.TYPE_ID: c for c in _subclasses(Chunk) if c.TYPE_ID is not None
 
 
 # FIXME
-def dump(*files: str, json: bool = False, verbose: bool = False,
-         xml: bool = False) -> None:
+def dump(*files: str, json: bool = False, quiet: bool = False,
+         verbose: bool = False, xml: bool = False) -> None:
     """Parse AXML/ARSC & dump to stdout."""
-    one = len(files) == 1
     for file in files:
         with open(file, "rb") as fh:
-            if not one:
+            if not quiet:
                 if json:
                     print(_json.dumps([dict(file=file)]))
                 elif xml:
@@ -1175,18 +1178,19 @@ def dump(*files: str, json: bool = False, verbose: bool = False,
 
 
 # FIXME
-def dump_apk(apk: str, *patterns: str, json: bool = False,
+def dump_apk(apk: str, *patterns: str, json: bool = False, quiet: bool = False,
              verbose: bool = False, xml: bool = False) -> None:
     """Parse AXML/ARSC in APK & dump to stdout."""
     with zipfile.ZipFile(apk) as zf:
         for info in zf.infolist():
             if fnmatches_with_negation(info.filename, *patterns):
-                if json:
-                    print(_json.dumps([dict(entry=info.filename)]))
-                elif xml:
-                    print(f"<!-- entry={info.filename!r} -->")
-                else:
-                    print(f"entry={info.filename!r}")
+                if not quiet:
+                    if json:
+                        print(_json.dumps([dict(entry=info.filename)]))
+                    elif xml:
+                        print(f"<!-- entry={info.filename!r} -->")
+                    else:
+                        print(f"entry={info.filename!r}")
                 with zf.open(info.filename) as fh:
                     _dump(fh.read(), json=json, verbose=verbose, xml=xml)
 
@@ -1203,7 +1207,8 @@ def fastid(*apks: str, json: bool = False, short: bool = False) -> None:
                 print(" ".join(f"{k}={_safe(v)}" for k, v in _idver_kv(idver)))
 
 
-def fastperms(*apks: str, json: bool = False, with_id: bool = False) -> None:
+def fastperms(*apks: str, json: bool = False, quiet: bool = False,
+              with_id: bool = False) -> None:
     """Quickly get permissions from APK & print to stdout."""
     if json:
         result = []
@@ -1218,9 +1223,8 @@ def fastperms(*apks: str, json: bool = False, with_id: bool = False) -> None:
             result.append(d)
         print(_json.dumps(result, indent=2))
     else:
-        one = len(apks) == 1
         for apk in apks:
-            if not one:
+            if not quiet:
                 print(f"file={apk!r}")
             if with_id:
                 idver, perms = quick_get_idver_perms(apk)
@@ -2023,6 +2027,7 @@ if __name__ == "__main__":
     sub_dump.add_argument("--apk", help="APK that contains the AXML/ARSC file(s)")
     sub_dump.add_argument("--json", action="store_true", help="output JSON")
     sub_dump.add_argument("--xml", action="store_true", help="output XML (AXML only)")
+    sub_dump.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_dump.add_argument("-v", "--verbose", action="store_true")
     sub_dump.add_argument("files_or_patterns", metavar="FILE_OR_PATTERN", nargs="+")
     sub_fastid = subs.add_parser("fastid", help="quickly get appid & version code/name")
@@ -2033,6 +2038,7 @@ if __name__ == "__main__":
     sub_fastperms.add_argument("--json", action="store_true", help="output JSON")
     sub_fastperms.add_argument("--with-id", action="store_true",
                                help="also get appid & version code/name")
+    sub_fastperms.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_fastperms.add_argument("apks", metavar="APK", nargs="+")
     args = parser.parse_args()
     try:
@@ -2041,9 +2047,9 @@ if __name__ == "__main__":
                 raise Error("Conflicting options: --json and --xml")
             if args.apk:
                 dump_apk(args.apk, *args.files_or_patterns, json=args.json,
-                         verbose=args.verbose, xml=args.xml)
+                         quiet=args.quiet, verbose=args.verbose, xml=args.xml)
             else:
-                dump(*args.files_or_patterns, json=args.json,
+                dump(*args.files_or_patterns, json=args.json, quiet=args.quiet,
                      verbose=args.verbose, xml=args.xml)
         elif args.command == "fastid":
             fastid(*args.apks, json=args.json, short=args.short)
