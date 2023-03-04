@@ -6,8 +6,9 @@ INPLACEFIX ?= repro-apk-inplace-fix
 
 PYCOV      := $(PYTHON) -mcoverage run --data-file=$(PWD)/.coverage --source $(PWD)
 
-DOCTEST    := binres.py diff-zip-meta.py fix-compresslevel.py fix-files.py fix-newlines.py \
-              inplace-fix.py list-compresslevel.py rm-files.py zipalignment.py zipinfo.py
+DOCTEST    := binres.py dex.py diff-zip-meta.py fix-compresslevel.py fix-files.py \
+              fix-newlines.py inplace-fix.py list-compresslevel.py rm-files.py \
+              zipalignment.py zipinfo.py
 
 export PYTHONWARNINGS := default
 
@@ -154,6 +155,14 @@ test-examples:
 	  <( $(REPROAPK) binres manifest-info golden-aligned-in.apk )
 	cd test/data && diff -Naur perms.apk.json \
 	  <( $(REPROAPK) binres manifest-info perms.apk )
+	# dex dump
+	# FIXME
+	# dex types
+	cd test/data && diff -Naur classes.dex.types \
+	  <( $(REPROAPK) dex types classes.dex -q )
+	# dex types --apk
+	cd test/data && diff -Naur classes.dex.types \
+	  <( $(REPROAPK) dex types --apk golden-aligned-in.apk classes.dex -q )
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( $(REPROAPK) diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )

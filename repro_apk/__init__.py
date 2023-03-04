@@ -10,6 +10,7 @@ import zipfile
 from typing import Optional, Tuple
 
 from . import binres as _binres
+from . import dex as _dex
 from . import diff_zip_meta as _diff_zip_meta
 from . import dump_arsc as _dump_arsc
 from . import dump_axml as _dump_axml
@@ -33,6 +34,7 @@ NAME = "repro-apk"
 
 ERRORS = (
     _binres.Error,
+    _dex.Error,
     _diff_zip_meta.Error,
     _dump_arsc.Error,
     _dump_axml.Error,
@@ -124,6 +126,42 @@ def main() -> None:
     def binres_manifest_info(apks: Tuple[str, ...]) -> None:
         if _binres.manifest_info(*apks):
             sys.exit(1)
+
+    @cli.group(help="""
+        Parse/dump android DEX.
+    """)
+    def dex() -> None:
+        pass
+
+    @dex.command(help="""
+        Parse & dump DEX.
+    """, name="dump")
+    @click.option("--apk", metavar="APK", type=click.Path(exists=True, dir_okay=False),
+                  help="APK that contains the DEX file(s).")
+    @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.option("-q", "--quiet", is_flag=True, help="Don't show filenames.")
+    @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
+    @click.argument("files_or_patterns", metavar="FILE_OR_PATTERN...", nargs=-1, required=True)
+    def dex_dump(files_or_patterns: Tuple[str, ...], apk: str, json: bool,
+                 quiet: bool, verbose: bool) -> None:
+        if apk:
+            _dex.dump_apk(apk, *files_or_patterns, json=json, quiet=quiet, verbose=verbose)
+        else:
+            _dex.dump(*files_or_patterns, json=json, quiet=quiet, verbose=verbose)
+
+    @dex.command(help="""
+        List types used in DEX.
+    """, name="types")
+    @click.option("--apk", metavar="APK", type=click.Path(exists=True, dir_okay=False),
+                  help="APK that contains the DEX file(s).")
+    @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.option("-q", "--quiet", is_flag=True, help="Don't show filenames.")
+    @click.argument("files_or_patterns", metavar="FILE_OR_PATTERN...", nargs=-1, required=True)
+    def dex_types(files_or_patterns: Tuple[str, ...], apk: str, json: bool, quiet: bool) -> None:
+        if apk:
+            _dex.types_apk(apk, *files_or_patterns, json=json, quiet=quiet)
+        else:
+            _dex.types(*files_or_patterns, json=json, quiet=quiet)
 
     @cli.command(help="""
         Diff ZIP file metadata.
