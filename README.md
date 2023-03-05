@@ -421,7 +421,8 @@ Parse & dump DEX.
 
 ```bash
 $ dex.py dump --help
-usage: dex.py dump [-h] [--apk APK] [--json] [-q] [-v] FILE_OR_PATTERN [FILE_OR_PATTERN ...]
+usage: dex.py dump [-h] [--apk APK] [--json] [--no-offsets] [-q] [-v]
+                   FILE_OR_PATTERN [FILE_OR_PATTERN ...]
 [...]
 ... FIXME ...
 ```
