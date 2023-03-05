@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag
 from fnmatch import fnmatch
 from functools import cached_property
-from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple
+from typing import cast, Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple
 
 # https://source.android.com/docs/core/runtime/dex-format
 
@@ -136,7 +136,13 @@ class EncodedValue:
         BOOLEAN = 0x1f
 
 
-# FIXME: unused
+@dataclass(frozen=True)
+class EncodedAnnotation:
+    """Encoded annotation."""
+    type_idx: int
+    elements: Tuple[Tuple[int, EncodedValue], ...]  # name_idx + value
+
+
 @dataclass(frozen=True)
 class MapItem:
     """Map item."""
@@ -218,6 +224,7 @@ class Method:
 
 @dataclass(frozen=True)
 class ClassDef:
+    """Class definition."""
     class_idx: int                  # types index
     access_flags: AccessFlags
     superclass_idx: int             # types index or NO_INDEX
@@ -228,10 +235,47 @@ class ClassDef:
     static_values_off: int
 
 
+@dataclass(frozen=True)
+class Class:
+    """Class."""
+    type: str
+    access_flags: AccessFlags
+    superclass: Optional[str]
+    interfaces: Tuple[str, ...]
+    source_file: Optional[str]
+    annotations: Tuple[Annotation, ...]
+    static_fields: Tuple[ClassField, ...]
+    instance_fields: Tuple[ClassField, ...]
+    direct_methods: Tuple[ClassMethod, ...]
+    virtual_methods: Tuple[ClassMethod, ...]
+    static_values: Tuple[EncodedValue, ...]
+
+
+@dataclass(frozen=True)
+class ClassField:
+    """Class field."""
+    field: Field
+    access_flags: AccessFlags
+
+
+@dataclass(frozen=True)
+class ClassMethod:
+    """Class method."""
+    method: Method
+    access_flags: AccessFlags
+    code: Optional[Code]
+
+
 # FIXME
 @dataclass(frozen=True)
-class ClassData:
-    ...
+class Annotation:
+    """Annotation."""
+
+
+# FIXME
+@dataclass(frozen=True)
+class Code:
+    """Code."""
 
 
 # FIXME: unused
@@ -285,7 +329,6 @@ class Header:
         return int(self.magic[4:7])
 
 
-# FIXME: incomplete
 # FIXME: class defs, ...
 @dataclass(frozen=True)
 class DexFile:
@@ -332,6 +375,12 @@ class DexFile:
         for m in self.method_ids:
             yield self.method(m)
 
+    @property
+    def classes(self) -> Iterator[Class]:
+        """Classes."""
+        for c in self.class_defs:
+            yield self.klass(c)
+
     # FIXME: check shorty matches return type & params
     def proto(self, p: ProtoID) -> Proto:
         """Get method prototype from ID."""
@@ -355,15 +404,32 @@ class DexFile:
         p = self.proto_ids[m.proto_idx]
         return Method(self.type(m.class_idx), self.proto(p), name)
 
+    # FIXME: checks, annotations, ...
+    def klass(self, c: ClassDef) -> Class:
+        """Get class from def."""
+        supr = None if c.superclass_idx == NO_INDEX else self.type(c.superclass_idx)
+        file = None if c.source_file_idx == NO_INDEX else self.string(c.source_file_idx)
+        return Class(
+            type=self.type(c.class_idx),
+            access_flags=c.access_flags,
+            superclass=supr,
+            interfaces=tuple(map(self.type, self.type_list(c.interfaces_off))),
+            source_file=file,
+            annotations=(),
+            static_fields=(),
+            instance_fields=(),
+            direct_methods=(),
+            virtual_methods=(),
+            static_values=(),
+        )
+
     def string(self, i: int) -> str:
         """Get string by index."""
         if i not in self._string_cache:
-            o = self.string_offsets[i]
-            _assert(o >= self.header.data_off, "in data section")
-            _utf16_size, dat = uleb128(self.raw_data[o:o + 5])
-            if b"\x00" not in dat:
-                dat += self.raw_data[o + 5:self.raw_data.index(b"\x00", o + 5) + 1]
-            self._string_cache[i] = mutf8(dat)[0]
+            off = self.string_offsets[i]
+            _assert(off >= self.header.data_off, "in data section")
+            _utf16_size, off = uleb128(self.raw_data, off)
+            self._string_cache[i], _ = mutf8(self.raw_data, off)
         return self._string_cache[i]
 
     def type(self, i: int) -> str:
@@ -455,7 +521,7 @@ def dump_dex(dex: DexFile, *, json: bool, offsets: bool, verbose: bool) -> None:
     if json:
         raise NotImplementedError("JSON not yet implemented")
     else:
-        print("HEADER")
+        print("header:")
         print(f"  version={dex.header.version:03d}")
         if verbose:
             for f in dataclasses.fields(Header)[1:]:
@@ -465,13 +531,25 @@ def dump_dex(dex: DexFile, *, json: bool, offsets: bool, verbose: bool) -> None:
                 x = hex(v) if f.name in ("checksum", "endian_tag") else _safe(v)
                 print(f"  {f.name}={x}")
         if verbose:
-            print("MAP LIST")
+            print("map list:")
             for item in dex.map_list:
                 info = f"size={item.size}"
                 if offsets:
                     info += f", offset={item.offset}"
-                print(f"  {item.type.name} [{info}]")
-        ...
+                print(f"  {item.type.name.lower()} [{info}]")
+        for c in dex.classes:
+            print(f"class {_safe(c.type)}:")
+            if flags := '|'.join(cast(str, t.name).lower() for t in c.access_flags):
+                print(f"  access_flags={flags}")
+            if c.superclass:
+                print(f"  superclass={_safe(c.superclass)}")
+            if c.interfaces:
+                print("  interfaces:")
+                for t in c.interfaces:
+                    print(f"    {_safe(t)}")
+            if c.source_file:
+                print(f"  source_file={_safe(c.source_file)}")
+            ...
 
 
 def types_dex(dex: DexFile, *, json: bool) -> None:
@@ -661,24 +739,27 @@ def type_name(s: str) -> str:
 
 
 # FIXME
-def encoded_value(data: bytes) -> Tuple[EncodedValue, bytes]:
+def encoded_value(data: bytes, off: int) -> Tuple[EncodedValue, int]:
     """Parse encoded value."""
     T = EncodedValue.Type
-    arg_typ, data = _unpack("<B", data)
+    arg_typ, = struct.unpack("<B", data[off:off + 1])
+    off += 1
     arg = arg_typ >> 5
     typ = T(arg_typ & 0x1f)
     val: Any = None
     if typ == T.BYTE:
         _assert(arg == 0, "arg is zero")
-        val, data = _split(data, 1)
+        val = data[off:off + 1]
+        off += 1
     elif T.SHORT.value <= typ.value <= T.ENUM.value:
-        val, data = _split(data, arg + 1)
+        val = data[off:off + arg + 1]
+        off += arg + 1
     elif typ == T.ARRAY:
         _assert(arg == 0, "arg is zero")
-        val, data = encoded_array(data)
+        val, off = encoded_array(data, off)
     elif typ == T.ANNOTATION:
         _assert(arg == 0, "arg is zero")
-        val, data = encoded_annotation(data)
+        val, off = encoded_annotation(data, off)
     elif typ == T.NULL:
         _assert(arg == 0, "arg is zero")
     elif typ == T.BOOLEAN:
@@ -686,39 +767,39 @@ def encoded_value(data: bytes) -> Tuple[EncodedValue, bytes]:
         val = bool(arg)
     else:
         _assert(False, "unreachable")
-    return EncodedValue(typ, val), data
+    return EncodedValue(typ, val), off
 
 
-def encoded_array(data: bytes) -> Tuple[Tuple[EncodedValue, ...], bytes]:
+def encoded_array(data: bytes, off: int) -> Tuple[Tuple[EncodedValue, ...], int]:
     """Parse encoded array value."""
-    size, data = uleb128(data)
+    size, off = uleb128(data, off)
     result = []
     for i in range(size):
-        val, data = encoded_value(data)
+        val, off = encoded_value(data, off)
         result.append(val)
-    return tuple(result), data
+    return tuple(result), off
 
 
-def encoded_annotation(data: bytes) -> Tuple[Tuple[Tuple[int, EncodedValue], ...], bytes]:
+def encoded_annotation(data: bytes, off: int) -> Tuple[EncodedAnnotation, int]:
     """Parse encoded annotation."""
-    type_idx, data = uleb128(data)
-    size, data = uleb128(data)
-    result = []
+    type_idx, off = uleb128(data, off)
+    size, off = uleb128(data, off)
+    elements = []
     for i in range(size):
-        name_idx, data = uleb128(data)
-        val, data = encoded_value(data)
-        result.append((name_idx, val))
-    return tuple(result), data
+        name_idx, off = uleb128(data, off)
+        val, off = encoded_value(data, off)
+        elements.append((name_idx, val))
+    return EncodedAnnotation(type_idx, tuple(elements)), off
 
 
-def mutf8(data: bytes) -> Tuple[str, bytes]:
+def mutf8(data: bytes, off: int) -> Tuple[str, int]:
     """Parse MUTF-8 (modified UTF-8)."""
-    s, data = data.split(b"\x00", 1)
-    s = s.replace(b"\xc0\x80", b"\x00")
+    end = data.index(b"\x00", off)
+    s = data[off:end].replace(b"\xc0\x80", b"\x00")
     try:
-        return s.decode("utf8"), data
+        return s.decode("utf8"), end + 1
     except UnicodeDecodeError:
-        return _decode_utf8_with_surrogates(s)[1], data
+        return _decode_utf8_with_surrogates(s)[1], end + 1
 
 
 def _decode_utf8_with_surrogates(b: bytes) -> Tuple[int, str]:
@@ -736,79 +817,68 @@ def _decode_utf8_with_surrogates(b: bytes) -> Tuple[int, str]:
     return n, "".join(t)
 
 
-def sleb128(data: bytes) -> Tuple[int, bytes]:
+def sleb128(data: bytes, off: int) -> Tuple[int, int]:
     r"""
     Parse signed LEB128.
 
-    >>> sleb128(b"\x00")
-    (0, b'')
-    >>> sleb128(b"\x01")
-    (1, b'')
-    >>> sleb128(b"\x7f")
-    (-1, b'')
-    >>> sleb128(b"\x80\x7f")
-    (-128, b'')
+    >>> sleb128(b"\x00", 0)
+    (0, 1)
+    >>> sleb128(b"\x01", 0)
+    (1, 1)
+    >>> sleb128(b"\x7f", 0)
+    (-1, 1)
+    >>> sleb128(b"\x80\x7f", 0)
+    (-128, 2)
 
     """
-    return _leb128(data, signed=True)
+    return _leb128(data, off, signed=True)
 
 
-def uleb128(data: bytes) -> Tuple[int, bytes]:
+def uleb128(data: bytes, off: int) -> Tuple[int, int]:
     r"""
     Parse unsigned LEB128.
 
-    >>> uleb128(b"\x00")
-    (0, b'')
-    >>> sleb128(b"\x01")
-    (1, b'')
-    >>> uleb128(b"\x7f")
-    (127, b'')
-    >>> uleb128(b"\x80\x7f")
-    (16256, b'')
+    >>> uleb128(b"\x00", 0)
+    (0, 1)
+    >>> sleb128(b"\x01", 0)
+    (1, 1)
+    >>> uleb128(b"\x7f", 0)
+    (127, 1)
+    >>> uleb128(b"\x80\x7f", 0)
+    (16256, 2)
 
     """
-    return _leb128(data, signed=False)
+    return _leb128(data, off, signed=False)
 
 
-def uleb128p1(data: bytes) -> Tuple[int, bytes]:
+def uleb128p1(data: bytes, off: int) -> Tuple[int, int]:
     r"""
     Parse signed LEB128, encoded as value plus one (unsigned).
 
-    >>> uleb128p1(b"\x00")
-    (-1, b'')
-    >>> uleb128p1(b"\x01")
-    (0, b'')
-    >>> uleb128p1(b"\x7f")
-    (126, b'')
-    >>> uleb128p1(b"\x80\x7f")
-    (16255, b'')
+    >>> uleb128p1(b"\x00", 0)
+    (-1, 1)
+    >>> uleb128p1(b"\x01", 0)
+    (0, 1)
+    >>> uleb128p1(b"\x7f", 0)
+    (126, 1)
+    >>> uleb128p1(b"\x80\x7f", 0)
+    (16255, 2)
 
     """
-    n, rest = uleb128(data)
-    return n - 1, rest
+    n, off = uleb128(data, off)
+    return n - 1, off
 
 
 # https://en.wikipedia.org/wiki/LEB128
-def _leb128(data: bytes, *, signed: bool) -> Tuple[int, bytes]:
+def _leb128(data: bytes, off: int, *, signed: bool) -> Tuple[int, int]:
     n = 0
     for i in range(5):
-        n |= (data[i] & 0x7f) << (i * 7)
-        if data[i] & 0x80 == 0:
-            if signed and i < 4 and data[i] & 0x40:
+        n |= (data[off + i] & 0x7f) << (i * 7)
+        if data[off + i] & 0x80 == 0:
+            if signed and i < 4 and data[off + i] & 0x40:
                 n |= -1 << ((i + 1) * 7)
-            return n, data[i + 1:]
+            return n, off + i + 1
     raise ParseError("Expected significant bit set")
-
-
-def _unpack(fmt: str, data: bytes) -> Tuple[Any, ...]:
-    f = fmt.upper()
-    assert all(c in "<BHIQ" for c in f)
-    size = f.count("B") + 2 * f.count("H") + 4 * f.count("I") + 8 * f.count("Q")
-    return struct.unpack(fmt, data[:size]) + (data[size:],)
-
-
-def _split(data: bytes, size: int) -> Tuple[bytes, bytes]:
-    return data[:size], data[size:]
 
 
 def _safe(x: Any) -> str:
