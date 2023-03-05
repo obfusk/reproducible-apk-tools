@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag
 from fnmatch import fnmatch
 from functools import cached_property
-from typing import cast, Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple
 
 # https://source.android.com/docs/core/runtime/dex-format
 
@@ -85,20 +85,20 @@ class AccessFlags(Flag):
     PROTECTED = 0x4
     STATIC = 0x8
     FINAL = 0x10
-    SYNCHRONIZED = 0x20
-    VOLATILE = 0x40
-    BRIDGE = 0x40
-    TRANSIENT = 0x80                # field
-    VARARGS = 0x80                  # method
-    NATIVE = 0x100
-    INTERFACE = 0x200
-    ABSTRACT = 0x400
-    STRICT = 0x800
+    SYNCHRONIZED = 0x20                 # method
+    VOLATILE = 0x40                     # field (replace for method)
+    BRIDGE = 0x40                       # method
+    TRANSIENT = 0x80                    # field (replace for method)
+    VARARGS = 0x80                      # method
+    NATIVE = 0x100                      # method
+    INTERFACE = 0x200                   # class
+    ABSTRACT = 0x400                    # class, method
+    STRICT = 0x800                      # method
     SYNTHETIC = 0x1000
-    ANNOTATION = 0x2000
-    ENUM = 0x4000
-    CONSTRUCTOR = 0x10000
-    DECLARED_SYNCHRONIZED = 0x20000
+    ANNOTATION = 0x2000                 # class
+    ENUM = 0x4000                       # class, field
+    CONSTRUCTOR = 0x10000               # method
+    DECLARED_SYNCHRONIZED = 0x20000     # method
 
 
 # FIXME: unused
@@ -177,8 +177,8 @@ class MapItem:
 @dataclass(frozen=True)
 class ProtoID:
     """Method prototype ID."""
-    shorty_idx: int                 # strings index
-    return_type_idx: int            # types index
+    shorty_idx: int                     # strings index
+    return_type_idx: int                # types index
     parameters_off: int
 
 
@@ -193,9 +193,9 @@ class Proto:
 @dataclass(frozen=True)
 class FieldID:
     """Field ID."""
-    class_idx: int                  # types index
-    type_idx: int                   # types index
-    name_idx: int                   # strings index
+    class_idx: int                      # types index
+    type_idx: int                       # types index
+    name_idx: int                       # strings index
 
 
 @dataclass(frozen=True)
@@ -209,9 +209,9 @@ class Field:
 @dataclass(frozen=True)
 class MethodID:
     """Method ID."""
-    class_idx: int                  # types index
-    proto_idx: int                  # protos index
-    name_idx: int                   # strings index
+    class_idx: int                      # types index
+    proto_idx: int                      # protos index
+    name_idx: int                       # strings index
 
 
 @dataclass(frozen=True)
@@ -225,11 +225,11 @@ class Method:
 @dataclass(frozen=True)
 class ClassDef:
     """Class definition."""
-    class_idx: int                  # types index
+    class_idx: int                      # types index
     access_flags: AccessFlags
-    superclass_idx: int             # types index or NO_INDEX
+    superclass_idx: int                 # types index or NO_INDEX
     interfaces_off: int
-    source_file_idx: int            # string index
+    source_file_idx: int                # string index
     annotations_off: int
     class_data_off: int
     static_values_off: int
@@ -300,8 +300,8 @@ class MethodHandle:
 class Header:
     """DEX header."""
     magic: bytes
-    checksum: int                   # Adler-32 of data[12:]
-    signature: str                  # SHA-1 of data[32:]
+    checksum: int                       # Adler-32 of data[12:]
+    signature: str                      # SHA-1 of data[32:]
     file_size: int
     header_size: int
     endian_tag: int
@@ -336,7 +336,7 @@ class DexFile:
     header: Header
     map_list: Tuple[MapItem, ...]
     string_offsets: Tuple[int, ...]
-    type_ids: Tuple[int, ...]       # strings indices
+    type_ids: Tuple[int, ...]           # strings indices
     proto_ids: Tuple[ProtoID, ...]
     field_ids: Tuple[FieldID, ...]
     method_ids: Tuple[MethodID, ...]
@@ -539,7 +539,7 @@ def dump_dex(dex: DexFile, *, json: bool, offsets: bool, verbose: bool) -> None:
                 print(f"  {item.type.name.lower()} [{info}]")
         for c in dex.classes:
             print(f"class {_safe(c.type)}:")
-            if flags := '|'.join(cast(str, t.name).lower() for t in c.access_flags):
+            if flags := "|".join(_flags(c.access_flags)).lower():
                 print(f"  access_flags={flags}")
             if c.superclass:
                 print(f"  superclass={_safe(c.superclass)}")
@@ -885,6 +885,13 @@ def _safe(x: Any) -> str:
     if not isinstance(x, str):
         return repr(x)
     return "".join(c if c.isprintable() and c != '\\' else repr(c)[1:-1] for c in x)
+
+
+def _flags(x: Flag, **replace: str) -> Iterator[str]:
+    for member in x.__class__:
+        if x.value & member.value:
+            assert isinstance(member.name, str)
+            yield replace.get(member.name, member.name)
 
 
 def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
