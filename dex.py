@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag
 from fnmatch import fnmatch
 from functools import cached_property
-from typing import Any, Callable, Dict, FrozenSet, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Optional, Tuple
 
 # https://source.android.com/docs/core/runtime/dex-format
 
@@ -69,6 +69,10 @@ class ParseError(Error):
 
 class ChecksumError(Error):
     """Checksum mismatch."""
+
+
+class AssertionFailed(Error):
+    """Assertion failure."""
 
 
 class AccessFlags(Flag):
@@ -291,15 +295,21 @@ class DexFile:
         return self._string_cache[i]
 
 
-def dump(*files: str, json: bool = False, quiet: bool = False, verbose: bool = False) -> None:
+def _assert(b: bool, what: Optional[str] = None) -> None:
+    if not b:
+        raise AssertionFailed("Assertion failed" + (f": {what}" if what else ""))
+
+
+def dump(*files: str, json: bool = False, offsets: bool = True,
+         quiet: bool = False, verbose: bool = False) -> None:
     """Parse DEX & dump to stdout."""
-    _process_files(_dump, *files, json=json, quiet=quiet, verbose=verbose)
+    _process_files(_dump, *files, json=json, offsets=offsets, quiet=quiet, verbose=verbose)
 
 
-def dump_apk(apk: str, *patterns: str, json: bool = False, quiet: bool = False,
-             verbose: bool = False) -> None:
+def dump_apk(apk: str, *patterns: str, json: bool = False, offsets: bool = True,
+             quiet: bool = False, verbose: bool = False) -> None:
     """Parse DEX in APK & dump to stdout."""
-    _process_apk(_dump, apk, *patterns, json=json, quiet=quiet, verbose=verbose)
+    _process_apk(_dump, apk, *patterns, json=json, offsets=offsets, quiet=quiet, verbose=verbose)
 
 
 def types(*files: str, json: bool = False, quiet: bool = False) -> None:
@@ -338,9 +348,9 @@ def _process_apk(f: Callable[..., None], apk: str, *patterns: str,
                     f(fh.read(), json=json, **kwargs)
 
 
-def _dump(data: bytes, *, json: bool, verbose: bool) -> None:
+def _dump(data: bytes, *, json: bool, offsets: bool, verbose: bool) -> None:
     _check_magic(data)
-    dump_dex(parse(data), json=json, verbose=verbose)
+    dump_dex(parse(data), json=json, offsets=offsets, verbose=verbose)
 
 
 def _types(data: bytes, *, json: bool) -> None:
@@ -355,7 +365,7 @@ def _check_magic(data: bytes) -> None:
 
 
 # FIXME: incomplete, no JSON
-def dump_dex(dex: DexFile, *, json: bool, verbose: bool) -> None:
+def dump_dex(dex: DexFile, *, json: bool, offsets: bool, verbose: bool) -> None:
     """Dump DexFile to stdout."""
     if json:
         raise NotImplementedError("JSON not yet implemented")
@@ -364,6 +374,8 @@ def dump_dex(dex: DexFile, *, json: bool, verbose: bool) -> None:
         print(f"  version={dex.header.version:03d}")
         if verbose:
             for f in dataclasses.fields(Header)[1:]:
+                if f.name.endswith("_off") and not offsets:
+                    continue
                 v = getattr(dex.header, f.name)
                 x = hex(v) if f.name in ("checksum", "endian_tag") else _safe(v)
                 print(f"  {f.name}={x}")
@@ -382,8 +394,8 @@ def types_dex(dex: DexFile, *, json: bool) -> None:
 
 # FIXME: incomplete
 # FIXME: link_{size,off}?!
-def parse(data: bytes, *, verify_checksum: bool = True,
-          verify_signature: bool = False) -> DexFile:
+def parse(data: bytes, *, verify_checksum: bool = True, verify_signature: bool = False,
+          verify_map: bool = True) -> DexFile:
     """Parse DEX data to DexFile."""
     header = parse_header(data)
     if (csum := zlib.adler32(data[12:])) != header.checksum:
@@ -399,6 +411,8 @@ def parse(data: bytes, *, verify_checksum: bool = True,
     if len(data) != header.file_size:
         raise ParseError(f"Filesize mismatch: expected {header.file_size}, got {len(data)}")
     map_list = parse_map_list(data, header.map_off)
+    if verify_map:
+        check_map_list(header, map_list)
     string_offsets = parse_string_ids(data, header.string_ids_size, header.string_ids_off)
     type_ids = parse_type_ids(data, header.type_ids_size, header.type_ids_off)
     proto_ids = parse_proto_ids(data, header.proto_ids_size, header.proto_ids_off)
@@ -410,13 +424,32 @@ def parse(data: bytes, *, verify_checksum: bool = True,
                    method_ids=method_ids, class_defs=class_defs, raw_data=data)
 
 
+# FIXME
+def check_map_list(header: Header, map_list: Tuple[MapItem, ...]) -> None:
+    """Check map list."""
+    prev_off, T = -1, MapItem.Type
+    for x in map_list:
+        _assert(x.offset > prev_off, "offsets increasing")
+        prev_off = x.offset
+        if x.type == T.HEADER_ITEM:
+            _assert(x.offset == 0, "header at offset zero")
+        elif T.STRING_ID_ITEM.value <= x.type.value <= T.CLASS_DEF_ITEM.value:
+            k = x.type.name.replace("_ITEM", "").lower()
+            _assert(x.offset == getattr(header, f"{k}s_off"), "offset equal")
+            _assert(x.size == getattr(header, f"{k}s_size"), "size equal")
+        else:
+            if x.type == T.MAP_LIST:
+                _assert(x.offset == header.map_off, "offset equal")
+            _assert(x.offset >= header.data_off, "in data section")
+
+
 def parse_header(data: bytes) -> Header:
     """Parse DEX header data to Header."""
     magic, checksum, signature, file_size, header_size, endian_tag \
         = struct.unpack("<8sI20sIII", data[:44])
     data = data[44:]
-    assert header_size == HEADER_SIZE
-    assert endian_tag == ENDIAN_CONSTANT
+    _assert(header_size == HEADER_SIZE, "header size")
+    _assert(endian_tag == ENDIAN_CONSTANT, "endian constant")
     rest = struct.unpack("<17I", data[:68])
     return Header(magic, checksum, binascii.hexlify(signature).decode(),
                   file_size, header_size, endian_tag, *rest)
@@ -535,23 +568,23 @@ def encoded_value(data: bytes) -> Tuple[EncodedValue, bytes]:
     typ = T(arg_typ & 0x1f)
     val: Any = None
     if typ == T.BYTE:
-        assert arg == 0
+        _assert(arg == 0, "arg is zero")
         val, data = _split(data, 1)
     elif T.SHORT.value <= typ.value <= T.ENUM.value:
         val, data = _split(data, arg + 1)
     elif typ == T.ARRAY:
-        assert arg == 0
+        _assert(arg == 0, "arg is zero")
         val, data = encoded_array(data)
     elif typ == T.ANNOTATION:
-        assert arg == 0
+        _assert(arg == 0, "arg is zero")
         val, data = encoded_annotation(data)
     elif typ == T.NULL:
-        assert arg == 0
+        _assert(arg == 0, "arg is zero")
     elif typ == T.BOOLEAN:
-        assert arg in (0, 1)
+        _assert(arg in (0, 1), "arg is 0 or 1")
         val = bool(arg)
     else:
-        assert False
+        _assert(False, "unreachable")
     return EncodedValue(typ, val), data
 
 
@@ -722,6 +755,7 @@ if __name__ == "__main__":
     sub_dump = subs.add_parser("dump", help="parse & dump DEX")
     sub_dump.add_argument("--apk", help="APK that contains the DEX file(s)")
     sub_dump.add_argument("--json", action="store_true", help="output JSON")
+    sub_dump.add_argument("--no-offsets", action="store_true", help="don't show offsets")
     sub_dump.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_dump.add_argument("-v", "--verbose", action="store_true")
     sub_dump.add_argument("files_or_patterns", metavar="FILE_OR_PATTERN", nargs="+")
@@ -735,10 +769,10 @@ if __name__ == "__main__":
         if args.command == "dump":
             if args.apk:
                 dump_apk(args.apk, *args.files_or_patterns, json=args.json,
-                         quiet=args.quiet, verbose=args.verbose)
+                         offsets=not args.no_offsets, quiet=args.quiet, verbose=args.verbose)
             else:
-                dump(*args.files_or_patterns, json=args.json, quiet=args.quiet,
-                     verbose=args.verbose)
+                dump(*args.files_or_patterns, json=args.json, offsets=not args.no_offsets,
+                     quiet=args.quiet, verbose=args.verbose)
         elif args.command == "types":
             if args.apk:
                 types_apk(args.apk, *args.files_or_patterns, json=args.json, quiet=args.quiet)
