@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag
 from fnmatch import fnmatch
 from functools import cached_property
-from typing import Any, Callable, Dict, FrozenSet, Optional, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple
 
 # https://source.android.com/docs/core/runtime/dex-format
 
@@ -56,7 +56,10 @@ NO_INDEX = 0xFFFFFFFF
 
 PRIMITIVES = dict(V="void", Z="boolean", B="byte", S="short", C="char",
                   I="int", J="long", F="float", D="double")
-QUALIFIEDNAME = re.compile(r"L((?:[\w$ -]+/)*(?:[\w$ -]+));")
+SHORTYNAME = re.compile(r"[VZBSCIJFDL][ZBSCIJFDL]*")
+SIMPLENAME = re.compile(r"[\w$ -]+")
+MEMBERNAME = re.compile(fr"{SIMPLENAME.pattern}|<{SIMPLENAME.pattern}>")
+QUALIFIEDNAME = re.compile(fr"L((?:{SIMPLENAME.pattern}/)*(?:{SIMPLENAME.pattern}));")
 
 
 class Error(Exception):
@@ -167,23 +170,50 @@ class MapItem:
 
 @dataclass(frozen=True)
 class ProtoID:
+    """Method prototype ID."""
     shorty_idx: int                 # strings index
     return_type_idx: int            # types index
     parameters_off: int
 
 
 @dataclass(frozen=True)
+class Proto:
+    """Method prototype."""
+    shorty: str
+    return_type: str
+    parameters: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class FieldID:
+    """Field ID."""
     class_idx: int                  # types index
     type_idx: int                   # types index
     name_idx: int                   # strings index
 
 
 @dataclass(frozen=True)
+class Field:
+    """Field."""
+    definer: str
+    type: str
+    name: str
+
+
+@dataclass(frozen=True)
 class MethodID:
+    """Method ID."""
     class_idx: int                  # types index
     proto_idx: int                  # protos index
     name_idx: int                   # strings index
+
+
+@dataclass(frozen=True)
+class Method:
+    """Method."""
+    definer: str
+    proto: Proto
+    name: str
 
 
 @dataclass(frozen=True)
@@ -256,7 +286,7 @@ class Header:
 
 
 # FIXME: incomplete
-# FIXME: protos, fields, methods, class defs, ...
+# FIXME: class defs, ...
 @dataclass(frozen=True)
 class DexFile:
     """DEX file."""
@@ -282,20 +312,74 @@ class DexFile:
     @cached_property
     def types(self) -> FrozenSet[str]:
         """Types used in this DEX."""
-        return frozenset(type_name(self.string(tid)) for tid in self.type_ids)
+        return frozenset(type_name(self.string(i)) for i in self.type_ids)
+
+    @property
+    def protos(self) -> Iterator[Proto]:
+        """Method prototypes."""
+        for p in self.proto_ids:
+            yield self.proto(p)
+
+    @property
+    def fields(self) -> Iterator[Field]:
+        """Fields."""
+        for f in self.field_ids:
+            yield self.field(f)
+
+    @property
+    def methods(self) -> Iterator[Method]:
+        """Methods."""
+        for m in self.method_ids:
+            yield self.method(m)
+
+    # FIXME: check shorty matches return type & params
+    def proto(self, p: ProtoID) -> Proto:
+        """Get method prototype from ID."""
+        shorty = self.string(p.shorty_idx)
+        _assert(SHORTYNAME.fullmatch(shorty), "shorty name")
+        return Proto(shorty, self.type(p.return_type_idx),
+                     tuple(map(self.type, self.type_list(p.parameters_off))))
+
+    # FIXME: check is class
+    def field(self, f: FieldID) -> Field:
+        """Get field from ID."""
+        name = self.string(f.name_idx)
+        _assert(MEMBERNAME.fullmatch(name), "member name")
+        return Field(self.type(f.class_idx), self.type(f.type_idx), name)
+
+    # FIXME: check is class
+    def method(self, m: MethodID) -> Method:
+        """Get method from ID."""
+        name = self.string(m.name_idx)
+        _assert(MEMBERNAME.fullmatch(name), "member name")
+        p = self.proto_ids[m.proto_idx]
+        return Method(self.type(m.class_idx), self.proto(p), name)
 
     def string(self, i: int) -> str:
         """Get string by index."""
         if i not in self._string_cache:
             o = self.string_offsets[i]
+            _assert(o >= self.header.data_off, "in data section")
             _utf16_size, dat = uleb128(self.raw_data[o:o + 5])
             if b"\x00" not in dat:
                 dat += self.raw_data[o + 5:self.raw_data.index(b"\x00", o + 5) + 1]
             self._string_cache[i] = mutf8(dat)[0]
         return self._string_cache[i]
 
+    def type(self, i: int) -> str:
+        """Get type name by type ID index."""
+        return type_name(self.string(self.type_ids[i]))
 
-def _assert(b: bool, what: Optional[str] = None) -> None:
+    def type_list(self, off: int) -> Tuple[int, ...]:
+        """Get type indices by offset."""
+        if not off:
+            return ()
+        _assert(off >= self.header.data_off, "in data section")
+        size, = struct.unpack("<I", self.raw_data[off:off + 4])
+        return struct.unpack(f"<{size}H", self.raw_data[off + 4:off + 4 + size * 2])
+
+
+def _assert(b: Any, what: Optional[str] = None) -> None:
     if not b:
         raise AssertionFailed("Assertion failed" + (f": {what}" if what else ""))
 
@@ -365,12 +449,13 @@ def _check_magic(data: bytes) -> None:
 
 
 # FIXME: incomplete, no JSON
+# FIXME: protos, fields, methods, class_defs
 def dump_dex(dex: DexFile, *, json: bool, offsets: bool, verbose: bool) -> None:
     """Dump DexFile to stdout."""
     if json:
         raise NotImplementedError("JSON not yet implemented")
     else:
-        print("DEX HEADER")
+        print("HEADER")
         print(f"  version={dex.header.version:03d}")
         if verbose:
             for f in dataclasses.fields(Header)[1:]:
@@ -379,6 +464,13 @@ def dump_dex(dex: DexFile, *, json: bool, offsets: bool, verbose: bool) -> None:
                 v = getattr(dex.header, f.name)
                 x = hex(v) if f.name in ("checksum", "endian_tag") else _safe(v)
                 print(f"  {f.name}={x}")
+        if verbose:
+            print("MAP LIST")
+            for item in dex.map_list:
+                info = f"size={item.size}"
+                if offsets:
+                    info += f", offset={item.offset}"
+                print(f"  {item.type.name} [{info}]")
         ...
 
 
@@ -395,21 +487,12 @@ def types_dex(dex: DexFile, *, json: bool) -> None:
 # FIXME: incomplete
 # FIXME: link_{size,off}?!
 def parse(data: bytes, *, verify_checksum: bool = True, verify_signature: bool = False,
-          verify_map: bool = True) -> DexFile:
+          verify_header: bool = True, verify_map: bool = True) -> DexFile:
     """Parse DEX data to DexFile."""
     header = parse_header(data)
-    if (csum := zlib.adler32(data[12:])) != header.checksum:
-        msg = f"Checksum mismatch (Adler-32): expected {header.checksum}, got {csum}"
-        if verify_checksum:
-            raise ChecksumError(msg)
-        logging.getLogger(__name__).warning(msg)
-    if (sign := hashlib.sha1(data[32:]).hexdigest()) != header.signature:
-        msg = f"Checksum mismatch (SHA-1): expected {header.signature}, got {sign}"
-        if verify_signature:
-            raise ChecksumError(msg)
-        logging.getLogger(__name__).warning(msg)
-    if len(data) != header.file_size:
-        raise ParseError(f"Filesize mismatch: expected {header.file_size}, got {len(data)}")
+    if verify_header:
+        check_header(data, header, verify_checksum=verify_checksum,
+                     verify_signature=verify_signature)
     map_list = parse_map_list(data, header.map_off)
     if verify_map:
         check_map_list(header, map_list)
@@ -422,6 +505,24 @@ def parse(data: bytes, *, verify_checksum: bool = True, verify_signature: bool =
     return DexFile(header=header, map_list=map_list, string_offsets=string_offsets,
                    type_ids=type_ids, proto_ids=proto_ids, field_ids=field_ids,
                    method_ids=method_ids, class_defs=class_defs, raw_data=data)
+
+
+# FIXME
+def check_header(data: bytes, header: Header, *, verify_checksum: bool,
+                 verify_signature: bool) -> None:
+    """Check header."""
+    if (csum := zlib.adler32(data[12:])) != header.checksum:
+        msg = f"Checksum mismatch (Adler-32): expected {header.checksum}, got {csum}"
+        if verify_checksum:
+            raise ChecksumError(msg)
+        logging.getLogger(__name__).warning(msg)
+    if (sign := hashlib.sha1(data[32:]).hexdigest()) != header.signature:
+        msg = f"Checksum mismatch (SHA-1): expected {header.signature}, got {sign}"
+        if verify_signature:
+            raise ChecksumError(msg)
+        logging.getLogger(__name__).warning(msg)
+    if len(data) != header.file_size:
+        raise ParseError(f"Filesize mismatch: expected {header.file_size}, got {len(data)}")
 
 
 # FIXME
@@ -556,7 +657,7 @@ def type_name(s: str) -> str:
         return PRIMITIVES[s]
     if m := QUALIFIEDNAME.fullmatch(s):
         return m[1]
-    raise Error("Unsupported type descriptor: {s!r}")
+    raise Error(f"Unsupported type descriptor: {s!r}")
 
 
 # FIXME
