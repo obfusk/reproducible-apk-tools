@@ -118,15 +118,18 @@ def main() -> None:
     @click.option("--apk", metavar="APK", type=click.Path(exists=True, dir_okay=False),
                   help="APK that contains the DEX file(s).")
     @click.option("--json", is_flag=True, help="Output JSON.")
+    @click.option("--no-offsets", is_flag=True, help="Don't show offsets.")
     @click.option("-q", "--quiet", is_flag=True, help="Don't show filenames.")
     @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
     @click.argument("files_or_patterns", metavar="FILE_OR_PATTERN...", nargs=-1, required=True)
     def dex_dump(files_or_patterns: Tuple[str, ...], apk: str, json: bool,
-                 quiet: bool, verbose: bool) -> None:
+                 no_offsets: bool, quiet: bool, verbose: bool) -> None:
         if apk:
-            _dex.dump_apk(apk, *files_or_patterns, json=json, quiet=quiet, verbose=verbose)
+            _dex.dump_apk(apk, *files_or_patterns, json=json, offsets=not no_offsets,
+                          quiet=quiet, verbose=verbose)
         else:
-            _dex.dump(*files_or_patterns, json=json, quiet=quiet, verbose=verbose)
+            _dex.dump(*files_or_patterns, json=json, offsets=not no_offsets,
+                      quiet=quiet, verbose=verbose)
 
     @dex.command(help="""
         List types used in DEX.
