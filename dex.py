@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag
 from fnmatch import fnmatch
 from functools import cached_property
-from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Tuple
+from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, TextIO, Tuple
 
 # https://source.android.com/docs/core/runtime/dex-format
 
@@ -514,42 +514,14 @@ def _check_magic(data: bytes) -> None:
         raise Error(f"Unsupported magic {magic!r}")
 
 
-# FIXME: incomplete, no JSON
-# FIXME: protos, fields, methods, class_defs
-def dump_dex(dex: DexFile, *, json: bool, offsets: bool, verbose: bool) -> None:
+# FIXME
+def dump_dex(dex: DexFile, *, json: bool = False, offsets: bool = True,
+             verbose: bool = False) -> None:
     """Dump DexFile to stdout."""
     if json:
         raise NotImplementedError("JSON not yet implemented")
     else:
-        print("header:")
-        print(f"  version={dex.header.version:03d}")
-        if verbose:
-            for f in dataclasses.fields(Header)[1:]:
-                if f.name.endswith("_off") and not offsets:
-                    continue
-                v = getattr(dex.header, f.name)
-                x = hex(v) if f.name in ("checksum", "endian_tag") else _safe(v)
-                print(f"  {f.name}={x}")
-        if verbose:
-            print("map list:")
-            for item in dex.map_list:
-                info = f"size={item.size}"
-                if offsets:
-                    info += f", offset={item.offset}"
-                print(f"  {item.type.name.lower()} [{info}]")
-        for c in dex.classes:
-            print(f"class {_safe(c.type)}:")
-            if flags := "|".join(_flags(c.access_flags)).lower():
-                print(f"  access_flags={flags}")
-            if c.superclass:
-                print(f"  superclass={_safe(c.superclass)}")
-            if c.interfaces:
-                print("  interfaces:")
-                for t in c.interfaces:
-                    print(f"    {_safe(t)}")
-            if c.source_file:
-                print(f"  source_file={_safe(c.source_file)}")
-            ...
+        show_dexfile(dex, offsets=offsets, verbose=verbose)
 
 
 def types_dex(dex: DexFile, *, json: bool) -> None:
@@ -560,6 +532,43 @@ def types_dex(dex: DexFile, *, json: bool) -> None:
     else:
         for t in sorted(dex.types):
             print(_safe(t))
+
+
+# FIXME: protos, fields, methods, class_defs
+def show_dexfile(dex: DexFile, *, file: Optional[TextIO] = None,
+                 offsets: bool = True, verbose: bool = False) -> None:
+    """Show DexFile as parse tree."""
+    if file is None:
+        file = sys.stdout
+    print("header:", file=file)
+    print(f"  version={dex.header.version:03d}", file=file)
+    if verbose:
+        for f in dataclasses.fields(Header)[1:]:
+            if f.name.endswith("_off") and not offsets:
+                continue
+            v = getattr(dex.header, f.name)
+            x = hex(v) if f.name in ("checksum", "endian_tag") else _safe(v)
+            print(f"  {f.name}={x}", file=file)
+    if verbose:
+        print("map list:", file=file)
+        for item in dex.map_list:
+            info = f"size={item.size}"
+            if offsets:
+                info += f", offset={item.offset}"
+            print(f"  {item.type.name.lower()} [{info}]", file=file)
+    for c in dex.classes:
+        print(f"class {_safe(c.type)}:", file=file)
+        if flags := "|".join(_flags(c.access_flags)).lower():
+            print(f"  access_flags={flags}", file=file)
+        if c.superclass:
+            print(f"  superclass={_safe(c.superclass)}", file=file)
+        if c.interfaces:
+            print("  interfaces:", file=file)
+            for t in c.interfaces:
+                print(f"    {_safe(t)}", file=file)
+        if c.source_file:
+            print(f"  source_file={_safe(c.source_file)}", file=file)
+        ...
 
 
 # FIXME: incomplete
