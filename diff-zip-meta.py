@@ -8,6 +8,7 @@ import difflib
 import os
 import struct
 import textwrap
+import time
 import zipfile
 import zlib
 
@@ -81,6 +82,14 @@ class Entry:
     size: int
     data_descriptor: Optional[bytes]
     data_before: Optional[bytes]
+
+
+@dataclass(frozen=True)
+class Time:
+    """Unix time from extra field (UT or UX)."""
+    mtime: Optional[int] = None
+    atime: Optional[int] = None
+    ctime: Optional[int] = None
 
 
 def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity()) -> bool:
@@ -188,6 +197,16 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity
                         else:
                             print(f"- {a}={show(v1)}")
                             print(f"+ {a}={show(v2)}")
+                        if s == "extra":
+                            lo = a.endswith("(entry)")
+                            t1 = extra_field_time(v1, local=lo) or Time()
+                            t2 = extra_field_time(v2, local=lo) or Time()
+                            for k in ("mtime", "atime", "ctime"):
+                                tv1 = getattr(t1, k)
+                                tv2 = getattr(t2, k)
+                                if tv1 != tv2:
+                                    print(f"- {a} {k}={fmt_time(tv1)}")
+                                    print(f"+ {a} {k}={fmt_time(tv2)}")
     return differ
 
 
@@ -286,6 +305,65 @@ def read_entry(fh: BinaryIO, info: zipfile.ZipInfo, prev: Optional[Entry],
         data_descriptor=data_descriptor,
         data_before=data_before,
     )
+
+
+# https://sources.debian.org/src/zip/3.0-12/zip.h/#L217
+# https://sources.debian.org/src/zip/3.0-12/zipfile.c/#L6544
+def extra_field_time(extra: bytes, local: bool = False) -> Optional[Time]:
+    r"""
+    Get unix time from extra field (UT or UX).
+
+    >>> t = extra_field_time(b'UT\x05\x00\x01\x00\x00\x00\x00')
+    >>> t
+    Time(mtime=0, atime=None, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (1970, 1, 1, 0, 0, 0, 3, 1, 0)
+    >>> t = extra_field_time(b'UT\x05\x00\x01\xda\xe9\xe36')
+    >>> t
+    Time(mtime=920906202, atime=None, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (1999, 3, 8, 15, 16, 42, 0, 67, 0)
+    >>> t = extra_field_time(b'UX\x08\x00\x80h\x9e>|h\x9e>')
+    >>> t
+    Time(mtime=1050568828, atime=1050568832, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (2003, 4, 17, 8, 40, 28, 3, 107, 0)
+    >>> tuple(time.localtime(t.atime))
+    (2003, 4, 17, 8, 40, 32, 3, 107, 0)
+    >>> t = extra_field_time(b'UX\x08\x00\xda\xe9\xe36\xda\xe9\xe36')
+    >>> t
+    Time(mtime=920906202, atime=920906202, ctime=None)
+    >>> tuple(time.localtime(t.mtime))
+    (1999, 3, 8, 15, 16, 42, 0, 67, 0)
+    >>> tuple(time.localtime(t.atime))
+    (1999, 3, 8, 15, 16, 42, 0, 67, 0)
+
+    """
+    while len(extra) >= 4:
+        hdr_id, size = struct.unpack("<HH", extra[:4])
+        if size > len(extra) - 4:
+            break
+        if hdr_id == 0x5455 and size >= 1:
+            flags = extra[4]
+            if flags & 0x1 and size >= 5:
+                mtime = int.from_bytes(extra[5:9], "little")
+                atime = ctime = None
+                if local:
+                    if flags & 0x2 and size >= 9:
+                        atime = int.from_bytes(extra[9:13], "little")
+                    if flags & 0x4 and size >= 13:
+                        ctime = int.from_bytes(extra[13:17], "little")
+                return Time(mtime, atime, ctime)
+        elif hdr_id == 0x5855 and size >= 8:
+            atime = int.from_bytes(extra[4:8], "little")
+            mtime = int.from_bytes(extra[8:12], "little")
+            return Time(mtime, atime, None)
+        extra = extra[size + 4:]
+    return None
+
+
+def fmt_time(t: Optional[int]) -> str:
+    return "" if t is None else time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(t))
 
 
 if __name__ == "__main__":
