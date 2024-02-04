@@ -1741,7 +1741,7 @@ def _decode_string(data: bytes, off: int, codec: str) -> str:
         j, n = _decode_strlen(data, off + i, codec)
         a, b = off + i + j, off + i + j + n
         if data[b] != 0:
-            if i != 2:
+            if j != 2:
                 raise ParseError("UTF-8 string not null-terminated")
             b = data.index(b"\x00", b)
             x = b - a
