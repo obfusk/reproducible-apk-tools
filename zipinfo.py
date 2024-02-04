@@ -302,7 +302,7 @@ def _cfactor(u: int, c: int) -> str:
             r, s = (f * (u - c) + (d >> 1)) // d, ""
         else:
             r, s = (f * (c - u) + (d >> 1)) // d, "-"
-    return f"{s}{r//10}.{r%10}%"
+    return f"{s}{r // 10}.{r % 10}%"
 
 
 def zip_filenames(zip_file: str, *, sort_by_offset: bool = False) -> None:
