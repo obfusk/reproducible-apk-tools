@@ -1740,6 +1740,15 @@ def _decode_string(data: bytes, off: int, codec: str) -> str:
         i, m = _decode_strlen(data, off, codec)
         j, n = _decode_strlen(data, off + i, codec)
         a, b = off + i + j, off + i + j + n
+        if data[b] != 0:
+            if i != 2:
+                raise ParseError("UTF-8 string not null-terminated")
+            b = data.index(b"\x00", b)
+            x = b - a
+            if data[off:off + 2] != bytes([(x & 0x7F00) >> 8 | 0x80, x & 0xFF]):
+                raise ParseError("UTF-8 string not null-terminated")
+            log = logging.getLogger(__name__)
+            log.warning(f"UTF-8 string null-terminator/length mismatch: expected {n}, got {x}")
         try:
             s = data[a:b].decode(codec)
             k = len(s)
@@ -1748,14 +1757,12 @@ def _decode_string(data: bytes, off: int, codec: str) -> str:
         if k != m:
             log = logging.getLogger(__name__)
             log.warning(f"UTF-8 string length mismatch: expected {m}, got {k}")
-        if data[b] != 0:
-            raise ParseError("UTF-8 string not null-terminated")
     elif codec == UTF16:
         i, n = _decode_strlen(data, off, codec)
         a, b = off + i, off + i + 2 * n
-        s = data[a:b].decode(codec)
         if data[b:b + 2] != b"\x00\x00":
             raise ParseError("UTF-16 string not null-terminated")
+        s = data[a:b].decode(codec)
     else:
         raise ValueError(f"Unsupported codec {codec!r}")
     return s
