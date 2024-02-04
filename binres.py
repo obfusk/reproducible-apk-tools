@@ -158,6 +158,8 @@ AXML_FILES = (MANIFEST, "res/*.xml")
 SCHEMA_ANDROID = "http://schemas.android.com/apk/res/android"
 UTF8, UTF16 = ("utf8", "utf_16_le")
 
+XML_PROLOG = '<?xml version="1.0" encoding="UTF-8"?>'
+
 ZipData = namedtuple("ZipData", ("cd_offset", "eocd_offset", "cd_and_eocd"))
 
 
@@ -1165,10 +1167,12 @@ CHUNK_TYPES = {c.TYPE_ID: c for c in _subclasses(Chunk) if c.TYPE_ID is not None
 
 # FIXME
 def dump(*files: str, json: bool = False, quiet: bool = False,
-         verbose: bool = False, xml: bool = False) -> None:
+         verbose: bool = False, xml: bool = False, xml_prolog: bool = False) -> None:
     """Parse AXML/ARSC & dump to stdout."""
     for file in files:
         with open(file, "rb") as fh:
+            if xml and xml_prolog:
+                print(XML_PROLOG)
             if not quiet:
                 if json:
                     print(_json.dumps([dict(file=file)]))
@@ -1181,11 +1185,13 @@ def dump(*files: str, json: bool = False, quiet: bool = False,
 
 # FIXME
 def dump_apk(apk: str, *patterns: str, json: bool = False, quiet: bool = False,
-             verbose: bool = False, xml: bool = False) -> None:
+             verbose: bool = False, xml: bool = False, xml_prolog: bool = False) -> None:
     """Parse AXML/ARSC in APK & dump to stdout."""
     with zipfile.ZipFile(apk) as zf:
         for info in zf.infolist():
             if fnmatches_with_negation(info.filename, *patterns):
+                if xml and xml_prolog:
+                    print(XML_PROLOG)
                 if not quiet:
                     if json:
                         print(_json.dumps([dict(entry=info.filename)]))
@@ -2036,6 +2042,7 @@ if __name__ == "__main__":
     sub_dump.add_argument("--apk", help="APK that contains the AXML/ARSC file(s)")
     sub_dump.add_argument("--json", action="store_true", help="output JSON")
     sub_dump.add_argument("--xml", action="store_true", help="output XML (AXML only)")
+    sub_dump.add_argument("--prolog", action="store_true", help="output XML prolog (with --xml)")
     sub_dump.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_dump.add_argument("-v", "--verbose", action="store_true")
     sub_dump.add_argument("files_or_patterns", metavar="FILE_OR_PATTERN", nargs="+")
@@ -2054,12 +2061,14 @@ if __name__ == "__main__":
         if args.command == "dump":
             if args.json and args.xml:
                 raise Error("Conflicting options: --json and --xml")
+            if args.prolog and not args.xml:
+                raise Error("Conflicting options: --prolog without --xml")
             if args.apk:
-                dump_apk(args.apk, *args.files_or_patterns, json=args.json,
-                         quiet=args.quiet, verbose=args.verbose, xml=args.xml)
+                dump_apk(args.apk, *args.files_or_patterns, json=args.json, quiet=args.quiet,
+                         verbose=args.verbose, xml=args.xml, xml_prolog=args.prolog)
             else:
                 dump(*args.files_or_patterns, json=args.json, quiet=args.quiet,
-                     verbose=args.verbose, xml=args.xml)
+                     verbose=args.verbose, xml=args.xml, xml_prolog=args.prolog)
         elif args.command == "fastid":
             fastid(*args.apks, json=args.json, short=args.short)
         elif args.command == "fastperms":
