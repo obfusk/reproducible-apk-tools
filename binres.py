@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 r"""
@@ -582,13 +582,15 @@ class PackageChunk(ParentChunk):
 
     TYPE_ID: ClassVar[int] = 0x0200
 
-    # NB: last public type/key offset in string pool & type id offset are unused
+    # NB: last public type/key offset in string pool & type id offset are unused;
+    #     type id offset can be missing in some (older) APKs
     @classmethod
     def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> PackageChunk:
         """Parse PackageChunk."""
         d = ParentChunk._parse(header=header, payload=payload, **kwargs)
+        hdr = header + bytes(4) if len(header) == 276 else header
         id_, name_b, t_off, last_pub_t, k_off, last_pub_k, tid_off = \
-            struct.unpack("<I256sIIIII", header)
+            struct.unpack("<I256sIIIII", hdr)
         name = _decode_package_name(name_b)
         chunk = cls(**d, id=id_, package_name=name, type_specs=(), types=(),
                     library_chunk=None, key_strings_offset=k_off, type_strings_offset=t_off)
