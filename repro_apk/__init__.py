@@ -70,19 +70,23 @@ def main() -> None:
                   help="APK that contains the AXML/ARSC file(s).")
     @click.option("--json", is_flag=True, help="Output JSON.")
     @click.option("--xml", is_flag=True, help="Output XML (AXML only).")
+    @click.option("--prolog", is_flag=True, help="Output XML prolog (with --xml).")
     @click.option("-q", "--quiet", is_flag=True, help="Don't show filenames.")
     @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
     @click.argument("files_or_patterns", metavar="FILE_OR_PATTERN...", nargs=-1, required=True)
     @click.pass_context
-    def binres_dump(ctx: click.Context, files_or_patterns: Tuple[str, ...],
-                    apk: str, json: bool, quiet: bool, xml: bool, verbose: bool) -> None:
+    def binres_dump(ctx: click.Context, files_or_patterns: Tuple[str, ...], apk: str,
+                    json: bool, prolog: bool, quiet: bool, xml: bool, verbose: bool) -> None:
         if json and xml:
             raise click.exceptions.BadParameter("Conflicting options: --json and --xml.", ctx)
+        if prolog and not xml:
+            raise click.exceptions.BadParameter("Conflicting options: --prolog without --xml.", ctx)
         if apk:
             _binres.dump_apk(apk, *files_or_patterns, json=json, quiet=quiet,
-                             verbose=verbose, xml=xml)
+                             verbose=verbose, xml=xml, xml_prolog=prolog)
         else:
-            _binres.dump(*files_or_patterns, json=json, quiet=quiet, verbose=verbose, xml=xml)
+            _binres.dump(*files_or_patterns, json=json, quiet=quiet, verbose=verbose,
+                         xml=xml, xml_prolog=prolog)
 
     @binres.command(help="""
         Quickly get appid & version code/name from APK(s).
