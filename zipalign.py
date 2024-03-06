@@ -1,16 +1,19 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import os
 import struct
+import sys
 import zipfile
 
 from collections import namedtuple
-from typing import BinaryIO
+from typing import BinaryIO, Optional
 
 ZipData = namedtuple("ZipData", ("cd_offset", "eocd_offset", "cd_and_eocd"))
+
+DEFAULT_PAGE_SIZE = 4
 
 
 class Error(RuntimeError):
@@ -18,8 +21,8 @@ class Error(RuntimeError):
 
 
 def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
-             pad_like_apksigner: bool = False, copy_extra: bool = False,
-             update_lfh: bool = True) -> None:
+             page_size: Optional[int] = None, pad_like_apksigner: bool = False,
+             copy_extra: bool = False, update_lfh: bool = True) -> None:
     with zipfile.ZipFile(input_apk, "r") as zf:
         infos = zf.infolist()
     zdata = zip_data(input_apk)
@@ -43,7 +46,7 @@ def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
             offsets[info.filename] = off_o = fho.tell()
             if info.compress_type == 0:
                 hdr = _align_zip_entry(info, hdr, n, m, off_o, page_align=page_align,
-                                       pad_like_apksigner=pad_like_apksigner)
+                                       page_size=page_size, pad_like_apksigner=pad_like_apksigner)
             if info.flag_bits & 0x08:
                 fhi.seek(info.compress_size, os.SEEK_CUR)
                 data_descriptor = fhi.read(12)
@@ -79,10 +82,11 @@ def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
 
 
 # NB: doesn't sync local & CD headers!
-def _align_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int,
-                     off_o: int, *, page_align: bool = False,
+def _align_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int, off_o: int, *,
+                     page_align: bool = False, page_size: Optional[int] = None,
                      pad_like_apksigner: bool = False) -> bytes:
-    align = 4096 if page_align and info.filename.endswith(".so") else 4
+    psize = DEFAULT_PAGE_SIZE if page_size is None else page_size
+    align = psize * 1024 if page_align and info.filename.endswith(".so") else 4
     new_off = 30 + n + m + off_o
     old_xtr = hdr[30 + n:30 + n + m]
     new_xtr = b""
@@ -141,6 +145,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="zipalign.py")
     parser.add_argument("-p", "--page-align", action="store_true",
                         help="use 4096-byte memory page alignment for .so files")
+    parser.add_argument("-P", "--page-size", metavar="N", type=int,
+                        help="use N*1024-byte memory page alignment for .so files")
     parser.add_argument("--pad-like-apksigner", action="store_true",
                         help="use 0xd935 Android ZIP Alignment Extra Field "
                              "instead of zero padding")
@@ -154,8 +160,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.align != 4:
         raise Error("ALIGN must be 4")
-    zipalign(args.input_apk, args.output_apk, page_align=args.page_align,
-             pad_like_apksigner=args.pad_like_apksigner,
+    if args.page_size not in (None, 4, 16, 64):
+        print("Warning: specified page size is not 4, 16, or 64 KiB", file=sys.stderr)
+    zipalign(args.input_apk, args.output_apk, page_align=bool(args.page_align or args.page_size),
+             page_size=args.page_size, pad_like_apksigner=args.pad_like_apksigner,
              copy_extra=args.copy_extra, update_lfh=args.update_lfh)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

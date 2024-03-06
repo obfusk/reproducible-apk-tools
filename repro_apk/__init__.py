@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import sys
 import zipfile
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 from . import diff_zip_meta as _diff_zip_meta
 from . import dump_arsc as _dump_arsc
@@ -219,10 +219,13 @@ def main() -> None:
 
     @cli.command(help="""
         Align uncompressed ZIP/APK entries to 4-byte boundaries (and .so shared
-        object files to 4096-byte boundaries with -p/--page-align).
+        object files to 4096-byte boundaries with -p/--page-align, or other page
+        sizes with -P/--page-size).
     """)
     @click.option("-p", "--page-align", is_flag=True,
                   help="Use 4096-byte memory page alignment for .so files.")
+    @click.option("-P", "--page-size", type=click.INT, metavar="N",
+                  help="Use N*1024-byte memory page alignment for .so files.")
     @click.option("--pad-like-apksigner", is_flag=True,
                   help="Use 0xd935 Android ZIP Alignment Extra Field instead of zero padding.")
     @click.option("--copy-extra", is_flag=True,
@@ -234,15 +237,17 @@ def main() -> None:
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     @click.pass_context
     def zipalign(ctx: click.Context, align: Tuple[str, ...], input_apk: str,
-                 output_apk: str, page_align: bool, pad_like_apksigner: bool,
-                 copy_extra: bool, no_update_lfh: bool) -> None:
+                 output_apk: str, page_align: bool, page_size: Optional[int],
+                 pad_like_apksigner: bool, copy_extra: bool, no_update_lfh: bool) -> None:
         if len(align) > 1:
             s = "s" if len(align) > 2 else ""
             ctx.fail(f"Got unexpected extra argument{s} ({' '.join(align[1:])})")
         if align not in ((), ("4",)):
             raise click.exceptions.BadParameter("ALIGN must be 4.", ctx)
-        _zipalign.zipalign(input_apk, output_apk, page_align=page_align,
-                           pad_like_apksigner=pad_like_apksigner,
+        if page_size not in (None, 4, 16, 64):
+            print("Warning: specified page size is not 4, 16, or 64 KiB", file=sys.stderr)
+        _zipalign.zipalign(input_apk, output_apk, page_align=bool(page_align or page_size),
+                           page_size=page_size, pad_like_apksigner=pad_like_apksigner,
                            copy_extra=copy_extra, update_lfh=not no_update_lfh)
 
     @cli.command(help="""

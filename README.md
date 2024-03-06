@@ -1,4 +1,4 @@
-<!-- SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net> -->
+<!-- SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net> -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 [![GitHub Release](https://img.shields.io/github/release/obfusk/reproducible-apk-tools.svg?logo=github)](https://github.com/obfusk/reproducible-apk-tools/releases)
@@ -257,7 +257,8 @@ not supported by Python's `ZipFile`, which is why `zipalign` is usually needed.
 ### zipalign.py
 
 Align uncompressed ZIP/APK entries to 4-byte boundaries (and `.so` shared object
-files to 4096-byte boundaries with `-p`/`--page-align`).
+files to 4096-byte boundaries with `-p`/`--page-align`, or other page sizes with
+`-P`/`--page-size`).
 
 This implementation aims for compatibility with Android's `zipalign`, with the
 exception of there not being a `-f` option to enable overwriting an existing
@@ -272,7 +273,7 @@ alignment itself plus zero padding and is thus always at least 6 bytes).
 
 ```bash
 $ zipalign.py --help
-usage: zipalign.py [-h] [-p] [--pad-like-apksigner] [--copy-extra] [--no-update-lfh]
+usage: zipalign.py [-h] [-p] [-P N] [--pad-like-apksigner] [--copy-extra] [--no-update-lfh]
                    [ALIGN] INPUT_APK OUTPUT_APK
 [...]
 $ zipalign -f 4 fixed.apk fixed-aligned.apk
