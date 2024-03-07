@@ -176,7 +176,7 @@ def main() -> None:
     parser.add_argument("--page-align", action="store_true",
                         help="run zipalign w/ -p option (implies --zipalign)")
     parser.add_argument("--page-size", metavar="N", type=int,
-                        help="run zipalign w/ -P N option (implies --zipalign)")
+                        help="run zipalign w/ -P N option (implies --page-align)")
     parser.add_argument("--internal", action="store_true",
                         help="use zipalign.py instead of searching $PATH/$ANDROID_HOME/etc.")
     parser.add_argument("command", metavar="COMMAND")
@@ -185,7 +185,8 @@ def main() -> None:
     try:
         inplace_fix(args.command, args.input_file, *rest,
                     zipalign=bool(args.zipalign or args.page_align or args.page_size),
-                    page_align=args.page_align, page_size=args.page_size, internal=args.internal)
+                    page_align=bool(args.page_align or args.page_size),
+                    page_size=args.page_size, internal=args.internal)
     except Error as e:
         print(f"Error: {e}.", file=sys.stderr)
         sys.exit(1)
