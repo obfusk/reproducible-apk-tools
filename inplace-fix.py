@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import argparse
@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 COMMANDS = (
     "fix-compresslevel",
@@ -22,9 +22,20 @@ COMMANDS = (
 )
 
 BUILD_TOOLS_WITH_BROKEN_ZIPALIGN = ("31.0.0", "32.0.0")
+BUILD_TOOLS_WITH_PAGE_SIZE_FROM = "35.0.0-rc1"
 SDK_ENV = ("ANDROID_HOME", "ANDROID_SDK", "ANDROID_SDK_ROOT")
-ZIPALIGN = ("zipalign", "4")
-ZIPALIGN_P = ("zipalign", "-p", "4")
+
+
+def _zipalign_cmd(page_align: bool, page_size: Optional[int]) -> Tuple[str, ...]:
+    if page_align:
+        if page_size is not None:
+            return ("zipalign", "-P", str(page_size), "4")
+        return ("zipalign", "-p", "4")
+    return ("zipalign", "4")
+
+
+ZIPALIGN = _zipalign_cmd(page_align=False, page_size=None)
+ZIPALIGN_P = _zipalign_cmd(page_align=True, page_size=None)
 
 
 class Error(RuntimeError):
@@ -32,7 +43,8 @@ class Error(RuntimeError):
 
 
 def inplace_fix(command: str, input_file: str, *args: str,
-                zipalign: bool = False, page_align: bool = False) -> None:
+                zipalign: bool = False, page_align: bool = False,
+                page_size: Optional[int] = None, internal: bool = False) -> None:
     if command not in COMMANDS:
         raise Error(f"Unknown command {command}")
     exe, script = _script_cmd(command)
@@ -42,7 +54,8 @@ def inplace_fix(command: str, input_file: str, *args: str,
         run_command(exe, script, input_file, fixed, *args, trim=2)
         if zipalign:
             aligned = os.path.join(tdir, "aligned" + ext)
-            run_command(*zipalign_cmd(page_align=page_align), fixed, aligned, trim=2)
+            zac = zipalign_cmd(page_align=page_align, page_size=page_size, internal=internal)
+            run_command(*zac, fixed, aligned, trim=2)
             print(f"[MOVE] {aligned} to {input_file}")
             shutil.move(aligned, input_file)
         else:
@@ -50,7 +63,8 @@ def inplace_fix(command: str, input_file: str, *args: str,
             shutil.move(fixed, input_file)
 
 
-def zipalign_cmd(page_align: bool = False) -> Tuple[str, ...]:
+def zipalign_cmd(page_align: bool = False, page_size: Optional[int] = None,
+                 internal: bool = False) -> Tuple[str, ...]:
     """
     Find zipalign command using $PATH or $ANDROID_HOME etc.
 
@@ -58,6 +72,11 @@ def zipalign_cmd(page_align: bool = False) -> Tuple[str, ...]:
     ('zipalign', '4')
     >>> zipalign_cmd(page_align=True)
     ('zipalign', '-p', '4')
+    >>> zipalign_cmd(page_align=True, page_size=16)
+    ('zipalign', '-P', '16', '4')
+    >>> cmd = zipalign_cmd(page_align=True, page_size=16, internal=True)
+    >>> [x.split("/")[-1] for x in cmd]
+    ['python3', 'zipalign.py', '-P', '16', '4']
     >>> os.environ["PATH"] = ""
     >>> for k in SDK_ENV:
     ...     os.environ[k] = ""
@@ -69,17 +88,30 @@ def zipalign_cmd(page_align: bool = False) -> Tuple[str, ...]:
     [SKIP BROKEN] 31.0.0
     [FOUND] test/fake-sdk/build-tools/30.0.3/zipalign
     ('test/fake-sdk/build-tools/30.0.3/zipalign', '4')
+    >>> cmd = zipalign_cmd(page_align=True, page_size=16)
+    [SKIP TOO OLD] 31.0.0
+    [SKIP TOO OLD] 30.0.3
+    [SKIP TOO OLD] 26.0.2
+    >>> [x.split("/")[-1] for x in cmd]
+    ['python3', 'zipalign.py', '-P', '16', '4']
+    >>> os.environ["ANDROID_HOME"] = "test/fake-sdk-2"
+    >>> zipalign_cmd(page_align=True, page_size=16)
+    [FOUND] test/fake-sdk-2/build-tools/35.0.0-rc1/zipalign
+    ('test/fake-sdk-2/build-tools/35.0.0-rc1/zipalign', '-P', '16', '4')
 
     """
-    def key(v: str) -> Tuple[int, ...]:
-        return tuple(int(x) if x.isdigit() else -1 for x in v.split("."))
-    cmd, *args = ZIPALIGN_P if page_align else ZIPALIGN
-    if not shutil.which(cmd):
+    cmd, *args = _zipalign_cmd(page_align, page_size)
+    if not internal:
+        if shutil.which(cmd):
+            return (cmd, *args)
         for k in SDK_ENV:
             if v := os.environ.get(k):
                 t = os.path.join(v, "build-tools")
                 if os.path.exists(t):
-                    for v in sorted(os.listdir(t), key=key, reverse=True):
+                    for v in sorted(os.listdir(t), key=_vsn, reverse=True):
+                        if page_size and _vsn(v) < _vsn(BUILD_TOOLS_WITH_PAGE_SIZE_FROM):
+                            print(f"[SKIP TOO OLD] {v}")
+                            continue
                         for s in BUILD_TOOLS_WITH_BROKEN_ZIPALIGN:
                             if v.startswith(s):
                                 print(f"[SKIP BROKEN] {v}")
@@ -89,8 +121,25 @@ def zipalign_cmd(page_align: bool = False) -> Tuple[str, ...]:
                             if shutil.which(c):
                                 print(f"[FOUND] {c}")
                                 return (c, *args)
-        return (*_script_cmd(cmd), *args)
-    return (cmd, *args)
+    return (*_script_cmd(cmd), *args)
+
+
+def _vsn(v: str) -> Tuple[int, ...]:
+    """
+    >>> vs = "31.0.0 32.1.0-rc1 34.0.0-rc3 34.0.0 35.0.0-rc1".split()
+    >>> for v in sorted(vs, key=_vsn, reverse=True):
+    ...     (_vsn(v), v)
+    ((35, 0, 0, 0, 1), '35.0.0-rc1')
+    ((34, 0, 0, 1, 0), '34.0.0')
+    ((34, 0, 0, 0, 3), '34.0.0-rc3')
+    ((32, 1, 0, 0, 1), '32.1.0-rc1')
+    ((31, 0, 0, 1, 0), '31.0.0')
+    """
+    if "-rc" in v:
+        v = v.replace("-rc", ".0.", 1)
+    else:
+        v = v + ".1.0"
+    return tuple(int(x) if x.isdigit() else -1 for x in v.split("."))
 
 
 def _script_cmd(command: str) -> Tuple[str, str]:
@@ -117,20 +166,26 @@ def run_command(*args: str, trim: int = 1) -> None:
 
 
 def main() -> None:
-    usage = "%(prog)s [-h] [--zipalign] [--page-align] COMMAND INPUT_FILE [...]"
+    prog = os.path.basename(sys.argv[0])
+    usage = (f"{prog} [-h] [--zipalign] [--page-align] [--page-size N] [--internal]\n"
+             f"{len('usage: ' + prog) * ' '} COMMAND INPUT_FILE [...]")
     epilog = f"Commands: {', '.join(COMMANDS)}."
     parser = argparse.ArgumentParser(usage=usage, epilog=epilog)
     parser.add_argument("--zipalign", action="store_true",
                         help="run zipalign after COMMAND")
     parser.add_argument("--page-align", action="store_true",
                         help="run zipalign w/ -p option (implies --zipalign)")
+    parser.add_argument("--page-size", metavar="N", type=int,
+                        help="run zipalign w/ -P N option (implies --zipalign)")
+    parser.add_argument("--internal", action="store_true",
+                        help="use zipalign.py instead of searching $PATH/$ANDROID_HOME/etc.")
     parser.add_argument("command", metavar="COMMAND")
     parser.add_argument("input_file", metavar="INPUT_FILE")
     args, rest = parser.parse_known_args()
     try:
         inplace_fix(args.command, args.input_file, *rest,
-                    zipalign=args.zipalign or args.page_align,
-                    page_align=args.page_align)
+                    zipalign=bool(args.zipalign or args.page_align or args.page_size),
+                    page_align=args.page_align, page_size=args.page_size, internal=args.internal)
     except Error as e:
         print(f"Error: {e}.", file=sys.stderr)
         sys.exit(1)

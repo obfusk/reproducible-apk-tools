@@ -503,7 +503,8 @@ them modify the file in-place (and optionally `zipalign` it too).
 
 ```bash
 $ inplace-fix.py --help
-usage: inplace-fix.py [-h] [--zipalign] [--page-align] COMMAND INPUT_FILE [...]
+usage: inplace-fix.py [-h] [--zipalign] [--page-align] [--page-size N] [--internal]
+                      COMMAND INPUT_FILE [...]
 [...]
 $ inplace-fix.py --zipalign fix-newlines unsigned.apk 'META-INF/services/*'
 [RUN] python3 fix-newlines.py unsigned.apk /tmp/.../fixed.apk META-INF/services/*
@@ -516,12 +517,14 @@ fixing 'META-INF/services/bar'...
 If `zipalign` is not found on `$PATH` but any of `$ANDROID_HOME`,
 `$ANDROID_SDK`, or `$ANDROID_SDK_ROOT` is set to an Android SDK directory, it
 will use `zipalign` from the latest `build-tools` subdirectory of the Android
-SDK.
+SDK.  If no suitable `zipalign` command can be found this way or the
+`--internal` option is passed, `zipalign.py` will be used.
 
-NB: however, it will skip `build-tools` `31.0.0` and `32.0.0` because
-[their `zipalign` is broken](https://android.googlesource.com/platform/build/+/df73d1b4733b8b3cdfd96199018455026ba8d9d2).
+NB: `build-tools` `31.0.0` and `32.0.0` are skipped because
+[their `zipalign` is broken](https://android.googlesource.com/platform/build/+/df73d1b4733b8b3cdfd96199018455026ba8d9d2);
+`--page-size` requires `build-tools` >= `35.0.0-rc1`.
 
-NB: this script is not available as a `repro-apk` subcommand, but as a seperate
+NB: this script is not available as a `repro-apk` subcommand, but as a separate
 `repro-apk-inplace-fix` command.
 
 ## gradle integration
