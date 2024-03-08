@@ -104,6 +104,9 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity
         for i, line in enumerate(d):
             if i > 2 and not line.startswith("@"):
                 print(f"{line[0]}   {line[1:]}")
+        if len(a) != len(b):
+            print(f"- {attr} size={len(a)}")
+            print(f"+ {attr} size={len(b)}")
 
     def diff_entries(a: List[str], b: List[str]) -> None:
         d = difflib.unified_diff(a, b, n=0, lineterm="")
