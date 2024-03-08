@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import binascii
@@ -195,6 +195,9 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity
                         elif s == "extra" and (len(v1) > 16 or len(v2) > 16):
                             diff_bytes(v1, v2, a)
                         else:
+                            if s in ("flag_bits", "CRC") or s.endswith("_attr"):
+                                v1 = hex(v1)
+                                v2 = hex(v2)
                             print(f"- {a}={show(v1)}")
                             print(f"+ {a}={show(v2)}")
                         if s == "extra":
