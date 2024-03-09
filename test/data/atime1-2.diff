@@ -1,0 +1,8 @@
+--- atime1.zip
++++ atime2.zip
+entry foo:
+  extra (entry):
+-   5554090003ea87eb65ea87eb6575780b000104e803000004e8030000
++   5554090003ea87eb65ee87eb6575780b000104e803000004e8030000
+- extra (entry) atime=2024-03-08 21:49:30
++ extra (entry) atime=2024-03-08 21:49:34

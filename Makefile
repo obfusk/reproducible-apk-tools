@@ -94,6 +94,8 @@ test-examples:
 	  <( repro-apk diff-zip-meta unix.apk crlf.apk )
 	cd test/data && diff -Naur unix-6-no-off.diff \
 	  <( repro-apk diff-zip-meta unix.apk level6.apk --no-offsets )
+	cd test/data && diff -Naur atime1-2.diff \
+	  <( repro-apk diff-zip-meta atime1.zip atime2.zip )
 	# dump-arsc
 	cd test/data && diff -Naur resources1.arsc.dump \
 	  <( repro-apk dump-arsc resources1.arsc )
