@@ -349,8 +349,10 @@ Parse & dump ARSC or AXML.
 
 ```bash
 $ binres.py dump --help
-usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [-v] FILE_OR_PATTERN [FILE_OR_PATTERN ...]
+usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [-q] [-v] FILE_OR_PATTERN [FILE_OR_PATTERN ...]
+[...]
 $ binres.py dump AndroidManifest.xml
+file='AndroidManifest.xml'
 XML
   STRING POOL [flags=0, #strings=16, #styles=0]
   XML RESOURCE MAP [#resources=6]
@@ -387,6 +389,7 @@ Quickly get appid & version code/name from APK(s).
 ```bash
 $ binres.py fastid --help
 usage: binres.py fastid [-h] [--json] [--short] APK [APK ...]
+[...]
 $ binres.py fastid some.apk
 package=com.example versionCode=1 versionName=1
 $ binres.py fastid --short some.apk
@@ -407,11 +410,14 @@ Quickly get permissions from APK(s).
 
 ```bash
 $ binres.py fastperms --help
-usage: binres.py fastperms [-h] [--json] [--with-id] APK [APK ...]
+usage: binres.py fastperms [-h] [--json] [-q] [--with-id] APK [APK ...]
+[...]
 $ binres.py fastperms some.apk
+file='some.apk'
 permission=android.permission.CAMERA
 permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
 $ binres.py fastperms --with-id some.apk
+file='some.apk'
 package=com.example versionCode=1 versionName=1
 permission=android.permission.CAMERA
 permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
