@@ -1,3 +1,14 @@
+v0.2.4
+
+• add rm-files.py & fix-files.py.
+• add zipalign.py (w/ -P/--page-size support).
+• inplace-fix.py: --page-align, --page-size; use zipalign.py (fallback & --internal).
+• diff-zip-meta.py: diff extra time [#17], show CRC etc. as hex, show byte diff sizes.
+• zipinfo.py: add --sort-by-offset.
+• list-compresslevel.py: add patterns.
+• add negation to fnmatch-style patterns.
+• various fixes and improvements.
+
 v0.2.3
 
 • add zipinfo.py.
