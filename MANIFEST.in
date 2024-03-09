@@ -1,4 +1,8 @@
+exclude *.py
 global-include *.typed
 include LICENSE.GPLv3
 include Makefile
 include changelog.txt
+include setup.py
+prune .github
+prune test
