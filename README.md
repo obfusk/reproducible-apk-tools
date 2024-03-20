@@ -24,6 +24,7 @@
 [`fix-compresslevel.py`](#fix-compresslevelpy),
 [`fix-files.py`](#fix-filespy),
 [`fix-newlines.py`](#fix-newlinespy),
+[`fix-pg-map-id.py`](#fix-pg-map-idpy),
 [`rm-files.py`](#rm-filespy),
 [`sort-apk.py`](#sort-apkpy),
 [`sort-baseline.py`](#sort-baselinepy),
@@ -130,6 +131,48 @@ DOES NOT VERIFY
 $ fix-newlines.py unsigned.apk fixed.apk 'META-INF/services/*'
 fixing 'META-INF/services/foo'...
 fixing 'META-INF/services/bar'...
+$ zipalign -f 4 fixed.apk fixed-aligned.apk
+$ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
+OK
+```
+
+NB: this builds a new ZIP file, preserving most ZIP metadata (and recompressing
+using the same compression level) but not everything: e.g. copying the existing
+local header extra fields which contain padding for alignment is not supported
+by Python's `ZipFile`, which is why `zipalign` is usually needed.
+
+### fix-pg-map-id.py
+
+Replace non-deterministic R8 `pg-map-id` in `classes.dex` (and `classes2.dex`
+etc. when present) and update checksums, also in `baseline.prof`.
+
+```bash
+$ fix-pg-map-id.py --help
+usage: fix-pg-map-id.py [-h] INPUT_DIR_OR_APK OUTPUT_DIR_OR_APK PG_MAP_ID
+[...]
+$ apksigcopier compare signed.apk --unsigned unsigned.apk
+DOES NOT VERIFY
+[...]
+$ unzip -p signed.apk classes.dex | xxd | grep -C5 pg-map
+[...]
+$ fix-pg-map-id.py unsigned.apk fixed.apk 2a997d3
+reading 'assets/dexopt/baseline.prof'...
+reading 'classes.dex'...
+reading 'classes2.dex'...
+fixing 'classes.dex'...
+dex version=035
+fixing pg-map-id: b'ee46513' -> b'2a997d3'
+fixing signature: f7194d94835825262850f9e5ad3de772c82e4f02 -> c8006eccc15c0a17373773fc982e34db6239bc52
+fixing checksum: 0x95179fd8 -> 0x2e209f82
+fixing 'classes2.dex'...
+dex version=035
+(not modified)
+fixing 'assets/dexopt/baseline.prof'...
+prof version=010 P
+fixing 'classes.dex' checksum: 0x95d40f72 -> 0x50191ba4
+writing 'assets/dexopt/baseline.prof'...
+writing 'classes.dex'...
+writing 'classes2.dex'...
 $ zipalign -f 4 fixed.apk fixed-aligned.apk
 $ apksigcopier compare signed.apk --unsigned fixed-aligned.apk && echo OK
 OK
@@ -643,6 +686,8 @@ $ repro-apk dump-baseline --apk some.apk
 $ repro-apk fix-compresslevel unsigned.apk fixed.apk 6 assets/foo/bar.js
 $ repro-apk fix-files unsigned.apk fixed.apk unix2dos 'META-INF/services/*'
 $ repro-apk fix-newlines unsigned.apk fixed.apk 'META-INF/services/*'
+$ repro-apk fix-pg-map-id unsigned.apk fixed.apk da39a3e
+$ repro-apk fix-pg-map-id input-dir output-dir da39a3e
 $ repro-apk list-compresslevel some.apk
 $ repro-apk rm-files some.apk fixed.apk META-INF/MANIFEST.IN
 $ repro-apk sort-apk unsigned.apk sorted.apk
@@ -664,6 +709,7 @@ $ repro-apk dump-baseline --help
 $ repro-apk fix-compresslevel --help
 $ repro-apk fix-files --help
 $ repro-apk fix-newlines --help
+$ repro-apk fix-pg-map-id --help
 $ repro-apk list-compresslevel --help
 $ repro-apk rm-files --help
 $ repro-apk sort-apk --help

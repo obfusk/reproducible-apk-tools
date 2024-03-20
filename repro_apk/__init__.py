@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import os
 import sys
 import zipfile
 
@@ -15,6 +16,7 @@ from . import dump_baseline as _dump_baseline
 from . import fix_compresslevel as _fix_compresslevel
 from . import fix_files as _fix_files
 from . import fix_newlines as _fix_newlines
+from . import fix_pg_map_id as _fix_pg_map_id
 from . import list_compresslevel as _list_compresslevel
 from . import rm_files as _rm_files
 from . import sort_apk as _sort_apk
@@ -35,6 +37,7 @@ ERRORS = (
     _fix_compresslevel.Error,
     _fix_files.Error,
     _fix_newlines.Error,
+    _fix_pg_map_id.Error,
     _list_compresslevel.Error,
     _rm_files.Error,
     _sort_apk.Error,
@@ -165,6 +168,19 @@ def main() -> None:
         replace = ("\r\n", "\n") if from_crlf else ("\n", "\r\n")
         _fix_newlines.fix_newlines(input_apk, output_apk, *patterns,
                                    replace=replace, verbose=verbose)
+
+    @cli.command(help="""
+        Replace non-deterministic R8 pg-map-id in classes{,N}.dex and update
+        checksums, also in baseline.prof.
+    """)
+    @click.argument("input_dir_or_apk", type=click.Path(exists=True, dir_okay=True))
+    @click.argument("output_dir_or_apk", type=click.Path(dir_okay=True))
+    @click.argument("pg_map_id")
+    def fix_pg_map_id(input_dir_or_apk: str, output_dir_or_apk: str, pg_map_id: str) -> None:
+        if os.path.isdir(input_dir_or_apk):
+            _fix_pg_map_id.fix_pg_map_id(input_dir_or_apk, output_dir_or_apk, pg_map_id)
+        else:
+            _fix_pg_map_id.fix_pg_map_id_apk(input_dir_or_apk, output_dir_or_apk, pg_map_id)
 
     @cli.command(help="""
         List ZIP entries with compression level.

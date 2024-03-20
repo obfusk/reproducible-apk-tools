@@ -16,6 +16,7 @@ COMMANDS = (
     "fix-compresslevel",
     "fix-files",
     "fix-newlines",
+    "fix-pg-map-id",
     "rm-files",
     "sort-apk",
     "sort-baseline",
