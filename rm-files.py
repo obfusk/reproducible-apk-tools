@@ -23,8 +23,9 @@ class Error(RuntimeError):
 class ReproducibleZipInfo(zipfile.ZipInfo):
     """Reproducible ZipInfo hack."""
 
-    if "_compresslevel" not in zipfile.ZipInfo.__slots__:   # type: ignore[attr-defined]
-        raise Error("zipfile.ZipInfo has no ._compresslevel")
+    if "_compresslevel" not in zipfile.ZipInfo.__slots__:       # type: ignore[attr-defined]
+        if "compress_level" not in zipfile.ZipInfo.__slots__:   # type: ignore[attr-defined]
+            raise Error("zipfile.ZipInfo has no ._compresslevel")
 
     _compresslevel: int
     _override: Dict[str, Any] = {}
