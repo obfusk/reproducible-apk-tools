@@ -153,7 +153,16 @@ usage: fix-pg-map-id.py [-h] INPUT_DIR_OR_APK OUTPUT_DIR_OR_APK PG_MAP_ID
 $ apksigcopier compare signed.apk --unsigned unsigned.apk
 DOES NOT VERIFY
 [...]
-$ unzip -p signed.apk classes.dex | xxd | grep -C5 pg-map
+$ diff -Naur <( unzip -p signed.apk classes.dex | xxd ) <( unzip -p unsigned.apk classes.dex | xxd )
+[...]
+-00000000: 6465 780a 3033 3500 829f 202e c800 6ecc  dex.035... ...n.
+-00000010: c15c 0a17 3737 73fc 982e 34db 6239 bc52  .\..77s...4.b9.R
++00000000: 6465 780a 3033 3500 d89f 1795 f719 4d94  dex.035.......M.
++00000010: 8358 2526 2850 f9e5 ad3d e772 c82e 4f02  .X%&(P...=.r..O.
+[...]
+ 005f1010: 2d61 7069 223a 3233 2c22 7067 2d6d 6170  -api":23,"pg-map
+-005f1020: 2d69 6422 3a22 3261 3939 3764 3322 2c22  -id":"2a997d3","
++005f1020: 2d69 6422 3a22 6565 3436 3531 3322 2c22  -id":"ee46513","
 [...]
 $ fix-pg-map-id.py unsigned.apk fixed.apk 2a997d3
 reading 'assets/dexopt/baseline.prof'...
