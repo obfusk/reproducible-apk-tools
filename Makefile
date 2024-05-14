@@ -94,8 +94,10 @@ test-examples:
 	cd test/data && diff -Naur resource.xml.json \
 	  <( repro-apk binres dump resource.xml --json -q )
 	# binres dump axml --apk
-	cd test/data && diff -Naur golden-aligned-in-arsc.brdump \
-	  <( repro-apk binres dump --apk golden-aligned-in.apk resources.arsc )
+	cd test/data && diff -Naur AndroidManifest.xml.brdump \
+	  <( repro-apk binres dump --apk baseline1.profm.apk AndroidManifest.xml -q )
+	cd test/data && diff -Naur AndroidManifest.xml.brxml \
+	  <( repro-apk binres dump --apk baseline2.profm.apk AndroidManifest.xml --xml -q )
 	# binres dump arsc
 	cd test/data && diff -Naur resources1.arsc.brdump \
 	  <( repro-apk binres dump resources1.arsc -q )
@@ -105,6 +107,9 @@ test-examples:
 	  <( repro-apk binres dump resources2.arsc -q )
 	cd test/data && diff -Naur resources2.arsc.json \
 	  <( repro-apk binres dump resources2.arsc --json -q )
+	# binres dump arsc --apk
+	cd test/data && diff -Naur golden-aligned-in-arsc.brdump \
+	  <( repro-apk binres dump --apk golden-aligned-in.apk resources.arsc )
 	# binres fastid
 	cd test/data && diff -Naur <( echo "android.appsecurity.cts.tinyapp 10 1.0" ) \
 	  <( repro-apk binres fastid --short unix.apk )
