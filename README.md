@@ -349,7 +349,8 @@ Parse & dump ARSC or AXML.
 
 ```bash
 $ binres.py dump --help
-usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [-q] [-v] FILE_OR_PATTERN [FILE_OR_PATTERN ...]
+usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [--prolog] [-q] [-v]
+                      FILE_OR_PATTERN [FILE_OR_PATTERN ...]
 [...]
 $ binres.py dump AndroidManifest.xml
 file='AndroidManifest.xml'
@@ -371,6 +372,11 @@ XML
       XML ELEM END [lineno=2, name='uses-sdk']
     XML ELEM END [lineno=1, name='manifest']
   XML NS END [lineno=1, prefix='android', uri='http://schemas.android.com/apk/res/android']
+$ binres.py dump --xml AndroidManifest.xml
+<!-- file='AndroidManifest.xml' -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1" android:versionName="1" android:compileSdkVersion="29" android:compileSdkVersionCodename="10.0.0" package="com.example" platformBuildVersionCode="29" platformBuildVersionName="10.0.0">
+  <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
+</manifest>
 $ binres.py dump --apk some.apk '*.arsc' '*.xml'
 entry='AndroidManifest.xml'
 XML
@@ -410,7 +416,7 @@ Quickly get permissions from APK(s).
 
 ```bash
 $ binres.py fastperms --help
-usage: binres.py fastperms [-h] [--json] [-q] [--with-id] APK [APK ...]
+usage: binres.py fastperms [-h] [--json] [--with-id] [-q] APK [APK ...]
 [...]
 $ binres.py fastperms some.apk
 file='some.apk'
@@ -808,6 +814,7 @@ NB: you can just use the scripts stand-alone; alternatively, you can install the
 
 ```bash
 $ repro-apk binres dump AndroidManifest.xml
+$ repro-apk binres dump --xml AndroidManifest.xml
 $ repro-apk binres dump --apk some.apk '*.arsc' '*.xml'
 $ repro-apk binres fastid some.apk
 $ repro-apk binres fastid --short some.apk
