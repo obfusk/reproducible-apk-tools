@@ -1,7 +1,7 @@
 from pathlib import Path
 import setuptools
 
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 info = Path(__file__).with_name("README.md").read_text(encoding="utf8")
 
@@ -12,7 +12,7 @@ setuptools.setup(
     long_description=info,
     long_description_content_type="text/markdown",
     version=__version__,
-    author="FC Stegerman",
+    author="FC (Fay) Stegerman",
     author_email="flx@obfusk.net",
     license="GPLv3+",
     classifiers=[

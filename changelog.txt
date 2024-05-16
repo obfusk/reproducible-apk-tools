@@ -1,3 +1,8 @@
+v0.2.6
+
+• add binres.py.
+• fix compatibility w/ python 3.13 ZipInfo .compress_level changes.
+
 v0.2.5
 
 • add fix-pg-map-id.py.
