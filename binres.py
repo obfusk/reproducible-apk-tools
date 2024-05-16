@@ -1339,7 +1339,8 @@ def _show_subs(chunk: Chunk, subs: List[Tuple[str, Any]], indent: int, *,
                         show_type_entry(chunk, i, entry, indent, file=file)
                 else:
                     # FIXME: LibraryChunk
-                    raise NotImplementedError("FIXME")
+                    err = f"Showing entries for {chunk.__class__.__name__} not (yet) supported"
+                    raise NotImplementedError(err)
             else:
                 print(f"{' ' * indent}{k.upper()}:", file=file)
                 for x in v:
@@ -1774,6 +1775,7 @@ def _decode_string(data: bytes, off: int, codec: str) -> str:
     return s
 
 
+# https://en.wikipedia.org/wiki/UTF-16 surrogate pair
 def _decode_utf8_with_surrogates(b: bytes) -> Tuple[int, str]:
     s = b.decode(UTF8, errors="surrogatepass")
     i, n, t = 0, len(s), []
@@ -1886,10 +1888,13 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
         if not isinstance(first, XMLChunk):
             raise Error("Expected XMLChunk")
         chunk = first
+    perm_tags = ("uses-permission", "uses-permission-sdk-23", "permission")
+    in_manifest = False
     for c in chunk.children:
         if isinstance(c, XMLElemStartChunk):
-            # FIXME: check level == 3?
-            if c.name in ("uses-permission", "uses-permission-sdk-23", "permission"):
+            if c.level == 2:
+                in_manifest = c.name == "manifest"
+            elif in_manifest and c.level == 3 and c.name in perm_tags:
                 perm, attrs = None, []
                 if c.name == "uses-permission-sdk-23":
                     attrs.append(("minSdkVersion", "23"))
@@ -1926,9 +1931,9 @@ def quick_get_manifest(apk: str, *, chunk: Optional[XMLChunk] = None) -> XMLElem
         pool = start = None
         while data:
             tid, d, data = _read_chunk(data, parent=ref)
-            if tid == StringPoolChunk.TYPE_ID:
+            if not pool and tid == StringPoolChunk.TYPE_ID:
                 pool = StringPoolChunk.parse(**d, level=0, offset=-1)
-            elif tid == XMLElemStartChunk.TYPE_ID:
+            elif not start and tid == XMLElemStartChunk.TYPE_ID:
                 start = XMLElemStartChunk.parse(**d, level=0, offset=-1)
             if pool and start:
                 break
@@ -2072,7 +2077,7 @@ if __name__ == "__main__":
         elif args.command == "fastid":
             fastid(*args.apks, json=args.json, short=args.short)
         elif args.command == "fastperms":
-            fastperms(*args.apks, json=args.json, with_id=args.with_id)
+            fastperms(*args.apks, json=args.json, quiet=args.quiet, with_id=args.with_id)
         else:
             raise Error(f"Unknown command: {args.command}")
     except Error as e:
