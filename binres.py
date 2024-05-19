@@ -1752,7 +1752,7 @@ def _decode_string(data: bytes, off: int, codec: str) -> str:
                 raise ParseError("UTF-8 string not null-terminated")
             b = data.index(b"\x00", b)
             x = b - a
-            if data[off:off + 2] != bytes([(x & 0x7F00) >> 8 | 0x80, x & 0xFF]):
+            if data[off + i:off + i + 2] != bytes([(x & 0x7F00) >> 8 | 0x80, x & 0xFF]):
                 raise ParseError("UTF-8 string not null-terminated")
             log = logging.getLogger(__name__)
             log.warning(f"UTF-8 string null-terminator/length mismatch: expected {n}, got {x}")
