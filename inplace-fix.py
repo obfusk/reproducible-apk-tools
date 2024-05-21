@@ -106,19 +106,19 @@ def zipalign_cmd(page_align: bool = False, page_size: Optional[int] = None,
         if shutil.which(cmd):
             return (cmd, *args)
         for k in SDK_ENV:
-            if v := os.environ.get(k):
-                t = os.path.join(v, "build-tools")
-                if os.path.exists(t):
-                    for v in sorted(os.listdir(t), key=_vsn, reverse=True):
-                        if page_size and _vsn(v) < _vsn(BUILD_TOOLS_WITH_PAGE_SIZE_FROM):
-                            print(f"[SKIP TOO OLD] {v}")
+            if home := os.environ.get(k):
+                tools = os.path.join(home, "build-tools")
+                if os.path.exists(tools):
+                    for vsn in sorted(os.listdir(tools), key=_vsn, reverse=True):
+                        if page_size and _vsn(vsn) < _vsn(BUILD_TOOLS_WITH_PAGE_SIZE_FROM):
+                            print(f"[SKIP TOO OLD] {vsn}")
                             continue
                         for s in BUILD_TOOLS_WITH_BROKEN_ZIPALIGN:
-                            if v.startswith(s):
-                                print(f"[SKIP BROKEN] {v}")
+                            if vsn.startswith(s):
+                                print(f"[SKIP BROKEN] {vsn}")
                                 break
                         else:
-                            c = os.path.join(t, v, cmd)
+                            c = os.path.join(tools, vsn, cmd)
                             if shutil.which(c):
                                 print(f"[FOUND] {c}")
                                 return (c, *args)
