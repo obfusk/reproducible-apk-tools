@@ -1875,14 +1875,19 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
         if not isinstance(first, XMLChunk):
             raise Error("Expected XMLChunk")
         chunk = first
-    perm_tags = ("uses-permission", "uses-permission-sdk-23", "permission")
     in_manifest = False
     for c in chunk.children:
         if isinstance(c, XMLElemStartChunk):
             if c.level == 2:
                 in_manifest = c.name == "manifest" and not c.namespace
-            elif in_manifest and c.level == 3 and not c.namespace and c.name in perm_tags:
+            elif in_manifest and c.level == 3 and _is_perm_tag(c):
                 yield _perm_from_tag(c)
+
+
+# NB: includes declarations
+def _is_perm_tag(chunk: XMLElemStartChunk) -> bool:
+    return not chunk.namespace and chunk.name in ("uses-permission", "uses-permission-sdk-23",
+                                                  "permission")
 
 
 # FIXME
