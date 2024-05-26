@@ -126,13 +126,11 @@ def _sort_baseline(data: bytes) -> bytes:
     version, data = _split(data, 4)
     if magic == PROF_MAGIC:
         raise Error(f"Unsupported prof version {version!r}")
-    elif magic == PROFM_MAGIC:
+    if magic == PROFM_MAGIC:
         if version == PROFM_002:
             return PROFM_MAGIC + PROFM_002 + sort_profm_002(data)
-        else:
-            raise Error(f"Unsupported profm version {version!r}")
-    else:
-        raise Error(f"Unsupported magic {magic!r}")
+        raise Error(f"Unsupported profm version {version!r}")
+    raise Error(f"Unsupported magic {magic!r}")
 
 
 def sort_profm_002(data: bytes) -> bytes:
