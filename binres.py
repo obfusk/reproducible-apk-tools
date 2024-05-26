@@ -1860,6 +1860,14 @@ def _safe(x: Any) -> str:
     return "".join(c if c.isprintable() and c != '\\' else repr(c)[1:-1] for c in x)
 
 
+def quick_get_idver_perms(apk: str) \
+        -> Tuple[Tuple[str, int, str], Iterator[Tuple[str, Tuple[Tuple[str, str], ...]]]]:
+    chunk = read_chunk(quick_load(apk, MANIFEST))[0]
+    if not isinstance(chunk, XMLChunk):
+        raise Error("Expected XMLChunk")
+    return quick_get_idver(apk, chunk=chunk), quick_get_perms(apk, chunk=chunk)
+
+
 # FIXME
 def quick_get_idver(apk: str, *, chunk: Optional[XMLChunk] = None) -> Tuple[str, int, str]:
     """Quickly get appid & version code/name from APK."""
@@ -1905,14 +1913,6 @@ def _perm_from_tag(chunk: XMLElemStartChunk) -> Tuple[str, Tuple[Tuple[str, str]
     if perm is None:
         raise ParseError("Could not find required attribute 'name'")
     return perm, tuple(attrs)
-
-
-def quick_get_idver_perms(apk: str) \
-        -> Tuple[Tuple[str, int, str], Iterator[Tuple[str, Tuple[Tuple[str, str], ...]]]]:
-    chunk = read_chunk(quick_load(apk, MANIFEST))[0]
-    if not isinstance(chunk, XMLChunk):
-        raise Error("Expected XMLChunk")
-    return quick_get_idver(apk, chunk=chunk), quick_get_perms(apk, chunk=chunk)
 
 
 # FIXME
