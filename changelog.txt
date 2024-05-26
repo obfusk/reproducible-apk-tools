@@ -1,3 +1,9 @@
+v0.2.7
+
+• binres.py: add get_manifest_info(), load_and_list_apk(); refactoring.
+• binres.py: fix offset for null-terminated UTF-8 check.
+• inplace-fix.py: cleanup/refactor variables in zipalign_cmd().
+
 v0.2.6
 
 • add binres.py.
