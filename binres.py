@@ -1882,19 +1882,24 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
             if c.level == 2:
                 in_manifest = c.name == "manifest" and not c.namespace
             elif in_manifest and c.level == 3 and not c.namespace and c.name in perm_tags:
-                perm, attrs = None, []
-                if c.name == "uses-permission-sdk-23":
-                    attrs.append(("minSdkVersion", "23"))
-                elif c.name == "permission":
-                    attrs.append(("declaration", "true"))
-                for a in c.attributes:
-                    if a.name == "name" and a.namespace == SCHEMA_ANDROID:
-                        perm = a.raw_value
-                    else:
-                        attrs.append((a.name, brv_str(a.typed_value, a.raw_value)))
-                if perm is None:
-                    raise ParseError("Could not find required attribute 'name'")
-                yield perm, tuple(attrs)
+                yield _perm_from_tag(c)
+
+
+# FIXME
+def _perm_from_tag(chunk: XMLElemStartChunk) -> Tuple[str, Tuple[Tuple[str, str], ...]]:
+    perm, attrs = None, []
+    if chunk.name == "uses-permission-sdk-23":
+        attrs.append(("minSdkVersion", "23"))
+    elif chunk.name == "permission":
+        attrs.append(("declaration", "true"))
+    for a in chunk.attributes:
+        if a.name == "name" and a.namespace == SCHEMA_ANDROID:
+            perm = a.raw_value
+        else:
+            attrs.append((a.name, brv_str(a.typed_value, a.raw_value)))
+    if perm is None:
+        raise ParseError("Could not find required attribute 'name'")
+    return perm, tuple(attrs)
 
 
 def quick_get_idver_perms(apk: str) \
