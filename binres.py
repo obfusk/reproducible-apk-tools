@@ -1863,20 +1863,7 @@ def _safe(x: Any) -> str:
 # FIXME
 def quick_get_idver(apk: str, *, chunk: Optional[XMLChunk] = None) -> Tuple[str, int, str]:
     """Quickly get appid & version code/name from APK."""
-    manifest = quick_get_manifest(apk, chunk=chunk)
-    appid = vercode = vername = None
-    for a in manifest.attributes:
-        if a.name == "package" and not a.namespace:
-            appid = a.raw_value
-        elif a.name == "versionCode" and a.namespace == SCHEMA_ANDROID:
-            vercode = a.typed_value.data
-        elif a.name == "versionName" and a.namespace == SCHEMA_ANDROID:
-            vername = a.raw_value
-        if appid is not None and vercode is not None and vername is not None:
-            break
-    else:
-        raise ParseError("Could not find required attribute(s)")
-    return appid, vercode, vername
+    return _manifest_idver(quick_get_manifest(apk, chunk=chunk))
 
 
 # FIXME
@@ -1916,6 +1903,23 @@ def quick_get_idver_perms(apk: str) \
     if not isinstance(chunk, XMLChunk):
         raise Error("Expected XMLChunk")
     return quick_get_idver(apk, chunk=chunk), quick_get_perms(apk, chunk=chunk)
+
+
+# FIXME
+def _manifest_idver(manifest: XMLElemStartChunk) -> Tuple[str, int, str]:
+    appid = vercode = vername = None
+    for a in manifest.attributes:
+        if a.name == "package" and not a.namespace:
+            appid = a.raw_value
+        elif a.name == "versionCode" and a.namespace == SCHEMA_ANDROID:
+            vercode = a.typed_value.data
+        elif a.name == "versionName" and a.namespace == SCHEMA_ANDROID:
+            vername = a.raw_value
+        if appid is not None and vercode is not None and vername is not None:
+            break
+    else:
+        raise ParseError("Could not find required manifest attribute(s)")
+    return appid, vercode, vername
 
 
 # FIXME
