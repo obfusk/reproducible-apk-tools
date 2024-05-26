@@ -139,8 +139,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from fnmatch import fnmatch
 from functools import cached_property, lru_cache
-from typing import (cast, Any, BinaryIO, Callable, ClassVar, Dict, Iterable,
-                    Iterator, List, Optional, TextIO, Tuple, Union, TYPE_CHECKING)
+from typing import (cast, Any, BinaryIO, Callable, ClassVar, Dict, Iterable, Iterator,
+                    List, Optional, Set, TextIO, Tuple, Union, TYPE_CHECKING)
 
 # https://android.googlesource.com/platform/tools/base
 #   apkparser/binary-resources/src/main/java/com/google/devrel/gmscore/tools/apk/arsc/*.java
@@ -1954,40 +1954,89 @@ def quick_get_manifest(apk: str, *, chunk: Optional[XMLChunk] = None) -> XMLElem
 
 def quick_load(apk: str, filename: str) -> bytes:
     """Quickly load one file from APK."""
-    def _read_cdh(fh: BinaryIO) -> Tuple[bytes, int, int, int]:
-        hdr = fh.read(46)
-        if hdr[:4] != b"\x50\x4b\x01\x02":
-            raise ZipError("Expected central directory file header signature")
-        n, m, k = struct.unpack("<HHH", hdr[28:34])
-        hdr += fh.read(n + m + k)
-        ctype = int.from_bytes(hdr[10:12], "little")
-        csize = int.from_bytes(hdr[20:24], "little")
-        offset = int.from_bytes(hdr[42:46], "little")
-        return hdr[46:46 + n], offset, ctype, csize
-
-    def _read_data(fh: BinaryIO, offset: int, ctype: int, csize: int) -> bytes:
-        fh.seek(offset)
-        hdr = fh.read(30)
-        if hdr[:4] != b"\x50\x4b\x03\x04":
-            raise ZipError("Expected local file header signature")
-        n, m = struct.unpack("<HH", hdr[26:30])
-        hdr += fh.read(n + m)
-        if ctype == 0:
-            return fh.read(csize)
-        elif ctype == 8:
-            return zlib.decompress(fh.read(csize), -15)
-        else:
-            raise ZipError(f"Unsupported compress_type {ctype}")
-
     filename_b = filename.encode()
     zdata = zip_data(apk)
     with open(apk, "rb") as fh:
         fh.seek(zdata.cd_offset)
         while fh.tell() < zdata.eocd_offset:
-            name, offset, ctype, csize = _read_cdh(fh)
+            name, offset, ctype, csize = _zip_read_cdh(fh)
             if name == filename_b:
-                return _read_data(fh, offset, ctype, csize)
+                return _zip_read_data(fh, offset, ctype, csize)
     raise Error(f"Entry not found: {filename!r}")
+
+
+# FIXME
+def load_and_list_apk(apk: str, *filenames: str,
+                      expand: bool = False) -> Tuple[Dict[str, bytes], Set[str]]:
+    r"""
+    Load files from APK and list all files.
+
+    >>> fd, fs = load_and_list_apk("test/data/golden-aligned-in.apk", "AndroidManifest.xml")
+    >>> sorted(fs)
+    ['AndroidManifest.xml', 'META-INF/', 'META-INF/MANIFEST.MF', 'classes.dex', 'lib/armeabi/fake.so', 'resources.arsc', 'temp.txt', 'temp2.txt']
+    >>> sorted(fd.keys())
+    ['AndroidManifest.xml']
+    >>> fd, fs = load_and_list_apk("test/data/golden-aligned-in.apk", "*.xml", "*.dex",
+    ...                            "*.arsc", "*.so", expand=True)
+    >>> sorted(fs)
+    ['AndroidManifest.xml', 'META-INF/', 'META-INF/MANIFEST.MF', 'classes.dex', 'lib/armeabi/fake.so', 'resources.arsc', 'temp.txt', 'temp2.txt']
+    >>> sorted(fd.keys())
+    ['AndroidManifest.xml', 'classes.dex', 'lib/armeabi/fake.so', 'resources.arsc']
+    >>> fd["lib/armeabi/fake.so"]
+    b'Hello\n'
+    >>> fd["AndroidManifest.xml"][:4] == AXML_MAGIC
+    True
+
+    """
+    if not expand:
+        find = set(filenames)
+    read = {}
+    files = set()
+    zdata = zip_data(apk)
+    with open(apk, "rb") as fh:
+        fh.seek(zdata.cd_offset)
+        while fh.tell() < zdata.eocd_offset:
+            name, offset, ctype, csize = _zip_read_cdh(fh)
+            filename = name.decode()
+            if filename in files:
+                raise Error(f"Duplicate entry: {filename!r}")
+            files.add(filename)
+            if not expand and filename not in find:
+                continue
+            if expand and not fnmatches_with_negation(filename, *filenames):
+                continue
+            read[filename] = (offset, ctype, csize)
+        if not expand and len(find) != len(read):
+            raise Error(f"Entries not found: {sorted(find - set(read))}")
+        file_data = {k: _zip_read_data(fh, o, t, s) for k, (o, t, s) in read.items()}
+    return file_data, files
+
+
+def _zip_read_cdh(fh: BinaryIO) -> Tuple[bytes, int, int, int]:
+    hdr = fh.read(46)
+    if hdr[:4] != b"\x50\x4b\x01\x02":
+        raise ZipError("Expected central directory file header signature")
+    n, m, k = struct.unpack("<HHH", hdr[28:34])
+    hdr += fh.read(n + m + k)
+    ctype = int.from_bytes(hdr[10:12], "little")
+    csize = int.from_bytes(hdr[20:24], "little")
+    offset = int.from_bytes(hdr[42:46], "little")
+    return hdr[46:46 + n], offset, ctype, csize
+
+
+def _zip_read_data(fh: BinaryIO, offset: int, ctype: int, csize: int) -> bytes:
+    fh.seek(offset)
+    hdr = fh.read(30)
+    if hdr[:4] != b"\x50\x4b\x03\x04":
+        raise ZipError("Expected local file header signature")
+    n, m = struct.unpack("<HH", hdr[26:30])
+    hdr += fh.read(n + m)
+    if ctype == 0:
+        return fh.read(csize)
+    elif ctype == 8:
+        return zlib.decompress(fh.read(csize), -15)
+    else:
+        raise ZipError(f"Unsupported compress_type {ctype}")
 
 
 def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
