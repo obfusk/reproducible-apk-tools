@@ -520,8 +520,7 @@ def dump_dex(dex: DexFile, *, json: bool = False, offsets: bool = True,
     """Dump DexFile to stdout."""
     if json:
         raise NotImplementedError("JSON not yet implemented")
-    else:
-        show_dexfile(dex, offsets=offsets, verbose=verbose)
+    show_dexfile(dex, offsets=offsets, verbose=verbose)
 
 
 def types_dex(dex: DexFile, *, json: bool) -> None:
