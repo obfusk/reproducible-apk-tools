@@ -485,10 +485,48 @@ class XMLElemStartChunk(XMLNodeChunk):
         object.__setattr__(chunk, "attributes", attrs)
         return chunk
 
-    @property
+    def attr_as_bool(self, name: str, **kwargs: Any) -> Optional[bool]:
+        """Get bool attr."""
+        value = self._attr_as(bool, name, **kwargs)
+        assert value is None or isinstance(value, bool)
+        return value
+
+    def attr_as_int(self, name: str, **kwargs: Any) -> Optional[int]:
+        """Get int attr."""
+        value = self._attr_as(int, name, **kwargs)
+        assert value is None or isinstance(value, int)
+        return value
+
+    def attr_as_str(self, name: str, **kwargs: Any) -> Optional[str]:
+        """Get str attr."""
+        value = self._attr_as(str, name, **kwargs)
+        assert value is None or isinstance(value, str)
+        return value
+
+    def _attr_as(self, typ: type, name: str, *, android: bool = False,
+                 optional: bool = False) -> Any:
+        brv_type = py_type_to_brv_type(typ)
+        if android:
+            name = f"{{{SCHEMA_ANDROID}}}{name}"
+        if name not in self.attrs_as_dict:
+            if optional:
+                return None
+            raise ParseError(f"No such attribute: {name!r}")
+        attr = self.attrs_as_dict[name]
+        if attr.typed_value.type is not brv_type:
+            raise ParseError(f"Wrong type for attribute {name!r}: "
+                             f"expected {brv_type.name}, got {attr.typed_value.type.name}")
+        return brv_to_py(attr.typed_value, attr.raw_value)[2]
+
+    @cached_property
     def attrs_as_dict(self) -> Dict[str, XMLAttr]:
         """XML attributes as dict."""
-        return {a.name_with_ns: a for a in self.attributes}
+        d = {}
+        for a in self.attributes:
+            if (n := a.name_with_ns) in d:
+                raise ParseError(f"Duplicate attribute name: {n!r}")
+            d[n] = a
+        return d
 
     @property
     def namespace(self) -> str:
@@ -1144,6 +1182,34 @@ class XMLAttr:
         return _fields(cls)     # type: ignore[arg-type]
 
 
+@dataclass(frozen=True)
+class UsesFeature:
+    """AndroidManifest.xml uses-feature."""
+    name: str
+    required: bool
+
+
+@dataclass(frozen=True)
+class UsesPermission:
+    """AndroidManifest.xml uses-permission(-sdk-23)."""
+    name: str
+    min_sdk_version: Optional[int]
+    max_sdk_version: Optional[int]
+
+
+@dataclass(frozen=True)
+class ManifestInfo:
+    """AndroidManifest.xml data."""
+    appid: str
+    version_code: int
+    version_name: str
+    min_sdk: int
+    target_sdk: int
+    features: List[UsesFeature]
+    permissions: List[UsesPermission]
+    abis: Optional[List[str]]
+
+
 if TYPE_CHECKING:
     ChunkRef = weakref.ReferenceType[Chunk]
     StringPoolChunkRef = weakref.ReferenceType[StringPoolChunk]
@@ -1581,30 +1647,40 @@ def brv_to_py(brv: BinResVal, raw_value: str) \
         if brv.size == 0 and raw_value:
             return repr, str, raw_value
         return null2s, null2s, brv.data
-    elif t is T.REFERENCE:
+    if t is T.REFERENCE:
         return ref2s, ref2s, brv.data
-    elif t is T.ATTRIBUTE:
+    if t is T.ATTRIBUTE:
         return attr2s, attr2s, brv.data
-    elif t is T.STRING:
+    if t is T.STRING:
         return repr, str, raw_value
-    elif t is T.FLOAT:
+    if t is T.FLOAT:
         return f2s, f2s, struct.unpack("<f", struct.pack("<I", brv.data))[0]
-    elif t is T.DIMENSION:
+    if t is T.DIMENSION:
         return c2s, c2s, BinResVal.complex2pair(brv.data, fraction=False)
-    elif t is T.FRACTION:
+    if t is T.FRACTION:
         return c2s, c2s, BinResVal.complex2pair(brv.data, fraction=True)
-    elif t in (T.DYNAMIC_REFERENCE, T.DYNAMIC_ATTRIBUTE):
+    if t in (T.DYNAMIC_REFERENCE, T.DYNAMIC_ATTRIBUTE):
         raise NotImplementedError("Dynamic reference/attribute not (yet) supported")
-    elif t is T.INT_DEC:
+    if t is T.INT_DEC:
         return str, str, brv.data
-    elif t is T.INT_HEX:
+    if t is T.INT_HEX:
         return i2h, i2h, brv.data
-    elif t is T.INT_BOOLEAN:
+    if t is T.INT_BOOLEAN:
         return b2s, b2s, (False if brv.data == 0 else True)
-    elif t in (T.INT_COLOR_ARGB8, T.INT_COLOR_RGB8, T.INT_COLOR_ARGB4, T.INT_COLOR_RGB4):
+    if t in (T.INT_COLOR_ARGB8, T.INT_COLOR_RGB8, T.INT_COLOR_ARGB4, T.INT_COLOR_RGB4):
         return clr2s, clr2s, brv.data
-    else:
-        raise ValueError(f"Unsupported value type {t.name}")
+    raise ValueError(f"Unsupported value type {t.name}")
+
+
+def py_type_to_brv_type(typ: type) -> BinResVal.Type:
+    """Python type to BinResVal.Type (must be bool, int, str)."""
+    if typ is bool:
+        return BinResVal.Type.INT_BOOLEAN
+    if typ is int:
+        return BinResVal.Type.INT_DEC
+    if typ is str:
+        return BinResVal.Type.STRING
+    raise ValueError(f"Unsupported type {typ.__name__}")
 
 
 def parse(data: bytes) -> Tuple[Chunk, ...]:
@@ -1864,7 +1940,7 @@ def quick_get_idver_perms(apk: str) \
         -> Tuple[Tuple[str, int, str], Iterator[Tuple[str, Tuple[Tuple[str, str], ...]]]]:
     chunk = read_chunk(quick_load(apk, MANIFEST))[0]
     if not isinstance(chunk, XMLChunk):
-        raise Error("Expected XMLChunk")
+        raise ParseError("Expected XMLChunk")
     return quick_get_idver(apk, chunk=chunk), quick_get_perms(apk, chunk=chunk)
 
 
@@ -1881,54 +1957,150 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
     if chunk is None:
         first = read_chunk(quick_load(apk, MANIFEST))[0]
         if not isinstance(first, XMLChunk):
-            raise Error("Expected XMLChunk")
+            raise ParseError("Expected XMLChunk")
         chunk = first
-    in_manifest = False
     for c in chunk.children:
-        if isinstance(c, XMLElemStartChunk):
+        if isinstance(c, XMLElemStartChunk) and c.level == 3 and _is_perm_tag(c):
+            yield _perm_from_tag(c)
+
+
+# FIXME
+def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None) -> ManifestInfo:
+    r"""
+    Get ManifestInfo from AXML (and optionally list of APK files for abis).
+
+    >>> import dataclasses
+    >>> with open("test/data/AndroidManifest-catima.xml", "rb") as fh:
+    ...     axml = fh.read()
+    >>> man = get_manifest_info(axml)
+    >>> for field in dataclasses.fields(man):
+    ...     x = getattr(man, field.name)
+    ...     if isinstance(x, list):
+    ...         print(f"{field.name}:")
+    ...         for y in x:
+    ...             print(f"  {y!r}")
+    ...     else:
+    ...         print(f"{field.name}={x!r}")
+    appid='me.hackerchick.catima'
+    version_code=134
+    version_name='2.29.0'
+    min_sdk=21
+    target_sdk=34
+    features:
+      UsesFeature(name='android.hardware.camera', required=True)
+      UsesFeature(name='android.hardware.camera.autofocus', required=False)
+      UsesFeature(name='android.hardware.camera.front', required=False)
+      UsesFeature(name='android.hardware.camera.flash', required=False)
+      UsesFeature(name='android.hardware.screen.landscape', required=False)
+      UsesFeature(name='android.hardware.wifi', required=False)
+    permissions:
+      UsesPermission(name='android.permission.CAMERA', min_sdk_version=None, max_sdk_version=None)
+      UsesPermission(name='android.permission.READ_EXTERNAL_STORAGE', min_sdk_version=None, max_sdk_version=23)
+      UsesPermission(name='me.hackerchick.catima.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION', min_sdk_version=None, max_sdk_version=None)
+    abis=None
+
+    """
+    chunk = read_chunk(axml)[0]
+    if not isinstance(chunk, XMLChunk):
+        raise ParseError("Expected XMLChunk")
+    return _get_manifest_info(chunk, files)
+
+
+# FIXME
+# FIXME: minSdkVersion/targetSdkVersion="Q"
+def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> ManifestInfo:
+    namespace = manifest = uses_sdk = abis = None
+    min_sdk = target_sdk = 1
+    features: List[UsesFeature] = []
+    permissions: List[UsesPermission] = []
+    if files:
+        abis = sorted(set(f.split("/")[1] for f in files
+                          if f.startswith("lib/") and f.endswith(".so")))
+    for c in chunk.children:
+        if isinstance(c, XMLNSStartChunk):
+            if c.level == 1:
+                if c.prefix == "android" and c.uri == SCHEMA_ANDROID:
+                    if namespace:
+                        raise ParseError("Expected only one android namespace")
+                    namespace = c
+                else:
+                    raise ParseError("Expected android namespace")
+        elif isinstance(c, XMLElemStartChunk):
             if c.level == 2:
-                in_manifest = c.name == "manifest" and not c.namespace
-            elif in_manifest and c.level == 3 and _is_perm_tag(c):
-                yield _perm_from_tag(c)
+                if namespace and c.name == "manifest" and not c.namespace:
+                    if manifest:
+                        raise ParseError("Expected only one manifest element")
+                    manifest = c
+                    appid, vercode, vername = _manifest_idver(manifest)
+                else:
+                    raise ParseError("Expected manifest element")
+            elif not (manifest and c.level == 3 and not c.namespace):
+                continue
+            if c.name == "uses-sdk":
+                if uses_sdk:
+                    raise ParseError("Expected only one uses-sdk element")
+                uses_sdk = c
+                msv = c.attr_as_int("minSdkVersion", android=True, optional=True)
+                tsv = c.attr_as_int("targetSdkVersion", android=True, optional=True)
+                min_sdk = msv if msv is not None else 1
+                target_sdk = tsv if tsv is not None else min_sdk
+            elif c.name == "uses-feature":
+                name = c.attr_as_str("name", android=True)
+                assert name is not None
+                req = c.attr_as_bool("required", android=True, optional=True)
+                required = req if req is not None else True
+                features.append(UsesFeature(name=name, required=required))
+            elif c.name in ("uses-permission", "uses-permission-sdk-23"):
+                name = c.attr_as_str("name", android=True)
+                assert name is not None
+                min_sdk_version = 23 if c.name.endswith("-sdk-23") else None
+                max_sdk_version = c.attr_as_int("maxSdkVersion", android=True, optional=True)
+                permissions.append(UsesPermission(name=name, min_sdk_version=min_sdk_version,
+                                                  max_sdk_version=max_sdk_version))
+    if not manifest:
+        raise ParseError("No manifest element")
+    return ManifestInfo(
+        appid=appid, version_code=vercode, version_name=vername, min_sdk=min_sdk,
+        target_sdk=target_sdk, features=features, permissions=permissions, abis=abis)
+
+
+def get_manifest_info_apk(apk: str) -> ManifestInfo:
+    r"""
+    Get ManifestInfo from APK.
+
+    >>> get_manifest_info_apk("test/data/golden-aligned-in.apk")
+    ManifestInfo(appid='android.appsecurity.cts.tinyapp', version_code=10, version_name='1.0', min_sdk=23, target_sdk=23, features=[], permissions=[], abis=['armeabi'])
+
+    """
+    file_data, files = load_and_list_apk(apk, MANIFEST)
+    return get_manifest_info(file_data[MANIFEST], files)
 
 
 # NB: includes declarations
 def _is_perm_tag(chunk: XMLElemStartChunk) -> bool:
-    return not chunk.namespace and chunk.name in ("uses-permission", "uses-permission-sdk-23",
-                                                  "permission")
+    return not chunk.namespace and chunk.name in (
+        "uses-permission", "uses-permission-sdk-23", "permission")
 
 
 # FIXME
 def _perm_from_tag(chunk: XMLElemStartChunk) -> Tuple[str, Tuple[Tuple[str, str], ...]]:
-    perm, attrs = None, []
+    perm = chunk.attr_as_str("name", android=True)
+    assert perm is not None
+    attrs = {a.name: brv_str(a.typed_value, a.raw_value)
+             for a in chunk.attrs_as_dict.values()
+             if a.name_with_ns != f"{{{SCHEMA_ANDROID}}}name"}
     if chunk.name == "uses-permission-sdk-23":
-        attrs.append(("minSdkVersion", "23"))
+        attrs["minSdkVersion"] = "23"
     elif chunk.name == "permission":
-        attrs.append(("declaration", "true"))
-    for a in chunk.attributes:
-        if a.name == "name" and a.namespace == SCHEMA_ANDROID:
-            perm = a.raw_value
-        else:
-            attrs.append((a.name, brv_str(a.typed_value, a.raw_value)))
-    if perm is None:
-        raise ParseError("Could not find required attribute 'name'")
-    return perm, tuple(attrs)
+        attrs["declaration"] = "true"
+    return perm, tuple(attrs.items())
 
 
-# FIXME
 def _manifest_idver(manifest: XMLElemStartChunk) -> Tuple[str, int, str]:
-    appid = vercode = vername = None
-    for a in manifest.attributes:
-        if a.name == "package" and not a.namespace:
-            appid = a.raw_value
-        elif a.name == "versionCode" and a.namespace == SCHEMA_ANDROID:
-            vercode = a.typed_value.data
-        elif a.name == "versionName" and a.namespace == SCHEMA_ANDROID:
-            vername = a.raw_value
-        if appid is not None and vercode is not None and vername is not None:
-            break
-    else:
-        raise ParseError("Could not find required manifest attribute(s)")
+    appid = manifest.attr_as_str("package")
+    vercode = manifest.attr_as_int("versionCode", android=True)
+    vername = manifest.attr_as_str("versionName", android=True)
+    assert appid is not None and vercode is not None and vername is not None
     return appid, vercode, vername
 
 
@@ -2013,7 +2185,7 @@ def load_and_list_apk(apk: str, *filenames: str,
             name, offset, ctype, csize = _zip_read_cdh(fh)
             filename = name.decode()
             if filename in files:
-                raise Error(f"Duplicate entry: {filename!r}")
+                raise ZipError(f"Duplicate entry: {filename!r}")
             files.add(filename)
             if not expand and filename not in find:
                 continue
