@@ -2031,7 +2031,6 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> Man
                     if manifest:
                         raise ParseError("Expected only one manifest element")
                     manifest = c
-                    appid, vercode, vername = _manifest_idver(manifest)
                 else:
                     raise ParseError("Expected manifest element")
             elif not (manifest and c.level == 3 and not c.namespace):
@@ -2059,6 +2058,7 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> Man
                                                   max_sdk_version=max_sdk_version))
     if not manifest:
         raise ParseError("No manifest element")
+    appid, vercode, vername = _manifest_idver(manifest)
     return ManifestInfo(
         appid=appid, version_code=vercode, version_name=vername, min_sdk=min_sdk,
         target_sdk=target_sdk, features=features, permissions=permissions, abis=abis)
