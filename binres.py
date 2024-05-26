@@ -1893,8 +1893,8 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
     for c in chunk.children:
         if isinstance(c, XMLElemStartChunk):
             if c.level == 2:
-                in_manifest = c.name == "manifest"
-            elif in_manifest and c.level == 3 and c.name in perm_tags:
+                in_manifest = c.name == "manifest" and not c.namespace
+            elif in_manifest and c.level == 3 and not c.namespace and c.name in perm_tags:
                 perm, attrs = None, []
                 if c.name == "uses-permission-sdk-23":
                     attrs.append(("minSdkVersion", "23"))
@@ -1947,7 +1947,7 @@ def quick_get_manifest(apk: str, *, chunk: Optional[XMLChunk] = None) -> XMLElem
                 break
         else:
             raise ParseError("Expected XMLElemStartChunk")
-    if start.name != "manifest":
+    if not (start.name == "manifest" and not start.namespace):
         raise ParseError("Expected manifest element")
     return start
 
