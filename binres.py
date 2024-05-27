@@ -2044,6 +2044,8 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> Man
                 min_sdk = msv if msv is not None else 1
                 target_sdk = tsv if tsv is not None else min_sdk
             elif c.name == "uses-feature":
+                if f"{{{SCHEMA_ANDROID}}}glEsVersion" in c.attrs_as_dict:
+                    continue    # FIXME
                 name = c.attr_as_str("name", android=True)
                 assert name is not None
                 req = c.attr_as_bool("required", android=True, optional=True)
