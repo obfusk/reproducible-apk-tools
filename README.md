@@ -466,6 +466,63 @@ $ binres.py fastperms --json --with-id some.apk
 ]
 ```
 
+#### manifest-info
+
+Dump basic manifest info from APK(s) as JSON.
+
+```bash
+$ binres.py manifest-info --help
+usage: binres.py manifest-info [-h] APK [APK ...]
+[...]
+$ binres.py manifest-info catima.apk
+{
+  "catima.apk": {
+    "appid": "me.hackerchick.catima",
+    "version_code": 134,
+    "version_name": "2.29.0",
+    "min_sdk": 21,
+    "target_sdk": 34,
+    "features": [
+      {
+        "name": "android.hardware.camera",
+        "required": true
+      },
+      [...]
+    ],
+    "permissions": [
+      {
+        "name": "android.permission.CAMERA",
+        "min_sdk_version": null,
+        "max_sdk_version": null
+      },
+      {
+        "name": "android.permission.READ_EXTERNAL_STORAGE",
+        "min_sdk_version": null,
+        "max_sdk_version": 23
+      },
+      [...]
+    ],
+    "abis": []
+  }
+}
+$ binres.py manifest-info other.apk | jq '.[]|.abis'
+[
+  "arm64-v8a",
+  "armeabi-v7a",
+  "x86",
+  "x86_64"
+]
+$ binres.py manifest-info /dev/null
+{
+  "/dev/null": {
+    "error": "Expected end of central directory record (EOCD)"
+  }
+}
+```
+
+NB: parse errors etc. will be returned as JSON and the exit status will be 1 if
+there are any.
+
 ### diff-zip-meta.py
 
 Diff ZIP file metadata.
@@ -823,6 +880,7 @@ $ repro-apk binres fastperms some.apk
 $ repro-apk binres fastperms --with-id some.apk
 $ repro-apk binres fastperms --json some.apk
 $ repro-apk binres fastperms --json --with-id some.apk
+$ repro-apk binres manifest-info catima.apk
 $ repro-apk diff-zip-meta a.apk b.apk
 $ repro-apk diff-zip-meta a.apk c.apk --no-offsets --no-ordering
 $ repro-apk dump-arsc resources.arsc
@@ -855,6 +913,7 @@ $ repro-apk binres --help
 $ repro-apk binres dump --help
 $ repro-apk binres fastid --help
 $ repro-apk binres fastperms --help
+$ repro-apk binres manifest-info --help
 $ repro-apk diff-zip-meta --help
 $ repro-apk dump-arsc --help
 $ repro-apk dump-axml --help

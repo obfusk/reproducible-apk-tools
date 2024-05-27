@@ -111,6 +111,15 @@ def main() -> None:
     def binres_fastperms(apks: Tuple[str, ...], json: bool, quiet: bool, with_id: bool) -> None:
         _binres.fastperms(*apks, json=json, quiet=quiet, with_id=with_id)
 
+    @binres.command(help="""
+        Dump basic manifest info from APK(s) as JSON.
+    """, name="manifest-info")
+    @click.argument("apks", metavar="APK...", nargs=-1, required=True,
+                    type=click.Path(exists=True, dir_okay=False))
+    def binres_manifest_info(apks: Tuple[str, ...]) -> None:
+        if _binres.manifest_info(*apks):
+            sys.exit(1)
+
     @cli.command(help="""
         Diff ZIP file metadata.
     """)

@@ -116,6 +116,11 @@ test-examples:
 	# binres fastperms
 	cd test/data && diff -Naur perms.apk.perms \
 	  <( repro-apk binres fastperms perms.apk -q )
+	# binres manifest-info
+	cd test/data && diff -Naur golden-aligned-in.apk.json \
+	  <( repro-apk binres manifest-info golden-aligned-in.apk )
+	cd test/data && diff -Naur perms.apk.json \
+	  <( repro-apk binres manifest-info perms.apk )
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( repro-apk diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )

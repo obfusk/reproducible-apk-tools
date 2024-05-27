@@ -1310,6 +1310,21 @@ def fastperms(*apks: str, json: bool = False, quiet: bool = False,
                 print(f"permission={_safe(perm)}{f' [{info}]' if info else ''}")
 
 
+def manifest_info(*apks: str) -> int:
+    """Dump basic manifest info as JSON; returns number of errors."""
+    data, errors = {}, 0
+    for apkfile in apks:
+        try:
+            m = get_manifest_info_apk(apkfile)
+            data[apkfile] = dataclasses.asdict(m)
+        except Error as e:
+            errors += 1
+            data[apkfile] = dict(error=str(e))
+    _json.dump(data, sys.stdout, indent=2)
+    print()
+    return errors
+
+
 def _idver_kv(idver: Tuple[str, int, str]) -> Iterator[Tuple[str, Any]]:
     return zip(["package", "versionCode", "versionName"], idver)
 
@@ -2298,6 +2313,8 @@ if __name__ == "__main__":
                                help="also get appid & version code/name")
     sub_fastperms.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_fastperms.add_argument("apks", metavar="APK", nargs="+")
+    sub_manifest_info = subs.add_parser("manifest-info", help="dump basic manifest info as JSON")
+    sub_manifest_info.add_argument("apks", metavar="APK", nargs="+")
     args = parser.parse_args()
     try:
         if args.command == "dump":
@@ -2315,6 +2332,9 @@ if __name__ == "__main__":
             fastid(*args.apks, json=args.json, short=args.short)
         elif args.command == "fastperms":
             fastperms(*args.apks, json=args.json, quiet=args.quiet, with_id=args.with_id)
+        elif args.command == "manifest-info":
+            if manifest_info(*args.apks):
+                sys.exit(1)
         else:
             raise Error(f"Unknown command: {args.command}")
     except Error as e:

@@ -1,0 +1,23 @@
+{
+  "perms.apk": {
+    "appid": "com.example",
+    "version_code": 1,
+    "version_name": "1",
+    "min_sdk": 21,
+    "target_sdk": 29,
+    "features": [],
+    "permissions": [
+      {
+        "name": "android.permission.CAMERA",
+        "min_sdk_version": null,
+        "max_sdk_version": null
+      },
+      {
+        "name": "android.permission.READ_EXTERNAL_STORAGE",
+        "min_sdk_version": null,
+        "max_sdk_version": 23
+      }
+    ],
+    "abis": []
+  }
+}
