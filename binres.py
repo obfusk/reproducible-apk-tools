@@ -1980,9 +1980,18 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
         if not isinstance(first, XMLChunk):
             raise ParseError("Expected XMLChunk")
         chunk = first
+    manifest = None
+    tag_stack: List[XMLElemStartChunk] = []
     for c in chunk.children:
-        if isinstance(c, XMLElemStartChunk) and c.level == 3 and _is_perm_tag(c):
-            yield _perm_from_tag(c)
+        if isinstance(c, XMLElemStartChunk):
+            parent_tag = tag_stack[-1] if tag_stack else None
+            tag_stack.append(c)
+            if not manifest and not parent_tag and c.name == "manifest" and not c.namespace:
+                manifest = c
+            elif manifest and parent_tag is manifest and _is_perm_tag(c):
+                yield _perm_from_tag(c)
+        elif isinstance(c, XMLElemEndChunk):
+            tag_stack.pop()
 
 
 # FIXME
@@ -2030,31 +2039,25 @@ def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None) -> Manifest
 # FIXME
 # FIXME: minSdkVersion/targetSdkVersion="Q"
 def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> ManifestInfo:
-    namespace = manifest = uses_sdk = abis = None
+    manifest = uses_sdk = abis = None
     min_sdk = target_sdk = 1
     features: List[UsesFeature] = []
     permissions: List[UsesPermission] = []
     if files:
         abis = sorted(set(f.split("/")[1] for f in files
                           if f.startswith("lib/") and f.endswith(".so")))
+    tag_stack: List[XMLElemStartChunk] = []
     for c in chunk.children:
-        if isinstance(c, XMLNSStartChunk):
-            if c.level == 1:
-                if c.prefix == "android" and c.uri == SCHEMA_ANDROID:
-                    if namespace:
-                        raise ParseError("Expected only one android namespace")
-                    namespace = c
-                else:
-                    raise ParseError("Expected android namespace")
-        elif isinstance(c, XMLElemStartChunk):
-            if c.level == 2:
-                if namespace and c.name == "manifest" and not c.namespace:
-                    if manifest:
-                        raise ParseError("Expected only one manifest element")
-                    manifest = c
-                else:
-                    raise ParseError("Expected manifest element")
-            elif not (manifest and c.level == 3 and not c.namespace):
+        if isinstance(c, XMLElemStartChunk):
+            parent_tag = tag_stack[-1] if tag_stack else None
+            tag_stack.append(c)
+            if not parent_tag and c.name == "manifest" and not c.namespace:
+                if manifest:
+                    raise ParseError("Expected only one manifest element")
+                manifest = c
+            elif not manifest:
+                raise ParseError("Expected manifest element")
+            elif not (parent_tag is manifest and not c.namespace):
                 continue
             if c.name == "uses-sdk":
                 if uses_sdk:
@@ -2079,6 +2082,8 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> Man
                 max_sdk_version = c.attr_as_int("maxSdkVersion", android=True, optional=True)
                 permissions.append(UsesPermission(name=name, min_sdk_version=min_sdk_version,
                                                   max_sdk_version=max_sdk_version))
+        elif isinstance(c, XMLElemEndChunk):
+            tag_stack.pop()
     if not manifest:
         raise ParseError("No manifest element")
     appid, vercode, vername = _manifest_idver(manifest)
