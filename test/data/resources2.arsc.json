@@ -61,7 +61,8 @@
             "resources": [
               0,
               0
-            ]
+            ],
+            "type_name": "drawable"
           },
           {
             "_type": "TypeChunk",
@@ -185,7 +186,8 @@
             "header_size": 84,
             "id": 1,
             "level": 2,
-            "offset": 508
+            "offset": 508,
+            "type_name": "drawable"
           },
           {
             "_type": "TypeSpecChunk",
@@ -196,7 +198,8 @@
             "offset": 632,
             "resources": [
               0
-            ]
+            ],
+            "type_name": "layout"
           },
           {
             "_type": "TypeChunk",
@@ -300,7 +303,8 @@
             "header_size": 84,
             "id": 2,
             "level": 2,
-            "offset": 652
+            "offset": 652,
+            "type_name": "layout"
           },
           {
             "_type": "TypeSpecChunk",
@@ -312,7 +316,8 @@
             "resources": [
               0,
               0
-            ]
+            ],
+            "type_name": "string"
           },
           {
             "_type": "TypeChunk",
@@ -436,7 +441,8 @@
             "header_size": 84,
             "id": 3,
             "level": 2,
-            "offset": 780
+            "offset": 780,
+            "type_name": "string"
           }
         ],
         "chunk_size": 904,
@@ -460,7 +466,8 @@
               "resources": [
                 0,
                 0
-              ]
+              ],
+              "type_name": "drawable"
             }
           ],
           [
@@ -474,7 +481,8 @@
               "offset": 632,
               "resources": [
                 0
-              ]
+              ],
+              "type_name": "layout"
             }
           ],
           [
@@ -489,7 +497,8 @@
               "resources": [
                 0,
                 0
-              ]
+              ],
+              "type_name": "string"
             }
           ]
         ],
@@ -619,7 +628,8 @@
               "header_size": 84,
               "id": 1,
               "level": 2,
-              "offset": 508
+              "offset": 508,
+              "type_name": "drawable"
             }
           ],
           [
@@ -726,7 +736,8 @@
               "header_size": 84,
               "id": 2,
               "level": 2,
-              "offset": 652
+              "offset": 652,
+              "type_name": "layout"
             }
           ],
           [
@@ -853,7 +864,8 @@
               "header_size": 84,
               "id": 3,
               "level": 2,
-              "offset": 780
+              "offset": 780,
+              "type_name": "string"
             }
           ]
         ]
@@ -909,7 +921,8 @@
               "resources": [
                 0,
                 0
-              ]
+              ],
+              "type_name": "drawable"
             },
             {
               "_type": "TypeChunk",
@@ -1033,7 +1046,8 @@
               "header_size": 84,
               "id": 1,
               "level": 2,
-              "offset": 508
+              "offset": 508,
+              "type_name": "drawable"
             },
             {
               "_type": "TypeSpecChunk",
@@ -1044,7 +1058,8 @@
               "offset": 632,
               "resources": [
                 0
-              ]
+              ],
+              "type_name": "layout"
             },
             {
               "_type": "TypeChunk",
@@ -1148,7 +1163,8 @@
               "header_size": 84,
               "id": 2,
               "level": 2,
-              "offset": 652
+              "offset": 652,
+              "type_name": "layout"
             },
             {
               "_type": "TypeSpecChunk",
@@ -1160,7 +1176,8 @@
               "resources": [
                 0,
                 0
-              ]
+              ],
+              "type_name": "string"
             },
             {
               "_type": "TypeChunk",
@@ -1284,7 +1301,8 @@
               "header_size": 84,
               "id": 3,
               "level": 2,
-              "offset": 780
+              "offset": 780,
+              "type_name": "string"
             }
           ],
           "chunk_size": 904,
@@ -1308,7 +1326,8 @@
                 "resources": [
                   0,
                   0
-                ]
+                ],
+                "type_name": "drawable"
               }
             ],
             [
@@ -1322,7 +1341,8 @@
                 "offset": 632,
                 "resources": [
                   0
-                ]
+                ],
+                "type_name": "layout"
               }
             ],
             [
@@ -1337,7 +1357,8 @@
                 "resources": [
                   0,
                   0
-                ]
+                ],
+                "type_name": "string"
               }
             ]
           ],
@@ -1467,7 +1488,8 @@
                 "header_size": 84,
                 "id": 1,
                 "level": 2,
-                "offset": 508
+                "offset": 508,
+                "type_name": "drawable"
               }
             ],
             [
@@ -1574,7 +1596,8 @@
                 "header_size": 84,
                 "id": 2,
                 "level": 2,
-                "offset": 652
+                "offset": 652,
+                "type_name": "layout"
               }
             ],
             [
@@ -1701,7 +1724,8 @@
                 "header_size": 84,
                 "id": 3,
                 "level": 2,
-                "offset": 780
+                "offset": 780,
+                "type_name": "string"
               }
             ]
           ]

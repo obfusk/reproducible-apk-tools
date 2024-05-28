@@ -36,17 +36,17 @@ RESOURCE TABLE
   PACKAGE [id=0x7f, package_name='android.appsecurity.cts.tinyapp']
     STRING POOL [flags=256, #strings=2, #styles=0]
     STRING POOL [flags=256, #strings=1, #styles=0]
-    TYPE SPEC [id=0x1, #resources=0]
-    TYPE SPEC [id=0x2, #resources=1]
-    TYPE [id=0x2, #entries=1]
+    TYPE SPEC [id=0x1, type_name='attr', #resources=0]
+    TYPE SPEC [id=0x2, type_name='string', #resources=1]
+    TYPE [id=0x2, type_name='string', #entries=1]
       CONFIG [default]
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: 'Tiny App for CTS'
-    TYPE [id=0x2, #entries=1]
+    TYPE [id=0x2, type_name='string', #entries=1]
       CONFIG [language='en', region='XA']
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
-    TYPE [id=0x2, #entries=1]
+    TYPE [id=0x2, type_name='string', #entries=1]
       CONFIG [language='ar', region='XB']
       ENTRY [id=0x7f020000, key='app_name']
         VALUE: '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'
@@ -716,6 +716,8 @@ class PackageChunk(ParentChunk):
 class TypeOrSpecChunk(Chunk):
     """Base class for TypeChunk and TypeSpecChunk."""
     id: int
+
+    SUBFIELDS: ClassVar[Dict[str, Tuple[str, ...]]] = dict(id=("#keep", "type_name"))
 
     @classmethod
     def _parse(_cls, header: bytes, payload: bytes, **kwargs: Any) -> Dict[str, Any]:
@@ -1395,7 +1397,7 @@ def show_chunks(*chunks: Chunk, file: Optional[TextIO] = None,
                 fs.append((k, v))
         print(f"{' ' * indent}{_clsname(chunk.__class__)}{_fs_info(fs)}", file=file)
         if cfg is not None:
-            show_cfg(v, indent + 2, file=file)
+            show_cfg(cfg, indent + 2, file=file)
         if subs:
             _show_subs(chunk, subs, indent + 2, file=file)
         if verbose and isinstance(chunk, StringPoolChunk):
@@ -1923,7 +1925,11 @@ def _fields(cls: Any) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
         assert isinstance(f.type, str)
         h = f.name in hf
         if names := sf.get(f.name):
-            fs.append((f.name, f.type, h + 2, None))
+            if names[0] == "#keep":     # FIXME
+                names = names[1:]
+                fs.append((f.name, f.type, h, None))
+            else:
+                fs.append((f.name, f.type, h + 2, None))
             for name in names:
                 t = getattr(cls, name).fget.__annotations__["return"]
                 fs.append((name, t, h, f.name))

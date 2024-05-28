@@ -3,20 +3,20 @@ RESOURCE TABLE
   PACKAGE [id=0x7f, package_name='dev.obfusk.sokobang']
     STRING POOL [flags=0, #strings=3, #styles=0]
     STRING POOL [flags=256, #strings=5, #styles=0]
-    TYPE SPEC [id=0x1, #resources=2]
-    TYPE [id=0x1, #entries=2]
+    TYPE SPEC [id=0x1, type_name='drawable', #resources=2]
+    TYPE [id=0x1, type_name='drawable', #entries=2]
       CONFIG [default]
       ENTRY [id=0x7f010000, key='icon']
         VALUE: 'res/drawable/icon.png'
       ENTRY [id=0x7f010001, key='presplash']
         VALUE: 'res/drawable/presplash.jpg'
-    TYPE SPEC [id=0x2, #resources=1]
-    TYPE [id=0x2, #entries=1]
+    TYPE SPEC [id=0x2, type_name='layout', #resources=1]
+    TYPE [id=0x2, type_name='layout', #entries=1]
       CONFIG [default]
       ENTRY [id=0x7f020000, key='main']
         VALUE: 'res/layout/main.xml'
-    TYPE SPEC [id=0x3, #resources=2]
-    TYPE [id=0x3, #entries=2]
+    TYPE SPEC [id=0x3, type_name='string', #resources=2]
+    TYPE [id=0x3, type_name='string', #entries=2]
       CONFIG [default]
       ENTRY [id=0x7f030000, key='app_name']
         VALUE: 'Sokoban(g)'
