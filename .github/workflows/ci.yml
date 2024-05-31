@@ -30,10 +30,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y aapt dos2unix zipalign
         python3 -m pip install --upgrade pip
-        python3 -m pip install flake8 pylint mypy
+        python3 -m pip install flake8 pylint mypy coverage
     - name: Install
       run: make install
     - name: Test
       run: make test
     - name: Test examples
       run: make test-examples
+    - name: Test coverage
+      run: make coverage
