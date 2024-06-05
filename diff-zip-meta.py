@@ -156,6 +156,10 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity
                 differ = True
                 print("central directory:")
                 diff_bytes(data_before_cd1, data_before_cd2, "data_before")
+            if zf1.comment != zf2.comment:
+                differ = True
+                print("end of central directory:")
+                diff_bytes(zf1.comment, zf2.comment, "comment")
             for n in sorted(nset1 & nset2):
                 diff = []
                 for a in CDH_ATTRS:
