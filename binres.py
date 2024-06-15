@@ -335,18 +335,14 @@ class ResourceTableChunk(ParentChunk):
         object.__setattr__(chunk, "packages", tuple(packages))
         return chunk
 
-    @property
+    @cached_property
     def packages_as_dict(self) -> Dict[str, PackageChunk]:
         """Packages as dict."""
         return dict(self.packages)
 
-    @cached_property
-    def _packages_dict(self) -> Dict[str, PackageChunk]:
-        return self.packages_as_dict
-
     def package(self, name: str) -> PackageChunk:
         """Get package by name."""
-        return self._packages_dict[name]
+        return self.packages_as_dict[name]
 
 
 @dataclass(frozen=True)
@@ -652,26 +648,18 @@ class PackageChunk(ParentChunk):
         object.__setattr__(chunk, "library_chunk", library_chunk)
         return chunk
 
-    @property
+    @cached_property
     def type_specs_as_dict(self) -> Dict[int, TypeSpecChunk]:
         """Type specs as dict."""
         return dict(self.type_specs)
 
-    @property
+    @cached_property
     def types_as_dict(self) -> Dict[int, List[TypeChunk]]:
         """Types as dict of lists."""
         d: Dict[int, List[TypeChunk]] = {}
         for i, c in self.types:
             d.setdefault(i, []).append(c)
         return d
-
-    @cached_property
-    def _type_specs_dict(self) -> Dict[int, TypeSpecChunk]:
-        return self.type_specs_as_dict
-
-    @cached_property
-    def _types_dict(self) -> Dict[int, List[TypeChunk]]:
-        return self.types_as_dict
 
     def type_spec_chunks(self) -> Tuple[TypeSpecChunk, ...]:
         """Get all type specs."""
@@ -681,7 +669,7 @@ class PackageChunk(ParentChunk):
         """Get type spec by id"""
         if isinstance(type_id, str):
             type_id = self.type_string_pool.strings.index(type_id) + 1
-        return self._type_specs_dict[type_id]
+        return self.type_specs_as_dict[type_id]
 
     def type_chunks(self, type_id: Union[int, str, None]) -> Tuple[TypeChunk, ...]:
         """Get all types or types by id."""
@@ -689,7 +677,7 @@ class PackageChunk(ParentChunk):
             return tuple(c for _, c in self.types)
         if isinstance(type_id, str):
             type_id = self.type_string_pool.strings.index(type_id) + 1
-        return tuple(self._types_dict[type_id])
+        return tuple(self.types_as_dict[type_id])
 
     @cached_property
     def type_string_pool(self) -> StringPoolChunk:
@@ -775,14 +763,10 @@ class TypeChunk(TypeOrSpecChunk):
 
         FLAG_COMPLEX: ClassVar[int] = 0x1
 
-        @property
+        @cached_property
         def values_as_dict(self) -> Dict[int, BinResVal]:
             """Values as dict."""
             return dict(self.values)
-
-        @cached_property
-        def _values_dict(self) -> Dict[int, BinResVal]:
-            return self.values_as_dict
 
         @property
         def is_complex(self) -> bool:
@@ -831,14 +815,10 @@ class TypeChunk(TypeOrSpecChunk):
         object.__setattr__(chunk, "entries", tuple(entries))
         return chunk
 
-    @property
+    @cached_property
     def entries_as_dict(self) -> Dict[int, Entry]:
         """Entries as dict."""
         return dict(self.entries)
-
-    @cached_property
-    def _entries_dict(self) -> Dict[int, Entry]:
-        return self.entries_as_dict
 
     # FIXME: weakref?
     @cached_property
@@ -870,7 +850,7 @@ class TypeChunk(TypeOrSpecChunk):
         if (c := self.package_chunk) is None:
             raise ParentError("No PackageChunk parent")
         return rid.package_id == c.id and rid.type_id == self.id \
-            and rid.entry_id in self._entries_dict
+            and rid.entry_id in self.entries_as_dict
 
 
 @dataclass(frozen=True)
