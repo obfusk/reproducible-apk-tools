@@ -764,9 +764,12 @@ class TypeChunk(TypeOrSpecChunk):
         FLAG_COMPLEX: ClassVar[int] = 0x1
 
         @cached_property
-        def values_as_dict(self) -> Dict[int, BinResVal]:
+        def values_as_dict(self) -> Dict[Optional[int], BinResVal]:
             """Values as dict."""
-            return dict(self.values)
+            if self.is_complex:
+                return dict(self.values)
+            assert self.value is not None
+            return {None: self.value}
 
         @property
         def is_complex(self) -> bool:
