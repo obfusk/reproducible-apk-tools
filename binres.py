@@ -171,6 +171,10 @@ class ParseError(Error):
     """Parse failure."""
 
 
+class ResourceError(Error):
+    """Resource retrieval failure."""
+
+
 class ParentError(Error):
     """Missing/deallocated parent."""
 
@@ -306,6 +310,7 @@ class StringPoolChunk(Chunk):
         return itertools.zip_longest(self.strings, self.styles)
 
 
+# FIXME: string array, styled string, ...
 @dataclass(frozen=True)
 class ResourceTableChunk(ParentChunk):
     """Resource table; contains string pool and packages."""
@@ -335,6 +340,49 @@ class ResourceTableChunk(ParentChunk):
         object.__setattr__(chunk, "packages", tuple(packages))
         return chunk
 
+    def get_bool(self, id: int, *, language: Optional[str] = None,
+                 region: Optional[str] = None, density: int = 0) -> bool:
+        e = self._get_entry(BinResVal.Type.INT_BOOLEAN, id, language=language,
+                            region=region, density=density)
+        assert e.value is not None
+        return False if e.value.data == 0 else True
+
+    def get_int(self, id: int, *, language: Optional[str] = None,
+                region: Optional[str] = None, density: int = 0) -> int:
+        e = self._get_entry(BinResVal.Type.INT_DEC, id, language=language,
+                            region=region, density=density)
+        assert e.value is not None
+        return e.value.data
+
+    def get_str(self, id: int, *, language: Optional[str] = None,
+                region: Optional[str] = None, density: int = 0) -> str:
+        e = self._get_entry(BinResVal.Type.STRING, id, language=language,
+                            region=region, density=density)
+        assert e.value is not None
+        if (p := e.parent()) is None:
+            raise ParentError("Parent deallocated")
+        return p.string(e.value.data)
+
+    # FIXME: check array/complex
+    def _get_entry(self, typ: BinResVal.Type, id: int, *,
+                   language: Optional[str] = None, region: Optional[str] = None,
+                   density: int = 0) -> TypeChunk.Entry:
+        fltr = dict(language=language, region=region, density=density)
+        rid = BinResId.from_int(id)
+        for t in self.package_with_id(rid.package_id).type_chunks(rid.type_id):
+            for k, v in fltr.items():
+                if getattr(t.configuration, k) != v:
+                    break
+            else:
+                for i, e in t.entries:
+                    if i == rid.entry_id:
+                        assert e.value is not None  # FIXME
+                        if e.value.type is not typ:
+                            raise ResourceError(f"Type mismatch: expected {typ.name}, "
+                                                f"got {e.value.type.name}")
+                        return e
+        raise ResourceError(f"No matching entry found with ID {hex(id)}")
+
     @cached_property
     def packages_as_dict(self) -> Dict[str, PackageChunk]:
         """Packages as dict."""
@@ -343,6 +391,12 @@ class ResourceTableChunk(ParentChunk):
     def package(self, name: str) -> PackageChunk:
         """Get package by name."""
         return self.packages_as_dict[name]
+
+    def package_with_id(self, id: int) -> PackageChunk:
+        for _, p in self.packages:
+            if p.id == id:
+                return p
+        raise ResourceError(f"No PackageChunk child with ID {hex(id)}")
 
 
 @dataclass(frozen=True)
