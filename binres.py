@@ -342,13 +342,16 @@ class ResourceTableChunk(ParentChunk):
 
     def get_bool(self, id: int, *, language: Optional[str] = None,
                  region: Optional[str] = None, density: int = 0) -> bool:
+        """Get bool value."""
         e = self._get_entry(BinResVal.Type.INT_BOOLEAN, id, language=language,
                             region=region, density=density)
         assert e.value is not None
         return False if e.value.data == 0 else True
 
+    # FIXME: INT_HEX?!
     def get_int(self, id: int, *, language: Optional[str] = None,
                 region: Optional[str] = None, density: int = 0) -> int:
+        """Get int value."""
         e = self._get_entry(BinResVal.Type.INT_DEC, id, language=language,
                             region=region, density=density)
         assert e.value is not None
@@ -356,6 +359,21 @@ class ResourceTableChunk(ParentChunk):
 
     def get_str(self, id: int, *, language: Optional[str] = None,
                 region: Optional[str] = None, density: int = 0) -> str:
+        r"""
+        Get str value.
+
+        >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
+        >>> chunk.get_str(0x7f020000)
+        'Tiny App for CTS'
+        >>> chunk.get_str(0x7f020000, language="en", region="XA")
+        '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
+
+        >>> with open("test/data/resources1.arsc", "rb") as fh:
+        ...     chunk = parse(fh.read())[0]
+        >>> chunk.get_str(0x7f010001)
+        'res/drawable/presplash.jpg'
+
+        """
         e = self._get_entry(BinResVal.Type.STRING, id, language=language,
                             region=region, density=density)
         assert e.value is not None
@@ -363,8 +381,16 @@ class ResourceTableChunk(ParentChunk):
             raise ParentError("Parent deallocated")
         return p.string(e.value.data)
 
-    # FIXME: check array/complex
-    def _get_entry(self, typ: BinResVal.Type, id: int, *,
+    def _get_value(self, typ: type, *args: Any, **kwargs: Any) -> Any:
+        if typ is bool:
+            return self.get_bool(*args, **kwargs)
+        if typ is int:
+            return self.get_int(*args, **kwargs)
+        if typ is str:
+            return self.get_str(*args, **kwargs)
+        raise ValueError(f"Unsupported type {typ.__name__}")
+
+    def _get_entry(self, typ: BinResVal.Type, id: int, *, array: bool = False,
                    language: Optional[str] = None, region: Optional[str] = None,
                    density: int = 0) -> TypeChunk.Entry:
         fltr = dict(language=language, region=region, density=density)
@@ -376,27 +402,34 @@ class ResourceTableChunk(ParentChunk):
             else:
                 for i, e in t.entries:
                     if i == rid.entry_id:
-                        assert e.value is not None  # FIXME
-                        if e.value.type is not typ:
-                            raise ResourceError(f"Type mismatch: expected {typ.name}, "
-                                                f"got {e.value.type.name}")
+                        if e.is_complex and not array:
+                            raise ResourceError("Type mismatch: expected scalar")
+                        if not e.is_complex and array:
+                            raise ResourceError("Type mismatch: expected complex")
+                        for val in e.values_as_dict.values():
+                            if val.type is not typ:
+                                raise ResourceError(f"Type mismatch: expected {typ.name}, "
+                                                    f"got {val.type.name}")
                         return e
         raise ResourceError(f"No matching entry found with ID {hex(id)}")
 
     @cached_property
     def packages_as_dict(self) -> Dict[str, PackageChunk]:
-        """Packages as dict."""
+        """Packages as dict, indexed by name."""
         return dict(self.packages)
+
+    @cached_property
+    def packages_by_id(self) -> Dict[int, PackageChunk]:
+        """Packages as dict, indexed by ID."""
+        return {p.id: p for _, p in self.packages}
 
     def package(self, name: str) -> PackageChunk:
         """Get package by name."""
         return self.packages_as_dict[name]
 
     def package_with_id(self, id: int) -> PackageChunk:
-        for _, p in self.packages:
-            if p.id == id:
-                return p
-        raise ResourceError(f"No PackageChunk child with ID {hex(id)}")
+        """Get package by ID."""
+        return self.packages_by_id[id]
 
 
 @dataclass(frozen=True)
@@ -553,8 +586,8 @@ class XMLElemStartChunk(XMLNodeChunk):
         assert value is None or isinstance(value, str)
         return value
 
-    def _attr_as(self, typ: type, name: str, *, android: bool = False,
-                 optional: bool = False) -> Any:
+    def _attr_as(self, typ: type, name: str, *, android: bool = False, optional: bool = False,
+                 resources: Optional[ResourceTableChunk] = None) -> Any:
         brv_type = py_type_to_brv_type(typ)
         if android:
             name = f"{{{SCHEMA_ANDROID}}}{name}"
@@ -563,6 +596,12 @@ class XMLElemStartChunk(XMLNodeChunk):
                 return None
             raise ParseError(f"No such attribute: {name!r}")
         attr = self.attrs_as_dict[name]
+        if resources and attr.typed_value.type is BinResVal.Type.REFERENCE:
+            value = resources._get_value(typ, attr.typed_value.data)
+            if not isinstance(value, typ):
+                raise ParseError(f"Wrong type for resource referenced by attribute {name!r}: "
+                                 f"expected {typ.__name__}, got {type(value).__name__}")
+            return value
         if attr.typed_value.type is not brv_type:
             raise ParseError(f"Wrong type for attribute {name!r}: "
                              f"expected {brv_type.name}, got {attr.typed_value.type.name}")
@@ -2005,7 +2044,11 @@ def quick_get_idver_perms(apk: str) \
 # FIXME
 def quick_get_idver(apk: str, *, chunk: Optional[XMLChunk] = None) -> Tuple[str, int, str]:
     """Quickly get appid & version code/name from APK."""
-    return _manifest_idver(quick_get_manifest(apk, chunk=chunk))
+    manifest = quick_get_manifest(apk, chunk=chunk)
+    try:
+        return _manifest_idver(manifest)
+    except ParseError:
+        return _manifest_idver(manifest, resources=quick_get_resources(apk))
 
 
 # FIXME
@@ -2032,7 +2075,8 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
 
 
 # FIXME
-def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None) -> ManifestInfo:
+def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None, *,
+                      resources: Optional[ResourceTableChunk] = None) -> ManifestInfo:
     r"""
     Get ManifestInfo from AXML (and optionally list of APK files for abis).
 
@@ -2070,12 +2114,13 @@ def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None) -> Manifest
     chunk = read_chunk(axml)[0]
     if not isinstance(chunk, XMLChunk):
         raise ParseError("Expected XMLChunk")
-    return _get_manifest_info(chunk, files)
+    return _get_manifest_info(chunk, files, resources=resources)
 
 
 # FIXME
 # FIXME: minSdkVersion/targetSdkVersion="Q"
-def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> ManifestInfo:
+def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None, *,
+                       resources: Optional[ResourceTableChunk] = None) -> ManifestInfo:
     manifest = uses_sdk = abis = None
     min_sdk = target_sdk = 1
     features: List[UsesFeature] = []
@@ -2123,7 +2168,7 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None) -> Man
             tag_stack.pop()
     if not manifest:
         raise ParseError("No manifest element")
-    appid, vercode, vername = _manifest_idver(manifest)
+    appid, vercode, vername = _manifest_idver(manifest, resources=resources)
     return ManifestInfo(
         appid=appid, version_code=vercode, version_name=vername, min_sdk=min_sdk,
         target_sdk=target_sdk, features=features, permissions=permissions, abis=abis)
@@ -2138,7 +2183,10 @@ def get_manifest_info_apk(apk: str) -> ManifestInfo:
 
     """
     file_data, files = load_and_list_apk(apk, MANIFEST)
-    return get_manifest_info(file_data[MANIFEST], files)
+    try:
+        return get_manifest_info(file_data[MANIFEST], files)
+    except ParseError:
+        return get_manifest_info(file_data[MANIFEST], files, resources=quick_get_resources(apk))
 
 
 # NB: includes declarations
@@ -2161,10 +2209,11 @@ def _perm_from_tag(chunk: XMLElemStartChunk) -> Tuple[str, Tuple[Tuple[str, str]
     return perm, tuple(attrs.items())
 
 
-def _manifest_idver(manifest: XMLElemStartChunk) -> Tuple[str, int, str]:
+def _manifest_idver(manifest: XMLElemStartChunk,
+                    resources: Optional[ResourceTableChunk] = None) -> Tuple[str, int, str]:
     appid = manifest.attr_as_str("package")
     vercode = manifest.attr_as_int("versionCode", android=True)
-    vername = manifest.attr_as_str("versionName", android=True)
+    vername = manifest.attr_as_str("versionName", android=True, resources=resources)
     assert appid is not None and vercode is not None and vername is not None
     return appid, vercode, vername
 
@@ -2201,6 +2250,14 @@ def quick_get_manifest(apk: str, *, chunk: Optional[XMLChunk] = None) -> XMLElem
     if not (start.name == "manifest" and not start.namespace):
         raise ParseError("Expected manifest element")
     return start
+
+
+def quick_get_resources(apk: str) -> ResourceTableChunk:
+    """Quickly get resources.arsc ResourceTableChunk from APK."""
+    chunk = parse(quick_load(apk, ARSC_FILE))[0]
+    if not isinstance(chunk, ResourceTableChunk):
+        raise ParseError("Expected ResourceTableChunk")
+    return chunk
 
 
 def quick_load(apk: str, filename: str) -> bytes:
