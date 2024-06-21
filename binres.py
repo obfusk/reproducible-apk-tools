@@ -171,10 +171,6 @@ class ParseError(Error):
     """Parse failure."""
 
 
-class ResourceError(Error):
-    """Resource retrieval failure."""
-
-
 class ParentError(Error):
     """Missing/deallocated parent."""
 
@@ -185,6 +181,14 @@ class ChildError(Error):
 
 class ZipError(Error):
     """Something wrong with ZIP file."""
+
+
+class ResourceError(Error):
+    """Resource retrieval failure."""
+
+
+class ResourceNotFound(ResourceError):
+    """Resource not found."""
 
 
 @dataclass(frozen=True)
@@ -343,8 +347,8 @@ class ResourceTableChunk(ParentChunk):
     def get_bool(self, id: int, *, language: Optional[str] = None,
                  region: Optional[str] = None, density: int = 0) -> bool:
         """Get bool value."""
-        e = self._get_entry(BinResVal.Type.INT_BOOLEAN, id, language=language,
-                            region=region, density=density)
+        e = self.get_entry(id, typ=BinResVal.Type.INT_BOOLEAN, language=language,
+                           region=region, density=density)
         assert e.value is not None
         return False if e.value.data == 0 else True
 
@@ -352,8 +356,8 @@ class ResourceTableChunk(ParentChunk):
     def get_int(self, id: int, *, language: Optional[str] = None,
                 region: Optional[str] = None, density: int = 0) -> int:
         """Get int value."""
-        e = self._get_entry(BinResVal.Type.INT_DEC, id, language=language,
-                            region=region, density=density)
+        e = self.get_entry(id, typ=BinResVal.Type.INT_DEC, language=language,
+                           region=region, density=density)
         assert e.value is not None
         return e.value.data
 
@@ -374,12 +378,10 @@ class ResourceTableChunk(ParentChunk):
         'res/drawable/presplash.jpg'
 
         """
-        e = self._get_entry(BinResVal.Type.STRING, id, language=language,
-                            region=region, density=density)
+        e = self.get_entry(id, typ=BinResVal.Type.STRING, language=language,
+                           region=region, density=density)
         assert e.value is not None
-        if (p := e.parent()) is None:
-            raise ParentError("Parent deallocated")
-        return p.string(e.value.data)
+        return e.string(e.value.data)
 
     def _get_value(self, typ: type, *args: Any, **kwargs: Any) -> Any:
         if typ is bool:
@@ -390,9 +392,20 @@ class ResourceTableChunk(ParentChunk):
             return self.get_str(*args, **kwargs)
         raise ValueError(f"Unsupported type {typ.__name__}")
 
-    def _get_entry(self, typ: BinResVal.Type, id: int, *, array: bool = False,
-                   language: Optional[str] = None, region: Optional[str] = None,
-                   density: int = 0) -> TypeChunk.Entry:
+    def get_entry(self, id: int, *, typ: Optional[BinResVal.Type] = None, array: bool = False,
+                  language: Optional[str] = None, region: Optional[str] = None,
+                  density: int = 0) -> TypeChunk.Entry:
+        r"""
+        Get type chunk entry with specified ID.
+
+        >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
+        >>> e = chunk.get_entry(0x7f020000)
+        >>> e
+        TypeChunk.Entry(header_size=8, flags=0, key_idx=0, value=BinResVal(size=8, type=<Type.STRING: 3>, data=0), values=(), parent_entry=0)
+        >>> e.string(e.value.data)
+        'Tiny App for CTS'
+
+        """
         fltr = dict(language=language, region=region, density=density)
         rid = BinResId.from_int(id)
         for t in self.package_with_id(rid.package_id).type_chunks(rid.type_id):
@@ -403,15 +416,15 @@ class ResourceTableChunk(ParentChunk):
                 for i, e in t.entries:
                     if i == rid.entry_id:
                         if e.is_complex and not array:
-                            raise ResourceError("Type mismatch: expected scalar")
+                            raise ResourceError(f"Type mismatch for {hex(id)}: expected scalar")
                         if not e.is_complex and array:
-                            raise ResourceError("Type mismatch: expected complex")
+                            raise ResourceError(f"Type mismatch for {hex(id)}: expected complex")
                         for val in e.values_as_dict.values():
-                            if val.type is not typ:
-                                raise ResourceError(f"Type mismatch: expected {typ.name}, "
-                                                    f"got {val.type.name}")
+                            if typ and val.type is not typ:
+                                raise ResourceError(f"Type mismatch for {hex(id)}: expected "
+                                                    f"{typ.name}, got {val.type.name}")
                         return e
-        raise ResourceError(f"No matching entry found with ID {hex(id)}")
+        raise ResourceNotFound(f"No matching entry for {hex(id)}")
 
     @cached_property
     def packages_as_dict(self) -> Dict[str, PackageChunk]:
@@ -876,6 +889,12 @@ class TypeChunk(TypeOrSpecChunk):
                 return p.key_name(self.key_idx)
             raise ParentError("Parent deallocated")
 
+        def string(self, idx: Optional[int]) -> str:
+            """Get string from string pool by index."""
+            if (p := self.parent()) is not None:
+                return p.string(idx)
+            raise ParentError("Parent deallocated")
+
         @classmethod
         def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
             return _fields(cls)     # type: ignore[arg-type]
@@ -1311,9 +1330,20 @@ CHUNK_TYPES = {c.TYPE_ID: c for c in _subclasses(Chunk) if c.TYPE_ID is not None
 
 # FIXME
 def dump(*files: str, json: bool = False, quiet: bool = False,
-         verbose: bool = False, xml: bool = False, xml_prolog: bool = False) -> None:
+         verbose: bool = False, xml: bool = False, xml_deref: bool = False,
+         xml_prolog: bool = False) -> None:
     """Parse AXML/ARSC & dump to stdout."""
+    resources, skip = None, set()
+    if xml and xml_deref:
+        for file in files:
+            with open(file, "rb") as fh:
+                if fh.read(4) == ARSC_MAGIC:
+                    resources = _quick_get_resources(ARSC_MAGIC + fh.read())
+                    skip.add(file)
+                    break
     for file in files:
+        if file in skip:
+            continue
         with open(file, "rb") as fh:
             if xml and xml_prolog:
                 print(XML_PROLOG)
@@ -1324,14 +1354,19 @@ def dump(*files: str, json: bool = False, quiet: bool = False,
                     print(f"<!-- file={file!r} -->")
                 else:
                     print(f"file={file!r}")
-            _dump(fh.read(), json=json, verbose=verbose, xml=xml)
+            _dump(fh.read(), json=json, verbose=verbose, xml=xml, resources=resources)
 
 
 # FIXME
 def dump_apk(apk: str, *patterns: str, json: bool = False, quiet: bool = False,
-             verbose: bool = False, xml: bool = False, xml_prolog: bool = False) -> None:
+             verbose: bool = False, xml: bool = False, xml_deref: bool = False,
+             xml_prolog: bool = False) -> None:
     """Parse AXML/ARSC in APK & dump to stdout."""
     with zipfile.ZipFile(apk) as zf:
+        if xml and xml_deref:
+            resources = _quick_get_resources(zf.read(ARSC_FILE))
+        else:
+            resources = None
         for info in zf.infolist():
             if fnmatches_with_negation(info.filename, *patterns):
                 if xml and xml_prolog:
@@ -1344,7 +1379,7 @@ def dump_apk(apk: str, *patterns: str, json: bool = False, quiet: bool = False,
                     else:
                         print(f"entry={info.filename!r}")
                 with zf.open(info.filename) as fh:
-                    _dump(fh.read(), json=json, verbose=verbose, xml=xml)
+                    _dump(fh.read(), json=json, verbose=verbose, xml=xml, resources=resources)
 
 
 def fastid(*apks: str, json: bool = False, short: bool = False) -> None:
@@ -1407,14 +1442,15 @@ def _idver_kv(idver: Tuple[str, int, str]) -> Iterator[Tuple[str, Any]]:
     return zip(["package", "versionCode", "versionName"], idver)
 
 
-def _dump(data: bytes, *, json: bool, verbose: bool, xml: bool) -> None:
+def _dump(data: bytes, *, json: bool, verbose: bool, xml: bool,
+          resources: Optional[ResourceTableChunk] = None) -> None:
     magic = data[:4]
     if magic == ARSC_MAGIC:
         if xml:
             raise Error("ARSC does not contain XML")
         dump_arsc(*parse(data), json=json, verbose=verbose)
     elif magic == AXML_MAGIC:
-        dump_axml(*parse(data), json=json, verbose=verbose, xml=xml)
+        dump_axml(*parse(data), json=json, verbose=verbose, xml=xml, resources=resources)
     else:
         raise Error(f"Unsupported magic {magic!r}")
 
@@ -1430,12 +1466,12 @@ def dump_arsc(*chunks: Chunk, json: bool = False, verbose: bool = False) -> None
 
 # FIXME
 def dump_axml(*chunks: Chunk, json: bool = False, verbose: bool = False,
-              xml: bool = False) -> None:
+              xml: bool = False, resources: Optional[ResourceTableChunk] = None) -> None:
     """Dump AXML chunks to stdout."""
     if json:
         show_chunks_json(*chunks)
     elif xml:
-        show_chunks_xml(*chunks)
+        show_chunks_xml(*chunks, resources=resources)
     else:
         show_chunks(*chunks, verbose=verbose)
 
@@ -1619,7 +1655,8 @@ def json_serialisable(obj: Any) -> Any:
     raise TypeError(f"Unserializable {obj.__class__.__name__}")
 
 
-def show_chunks_xml(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
+def show_chunks_xml(*chunks: Chunk, file: Optional[TextIO] = None,
+                    resources: Optional[ResourceTableChunk] = None) -> None:
     """Show XML chunk(s) in AXML chunks as XML."""
     if file is None:
         file = sys.stdout
@@ -1628,14 +1665,15 @@ def show_chunks_xml(*chunks: Chunk, file: Optional[TextIO] = None) -> None:
         if isinstance(chunk, XMLChunk):
             found = True
             bio = io.BytesIO()
-            tree = xmlchunk_to_etree(chunk)
+            tree = xmlchunk_to_etree(chunk, resources=resources)
             tree.write(bio)
             print(bio.getvalue().decode(), file=file)
     if not found:
         raise Error("No XML chunks")
 
 
-def xmlchunk_to_etree(chunk: XMLChunk, *, indent: int = 2) -> ET.ElementTree:
+def xmlchunk_to_etree(chunk: XMLChunk, *, indent: int = 2,
+                      resources: Optional[ResourceTableChunk] = None) -> ET.ElementTree:
     """
     Convert XML chunk to xml.etree.ElementTree.ElementTree.
 
@@ -1679,12 +1717,13 @@ def xmlchunk_to_etree(chunk: XMLChunk, *, indent: int = 2) -> ET.ElementTree:
             elif isinstance(c, XMLElemStartChunk):
                 attrs = {}
                 for a in c.attributes:
-                    attrs[a.name_with_ns] = brv_str(a.typed_value, a.raw_value)
+                    attrs[a.name_with_ns] = brv_str_deref(a.typed_value, a.raw_value,
+                                                          resources=resources)
                 tb.start(c.name, attrs)
             elif isinstance(c, XMLElemEndChunk):
                 tb.end(c.name)
             elif isinstance(c, XMLCDATAChunk):
-                tb.data(brv_str(c.typed_value, c.raw_value))
+                tb.data(brv_str_deref(c.typed_value, c.raw_value, resources=resources))
         tree = ET.ElementTree(tb.close())
         if indent:
             indent_tree(tree.getroot(), " " * indent)
@@ -1704,6 +1743,25 @@ def brv_str(brv: BinResVal, raw_value: str) -> str:
     """str() for BinResVal."""
     _, f_str, x = brv_to_py(brv, raw_value)
     return f_str(x)
+
+
+def brv_str_deref(brv: BinResVal, raw_value: str,
+                  resources: Optional[ResourceTableChunk] = None) -> str:
+    """brv_str() that follows references (if resouces is provided)."""
+    if resources and brv.type is BinResVal.Type.REFERENCE:
+        ds = [0] + sorted([x.value for x in BinResCfg.Density if x.value != 0], reverse=True)
+        for d in ds:
+            try:
+                entry = resources.get_entry(brv.data, density=d)
+                assert entry.value is not None
+                if entry.value.type is BinResVal.Type.STRING:
+                    return entry.string(entry.value.data)
+                return brv_str(entry.value, "")
+            except ResourceNotFound:
+                pass
+            except ResourceError:
+                break
+    return brv_str(brv, raw_value)
 
 
 # FIXME: incomplete
@@ -2254,7 +2312,11 @@ def quick_get_manifest(apk: str, *, chunk: Optional[XMLChunk] = None) -> XMLElem
 
 def quick_get_resources(apk: str) -> ResourceTableChunk:
     """Quickly get resources.arsc ResourceTableChunk from APK."""
-    chunk = parse(quick_load(apk, ARSC_FILE))[0]
+    return _quick_get_resources(quick_load(apk, ARSC_FILE))
+
+
+def _quick_get_resources(data: bytes) -> ResourceTableChunk:
+    chunk = parse(data)[0]
     if not isinstance(chunk, ResourceTableChunk):
         raise ParseError("Expected ResourceTableChunk")
     return chunk
@@ -2404,6 +2466,7 @@ if __name__ == "__main__":
     sub_dump.add_argument("--apk", help="APK that contains the AXML/ARSC file(s)")
     sub_dump.add_argument("--json", action="store_true", help="output JSON")
     sub_dump.add_argument("--xml", action="store_true", help="output XML (AXML only)")
+    sub_dump.add_argument("--deref", action="store_true", help="follow references (with --xml)")
     sub_dump.add_argument("--prolog", action="store_true", help="output XML prolog (with --xml)")
     sub_dump.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_dump.add_argument("-v", "--verbose", action="store_true")
@@ -2425,14 +2488,18 @@ if __name__ == "__main__":
         if args.command == "dump":
             if args.json and args.xml:
                 raise Error("Conflicting options: --json and --xml")
+            if args.deref and not args.xml:
+                raise Error("Conflicting options: --deref without --xml")
             if args.prolog and not args.xml:
                 raise Error("Conflicting options: --prolog without --xml")
             if args.apk:
                 dump_apk(args.apk, *args.files_or_patterns, json=args.json, quiet=args.quiet,
-                         verbose=args.verbose, xml=args.xml, xml_prolog=args.prolog)
+                         verbose=args.verbose, xml=args.xml, xml_deref=args.deref,
+                         xml_prolog=args.prolog)
             else:
                 dump(*args.files_or_patterns, json=args.json, quiet=args.quiet,
-                     verbose=args.verbose, xml=args.xml, xml_prolog=args.prolog)
+                     verbose=args.verbose, xml=args.xml, xml_deref=args.deref,
+                     xml_prolog=args.prolog)
         elif args.command == "fastid":
             fastid(*args.apks, json=args.json, short=args.short)
         elif args.command == "fastperms":
