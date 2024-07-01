@@ -22,7 +22,7 @@ class Error(RuntimeError):
 
 def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
              page_size: Optional[int] = None, pad_like_apksigner: bool = False,
-             force: bool = False, copy_extra: bool = False, update_lfh: bool = True) -> None:
+             replace: bool = False, copy_extra: bool = False, update_lfh: bool = True) -> None:
     with zipfile.ZipFile(input_apk, "r") as zf:
         infos = zf.infolist()
     zdata = zip_data(input_apk)
@@ -47,7 +47,7 @@ def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
             if info.compress_type == 0:
                 hdr = _align_zip_entry(
                     info, hdr, n, m, off_o, page_align=page_align, page_size=page_size,
-                    pad_like_apksigner=pad_like_apksigner, force=force)
+                    pad_like_apksigner=pad_like_apksigner, replace=replace)
             if info.flag_bits & 0x08:
                 fhi.seek(info.compress_size, os.SEEK_CUR)
                 data_descriptor = fhi.read(12)
@@ -85,7 +85,7 @@ def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
 # NB: doesn't sync local & CD headers!
 def _align_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int, off_o: int, *,
                      page_align: bool = False, page_size: Optional[int] = None,
-                     pad_like_apksigner: bool = False, force: bool = False) -> bytes:
+                     pad_like_apksigner: bool = False, replace: bool = False) -> bytes:
     psize = DEFAULT_PAGE_SIZE if page_size is None else page_size
     align = psize * 1024 if page_align and info.filename.endswith(".so") else 4
     new_off = 30 + n + m + off_o
@@ -102,7 +102,7 @@ def _align_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int, off_o: i
             else:
                 new_xtr += old_xtr[:size + 4]
         old_xtr = old_xtr[size + 4:]
-    if force or new_off % align != 0:
+    if replace or new_off % align != 0:
         if pad_like_apksigner:
             pad = (align - (new_off - m + len(new_xtr) + 6) % align) % align
             xtr = new_xtr + struct.pack("<HHH", 0xd935, 2 + pad, align) + pad * b"\x00"
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--pad-like-apksigner", action="store_true",
                         help="use 0xd935 Android ZIP Alignment Extra Field "
                              "instead of zero padding")
-    parser.add_argument("--force", action="store_true", help="always replace existing alignment")
+    parser.add_argument("--replace", action="store_true", help="always replace existing alignment")
     parser.add_argument("--copy-extra", action="store_true",
                         help="copy extra bytes between ZIP entries")
     parser.add_argument("--no-update-lfh", action="store_false", dest="update_lfh",
@@ -166,6 +166,6 @@ if __name__ == "__main__":
         print("Warning: specified page size is not 4, 16, or 64 KiB", file=sys.stderr)
     zipalign(args.input_apk, args.output_apk, page_align=bool(args.page_align or args.page_size),
              page_size=args.page_size, pad_like_apksigner=args.pad_like_apksigner,
-             force=args.force, copy_extra=args.copy_extra, update_lfh=args.update_lfh)
+             replace=args.replace, copy_extra=args.copy_extra, update_lfh=args.update_lfh)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

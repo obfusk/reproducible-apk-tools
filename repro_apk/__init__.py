@@ -311,7 +311,7 @@ def main() -> None:
                   help="Use N*1024-byte memory page alignment for .so files.")
     @click.option("--pad-like-apksigner", is_flag=True,
                   help="Use 0xd935 Android ZIP Alignment Extra Field instead of zero padding.")
-    @click.option("--force", is_flag=True, help="Always replace existing alignment.")
+    @click.option("--replace", is_flag=True, help="Always replace existing alignment.")
     @click.option("--copy-extra", is_flag=True,
                   help="Copy extra bytes between ZIP entries.")
     @click.option("--no-update-lfh", is_flag=True,
@@ -322,7 +322,7 @@ def main() -> None:
     @click.pass_context
     def zipalign(ctx: click.Context, align: Tuple[str, ...], input_apk: str,
                  output_apk: str, page_align: bool, page_size: Optional[int],
-                 pad_like_apksigner: bool, force: bool, copy_extra: bool,
+                 pad_like_apksigner: bool, replace: bool, copy_extra: bool,
                  no_update_lfh: bool) -> None:
         if len(align) > 1:
             s = "s" if len(align) > 2 else ""
@@ -333,7 +333,7 @@ def main() -> None:
             print("Warning: specified page size is not 4, 16, or 64 KiB", file=sys.stderr)
         _zipalign.zipalign(input_apk, output_apk, page_align=bool(page_align or page_size),
                            page_size=page_size, pad_like_apksigner=pad_like_apksigner,
-                           force=force, copy_extra=copy_extra, update_lfh=not no_update_lfh)
+                           replace=replace, copy_extra=copy_extra, update_lfh=not no_update_lfh)
 
     @cli.command(help="""
         List ZIP entries (like zipinfo).

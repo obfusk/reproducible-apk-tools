@@ -326,7 +326,8 @@ alignment itself plus zero padding and is thus always at least 6 bytes).
 
 ```bash
 $ zipalign.py --help
-usage: zipalign.py [-h] [-p] [-P N] [--pad-like-apksigner] [--copy-extra] [--no-update-lfh]
+usage: zipalign.py [-h] [-p] [-P N] [--pad-like-apksigner] [--replace]
+                   [--copy-extra] [--no-update-lfh]
                    [ALIGN] INPUT_APK OUTPUT_APK
 [...]
 $ zipalign -f 4 fixed.apk fixed-aligned.apk
