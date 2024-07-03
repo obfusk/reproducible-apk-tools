@@ -316,7 +316,7 @@ files to 4096-byte boundaries with `-p`/`--page-align`, or other page sizes with
 This implementation aims for compatibility with Android's `zipalign`, with the
 exception of there not being a `-f` option to enable overwriting an existing
 output file (it will always be overwritten), and the `ALIGN` parameter -- which
-must always be 4 anyway -- being optional; not does it support the `-c`, `-v`,
+must always be 4 anyway -- being optional; nor does it support the `-c`, `-v`,
 or `-z` options.
 
 By default, the same plain zero padding as the original `zipalign` is used, but
