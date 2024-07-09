@@ -402,6 +402,8 @@ class ResourceTableChunk(ParentChunk):
         >>> e = chunk.get_entry(0x7f020000)
         >>> e
         TypeChunk.Entry(header_size=8, flags=0, key_idx=0, value=BinResVal(size=8, type=<Type.STRING: 3>, data=0), values=(), parent_entry=0)
+        >>> e.key
+        'app_name'
         >>> e.string(e.value.data)
         'Tiny App for CTS'
 

@@ -350,7 +350,8 @@ Parse & dump ARSC or AXML.
 
 ```bash
 $ binres.py dump --help
-usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [--prolog] [-q] [-v]
+usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [--deref] [--prolog]
+                      [-q] [-v]
                       FILE_OR_PATTERN [FILE_OR_PATTERN ...]
 [...]
 $ binres.py dump AndroidManifest.xml
