@@ -873,7 +873,12 @@ class TypeChunk(TypeOrSpecChunk):
         def values_as_dict(self) -> Dict[Optional[int], BinResVal]:
             """Values as dict."""
             if self.is_complex:
-                return dict(self.values)
+                d: Dict[Optional[int], BinResVal] = {}
+                for k, v in self.values:
+                    if k in d:
+                        raise ParseError(f"Duplicate value ID: {k}")
+                    d[k] = v
+                return d
             assert self.value is not None
             return {None: self.value}
 
@@ -1595,13 +1600,7 @@ def show_type_entry(c: TypeChunk, i: int, e: TypeChunk.Entry, indent: int, *,
     if e.parent_entry:
         info += f", parent=0x{e.parent_entry:08x}"
     print(f"{' ' * indent}ENTRY [{info}]", file=file)
-    values: Tuple[Tuple[Optional[int], BinResVal], ...]
-    if e.is_complex:
-        values = e.values
-    else:
-        assert e.value is not None
-        values = ((None, e.value),)
-    for k, brv in values:
+    for k, brv in e.values_as_dict.items():
         r = c.string(brv.data) if brv.type is BinResVal.Type.STRING else ""
         v = brv_repr(brv, r)
         print(f"{' ' * indent}  VALUE{'' if k is None else f' 0x{k:08x}'}: {v}", file=file)
