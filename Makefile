@@ -25,11 +25,11 @@ test-cli:
 	$(REPROAPK) --version
 
 doctest:
-	# NB: uses test/ & requires zipalign on $PATH
+	# NB: uses test/ & requires zipalign on $$PATH
 	TZ=UTC $(PYTHON) -m doctest $(DOCTEST)
 
 coverage:
-	# NB: uses test/ & requires zipalign on $PATH
+	# NB: uses test/ & requires zipalign on $$PATH
 	TZ=UTC $(PYCOV) -m doctest $(DOCTEST)
 	for py in *.py; do [ -x "$$py" ] && $(PYCOV) -a "$$py" --help; done
 	$(MAKE) test-examples \
