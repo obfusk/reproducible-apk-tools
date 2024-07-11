@@ -416,7 +416,17 @@ class ResourceTableChunk(ParentChunk):
     def find_entries(self, id: int, *, typ: Optional[BinResVal.Type] = None, array: bool = False,
                      return_first: bool = True, language: Optional[str] = None,
                      region: Optional[str] = None, density: int = 0) -> List[TypeChunk.Entry]:
-        """Get (first/all matching) type chunk entries with specified ID."""
+        r"""
+        Get (first/all matching) type chunk entries with specified ID.
+
+        NB: there should only be one matching entry, but this is not enforced;
+        finding all entries is thus provided for analysis purposes.
+
+        >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
+        >>> entries = chunk.find_entries(0x7f020000)
+        >>> [e.str_value() for e in entries]
+        ['Tiny App for CTS']
+        """
         entries = []
         fltr = dict(language=language, region=region, density=density)
         rid = BinResId.from_int(id)
