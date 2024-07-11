@@ -395,7 +395,7 @@ class ResourceTableChunk(ParentChunk):
                   language: Optional[str] = None, region: Optional[str] = None,
                   density: int = 0) -> TypeChunk.Entry:
         r"""
-        Get type chunk entry with specified ID.
+        Get (first matching) type chunk entry with specified ID.
 
         >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
         >>> e = chunk.get_entry(0x7f020000)
@@ -407,6 +407,17 @@ class ResourceTableChunk(ParentChunk):
         'Tiny App for CTS'
 
         """
+        entries = self.find_entries(id, typ=typ, array=array, return_first=True,
+                                    language=language, region=region, density=density)
+        if not entries:
+            raise ResourceNotFound(f"No matching entry for {hex(id)}")
+        return entries[0]
+
+    def find_entries(self, id: int, *, typ: Optional[BinResVal.Type] = None, array: bool = False,
+                     return_first: bool = True, language: Optional[str] = None,
+                     region: Optional[str] = None, density: int = 0) -> List[TypeChunk.Entry]:
+        """Get (first/all matching) type chunk entries with specified ID."""
+        entries = []
         fltr = dict(language=language, region=region, density=density)
         rid = BinResId.from_int(id)
         for t in self.package_with_id(rid.package_id).type_chunks(rid.type_id):
@@ -424,8 +435,10 @@ class ResourceTableChunk(ParentChunk):
                             if typ and val.type is not typ:
                                 raise ResourceError(f"Type mismatch for {hex(id)}: expected "
                                                     f"{typ.name}, got {val.type.name}")
-                        return e
-        raise ResourceNotFound(f"No matching entry for {hex(id)}")
+                        entries.append(e)
+                        if return_first:
+                            return entries
+        return entries
 
     @cached_property
     def packages_as_dict(self) -> Dict[str, PackageChunk]:
