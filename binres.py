@@ -380,8 +380,7 @@ class ResourceTableChunk(ParentChunk):
         """
         e = self.get_entry(id, typ=BinResVal.Type.STRING, language=language,
                            region=region, density=density)
-        assert e.value is not None
-        return e.string(e.value.data)
+        return e.str_value()
 
     def _get_value(self, typ: type, *args: Any, **kwargs: Any) -> Any:
         if typ is bool:
@@ -404,7 +403,7 @@ class ResourceTableChunk(ParentChunk):
         TypeChunk.Entry(header_size=8, flags=0, key_idx=0, value=BinResVal(size=8, type=<Type.STRING: 3>, data=0), values=(), parent_entry=0)
         >>> e.key
         'app_name'
-        >>> e.string(e.value.data)
+        >>> e.str_value()
         'Tiny App for CTS'
 
         """
@@ -901,6 +900,15 @@ class TypeChunk(TypeOrSpecChunk):
             if (p := self.parent()) is not None:
                 return p.string(idx)
             raise ParentError("Parent deallocated")
+
+        def str_value(self) -> str:
+            """Get string value."""
+            if self.is_complex:
+                raise ResourceError("Expected scalar value")
+            assert self.value is not None
+            if self.value.type is not BinResVal.Type.STRING:
+                raise ResourceError("Expected string value")
+            return self.string(self.value.data)
 
         @classmethod
         def fields(cls) -> Tuple[Tuple[str, str, int, Optional[str]], ...]:
@@ -1756,7 +1764,7 @@ def brv_str_deref(brv: BinResVal, raw_value: str,
                 entry = resources.get_entry(brv.data, density=d)
                 assert entry.value is not None
                 if entry.value.type is BinResVal.Type.STRING:
-                    return entry.string(entry.value.data)
+                    return entry.str_value()
                 return brv_str(entry.value, "")
             except ResourceNotFound:
                 pass
