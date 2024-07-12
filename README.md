@@ -682,6 +682,7 @@ compressed data.
 Show info about ZIP alignment.
 
 ```bash
+$ zipalignment.py --help
 usage: zipalignment.py [-h] APK [APK ...]
 [...]
 $ zipalignment.py foo.apk bar.apk
