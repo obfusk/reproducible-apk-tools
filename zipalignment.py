@@ -103,3 +103,5 @@ if __name__ == "__main__":
     parser.add_argument("apks", metavar="APK", nargs="+")
     args = parser.parse_args()
     zipalignment(*args.apks)
+
+# vim: set tw=80 sw=4 sts=4 et fdm=marker :
