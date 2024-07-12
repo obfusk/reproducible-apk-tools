@@ -7,7 +7,7 @@ INPLACEFIX ?= repro-apk-inplace-fix
 PYCOV      := $(PYTHON) -mcoverage run --data-file=$(PWD)/.coverage --source $(PWD)
 
 DOCTEST    := binres.py diff-zip-meta.py fix-compresslevel.py fix-files.py fix-newlines.py \
-              inplace-fix.py list-compresslevel.py rm-files.py zipinfo.py
+              inplace-fix.py list-compresslevel.py rm-files.py zipalignment.py zipinfo.py
 
 export PYTHONWARNINGS := default
 
@@ -217,6 +217,8 @@ test-examples:
 	  $(REPROAPK) zipalign "$$apk" .tmp/aligned-py.apk; \
 	  cmp .tmp/aligned.apk .tmp/aligned-py.apk; \
 	done
+	# zipalignment
+	cd test/data && diff -Naur zipalignment <( $(REPROAPK) zipalignment *.apk )
 	# zipinfo
 	set -e; cd test/data && for apk in *.apk; do echo "$$apk"; \
 	  diff -Naur <( zipinfo    "$$apk" ) <( $(REPROAPK) zipinfo    "$$apk" ); \

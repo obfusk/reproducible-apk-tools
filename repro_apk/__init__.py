@@ -23,6 +23,7 @@ from . import rm_files as _rm_files
 from . import sort_apk as _sort_apk
 from . import sort_baseline as _sort_baseline
 from . import zipalign as _zipalign
+from . import zipalignment as _zipalignment
 from . import zipinfo as _zipinfo
 
 import click
@@ -45,6 +46,7 @@ ERRORS = (
     _sort_apk.Error,
     _sort_baseline.Error,
     _zipalign.Error,
+    _zipalignment.Error,
     _zipinfo.Error,
     zipfile.BadZipFile,
 )
@@ -334,6 +336,14 @@ def main() -> None:
         _zipalign.zipalign(input_apk, output_apk, page_align=bool(page_align or page_size),
                            page_size=page_size, pad_like_apksigner=pad_like_apksigner,
                            replace=replace, copy_extra=copy_extra, update_lfh=not no_update_lfh)
+
+    @cli.command(help="""
+        Show info about ZIP alignment.
+    """)
+    @click.argument("apks", metavar="APK...", nargs=-1, required=True,
+                    type=click.Path(exists=True, dir_okay=False))
+    def zipalignment(apks: Tuple[str, ...]) -> None:
+        _zipalignment.zipalignment(*apks)
 
     @cli.command(help="""
         List ZIP entries (like zipinfo).

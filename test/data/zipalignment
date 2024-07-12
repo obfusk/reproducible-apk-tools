@@ -1,0 +1,60 @@
+file='baseline1.profm.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none
+file='baseline2.profm.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none
+file='crlf-P16.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : 16KiB
+file='crlf-p.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : 4KiB
+file='crlf.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none
+file='golden-aligned-in-sorted-noalign.apk'
+  zipaligned (4-byte alignment)               : no
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none
+file='golden-aligned-in-sorted.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 3
+  apksigner alignments from extra fields      : 4 4096
+  most likely uncompressed .so page alignment : 4KiB
+file='golden-aligned-in.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 3
+  apksigner alignments from extra fields      : 4 4096
+  most likely uncompressed .so page alignment : 4KiB
+file='level6.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none
+file='level9.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none
+file='perms.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none
+file='unix.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : none

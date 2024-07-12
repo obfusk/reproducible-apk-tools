@@ -36,6 +36,7 @@
 [`dump-axml.py`](#dump-axmlpy),
 [`dump-baseline.py`](#dump-baselinepy),
 [`list-compresslevel.py`](#list-compresslevelpy),
+[`zipalignment.py`](#zipalignmentpy),
 [`zipinfo.py`](#zipinfopy);
 
 [`inplace-fix.py`](#inplace-fixpy).
@@ -676,6 +677,26 @@ is thus calculated by recompressing the data with different compression levels
 and checking the CRC32 of the result against the CRC32 of the original
 compressed data.
 
+### zipalignment.py
+
+Show info about ZIP alignment.
+
+```bash
+usage: zipalignment.py [-h] APK [APK ...]
+[...]
+$ zipalignment.py foo.apk bar.apk
+file='foo.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 0
+  apksigner alignments from extra fields      : none
+  most likely uncompressed .so page alignment : 4KiB
+file='bar.apk'
+  zipaligned (4-byte alignment)               : yes
+  files with apksigner padding                : 123
+  apksigner alignments from extra fields      : 4 16384
+  most likely uncompressed .so page alignment : 16KiB
+```
+
 ### zipinfo.py
 
 List ZIP entries (like `zipinfo`).
@@ -903,6 +924,7 @@ $ repro-apk sort-apk unsigned.apk sorted.apk
 $ repro-apk sort-baseline baseline.profm baseline-sorted.profm
 $ repro-apk sort-baseline --apk unsigned.apk sorted-baseline.apk
 $ repro-apk zipalign fixed.apk fixed-aligned-py.apk
+$ repro-apk zipalignment foo.apk bar.apk
 $ repro-apk zipinfo -e some.apk
 $ repro-apk zipinfo -l some.apk
 ```
@@ -929,6 +951,7 @@ $ repro-apk rm-files --help
 $ repro-apk sort-apk --help
 $ repro-apk sort-baseline --help
 $ repro-apk zipalign --help
+$ repro-apk zipalignment --help
 $ repro-apk zipinfo --help
 ```
 
