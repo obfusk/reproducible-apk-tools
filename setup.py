@@ -1,7 +1,7 @@
 from pathlib import Path
 import setuptools
 
-__version__ = "0.2.7"
+__version__ = "0.2.8"
 
 info = Path(__file__).with_name("README.md").read_text(encoding="utf8")
 

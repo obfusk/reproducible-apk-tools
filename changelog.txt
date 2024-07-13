@@ -1,3 +1,11 @@
+v0.2.8
+
+• binres.py: add manifest-info subcommand, various fixes & improvements.
+• diff-zip-meta.py: diff archive comment.
+• zipalign.py: add --replace.
+• add zipalignment.py.
+• add test coverage [#18].
+
 v0.2.7
 
 • binres.py: add get_manifest_info(), load_and_list_apk(); refactoring.
