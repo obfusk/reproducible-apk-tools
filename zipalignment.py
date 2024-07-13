@@ -70,14 +70,13 @@ def alignment_info(apkfile: str) -> AlignmentInfo:
                 apksigner_alignments.add(apksigner_align)
             if info.compress_type == 0:
                 offset = fh.tell()
+                if offset % 4 != 0:
+                    zipaligned = False
                 if info.filename.endswith(".so"):
                     page_aligned += 1
                     for page_size in PAGE_SIZES:
                         if offset % (page_size * 1024) == 0:
                             page_alignments[page_size] += 1
-                else:
-                    if offset % 4 != 0:
-                        zipaligned = False
     align = page_aligned and max([k for k, v in page_alignments.items() if v == page_aligned],
                                  default=0)
     return AlignmentInfo(
