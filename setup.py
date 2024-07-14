@@ -14,7 +14,7 @@ setuptools.setup(
     version=__version__,
     author="FC (Fay) Stegerman",
     author_email="flx@obfusk.net",
-    license="GPLv3+",
+    license="AGPLv3+",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
@@ -22,7 +22,7 @@ setuptools.setup(
         "Intended Audience :: Information Technology",
         "Intended Audience :: System Administrators",
         "Intended Audience :: Telecommunications Industry",
-        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
         "Operating System :: POSIX",

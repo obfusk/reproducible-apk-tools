@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC Stegerman <flx@obfusk.net>
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2023 FC (Fay) Stegerman <flx@obfusk.net>
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 import struct
 import zipfile
