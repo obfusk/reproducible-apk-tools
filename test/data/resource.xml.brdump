@@ -1,5 +1,5 @@
 XML
-  STRING POOL [flags=256, #strings=27, #styles=0]
+  STRING POOL [flags=0x100, #strings=27, #styles=0]
   XML RESOURCE MAP [#resources=22]
   XML NS START [lineno=26, prefix='android', uri='http://schemas.android.com/apk/res/android']
     XML ELEM START [lineno=26, name='LinearLayout', #attributes=6]

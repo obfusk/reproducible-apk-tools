@@ -1,5 +1,5 @@
 XML
-  STRING POOL [flags=0, #strings=16, #styles=0]
+  STRING POOL [#strings=16, #styles=0]
   XML RESOURCE MAP [#resources=6]
   XML NS START [lineno=1, prefix='android', uri='http://schemas.android.com/apk/res/android']
     XML ELEM START [lineno=1, name='manifest', #attributes=7]

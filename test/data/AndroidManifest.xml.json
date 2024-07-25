@@ -66,6 +66,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 1,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "INT_DEC",
@@ -81,6 +82,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 6,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "STRING",
@@ -96,6 +98,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 29,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "INT_DEC",
@@ -111,6 +114,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 7,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "STRING",
@@ -126,6 +130,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 9,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "STRING",
@@ -141,6 +146,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 29,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "INT_DEC",
@@ -156,6 +162,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 7,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "STRING",
@@ -187,6 +194,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 21,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "INT_DEC",
@@ -202,6 +210,7 @@
             "typed_value": {
               "_type": "BinResVal",
               "data": 29,
+              "res0": 0,
               "size": 8,
               "type": {
                 "name": "INT_DEC",

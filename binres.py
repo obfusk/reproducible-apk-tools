@@ -11,7 +11,7 @@ NB: work in progress; output format may change.
 >>> dump("test/data/AndroidManifest.xml")
 file='test/data/AndroidManifest.xml'
 XML
-  STRING POOL [flags=0, #strings=16, #styles=0]
+  STRING POOL [#strings=16, #styles=0]
   XML RESOURCE MAP [#resources=6]
   XML NS START [lineno=1, prefix='android', uri='http://schemas.android.com/apk/res/android']
     XML ELEM START [lineno=1, name='manifest', #attributes=7]
@@ -32,10 +32,10 @@ XML
 >>> dump_apk("test/data/golden-aligned-in.apk", "resources.arsc")
 entry='resources.arsc'
 RESOURCE TABLE
-  STRING POOL [flags=256, #strings=3, #styles=0]
+  STRING POOL [flags=0x100, #strings=3, #styles=0]
   PACKAGE [id=0x7f, package_name='android.appsecurity.cts.tinyapp']
-    STRING POOL [flags=256, #strings=2, #styles=0]
-    STRING POOL [flags=256, #strings=1, #styles=0]
+    STRING POOL [flags=0x100, #strings=2, #styles=0]
+    STRING POOL [flags=0x100, #strings=1, #styles=0]
     TYPE SPEC [id=0x1, type_name='attr', #resources=0]
     TYPE SPEC [id=0x2, type_name='string', #resources=1]
     TYPE [id=0x2, type_name='string', #entries=1]
@@ -400,7 +400,7 @@ class ResourceTableChunk(ParentChunk):
         >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
         >>> e = chunk.get_entry(0x7f020000)
         >>> e
-        TypeChunk.Entry(header_size=8, flags=0, key_idx=0, value=BinResVal(size=8, type=<Type.STRING: 3>, data=0), values=(), parent_entry=0)
+        TypeChunk.Entry(header_size=8, flags=0, key_idx=0, value=BinResVal(size=8, type=<Type.STRING: 3>, data=0, res0=0), values=(), parent_entry=0)
         >>> e.key
         'app_name'
         >>> e.str_value()
@@ -868,15 +868,21 @@ class TypeOrSpecChunk(Chunk):
         return BinResId(c.id, self.id, entry_id)
 
 
+# FIXME: FLAG_PUBLIC, FLAG_WEAK; FLAG_SPARSE, overlay packages
 @dataclass(frozen=True)
 class TypeChunk(TypeOrSpecChunk):
     """Type chunk; contains entries and configuration."""
     entries: Tuple[Tuple[int, Entry], ...]
     configuration: BinResCfg
+    flags: int
 
     TYPE_ID: ClassVar[int] = 0x0201
 
     NO_ENTRY: ClassVar[int] = 0xFFFFFFFF
+    NO_ENTRY_OFFSET16: ClassVar[int] = 0xFFFF
+
+    FLAG_SPARSE: ClassVar[int] = 0x01
+    FLAG_OFFSET16: ClassVar[int] = 0x02
 
     @dataclass(frozen=True)
     class Entry:
@@ -892,6 +898,7 @@ class TypeChunk(TypeOrSpecChunk):
         HIDDEN_FIELDS: ClassVar[Tuple[str, ...]] = ("header_size",)
 
         FLAG_COMPLEX: ClassVar[int] = 0x1
+        FLAG_COMPACT: ClassVar[int] = 0x8
 
         @cached_property
         def values_as_dict(self) -> Dict[Optional[int], BinResVal]:
@@ -910,6 +917,11 @@ class TypeChunk(TypeOrSpecChunk):
         def is_complex(self) -> bool:
             """Whether the entry has multiple values (instead of one value)."""
             return bool(self.flags & self.FLAG_COMPLEX)
+
+        @property
+        def is_compact(self) -> bool:
+            """Whether the entry is compact."""
+            return bool(self.flags & self.FLAG_COMPACT)
 
         @property
         def key(self) -> str:
@@ -941,27 +953,41 @@ class TypeChunk(TypeOrSpecChunk):
     def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> TypeChunk:
         """Parse TypeChunk."""
         d = TypeOrSpecChunk._parse(header=header, payload=payload, **kwargs)
-        id_, n_ents, start, cfg_data = _unpack("<III", header)
-        chunk = cls(**d, id=id_, entries=(), configuration=_read_cfg(cfg_data))
+        id_, t_flags, reserved, n_ents, start, cfg_data = _unpack("<BBHII", header)
+        chunk = cls(**d, id=id_, entries=(), configuration=_read_cfg(cfg_data), flags=t_flags)
         entries = []
+        if t_flags & cls.FLAG_SPARSE:
+            raise NotImplementedError("FLAG_SPARSE not (yet) supported")
         for i in range(n_ents):
-            off, = struct.unpack("<I", payload[4 * i:4 * (i + 1)])
-            if off == cls.NO_ENTRY:
-                continue
+            if t_flags & cls.FLAG_OFFSET16:
+                off16, = struct.unpack("<H", payload[2 * i:2 * (i + 1)])
+                if off16 == cls.NO_ENTRY_OFFSET16:
+                    continue
+                off = off16 * 4
+            else:
+                off, = struct.unpack("<I", payload[4 * i:4 * (i + 1)])
+                if off == cls.NO_ENTRY:
+                    continue
             o = off + start - d["header_size"]
-            hdr_sz, flags, key_idx = struct.unpack("<HHI", payload[o:o + 8])
+            hdr_sz_or_key, e_flags, key_idx_or_data = struct.unpack("<HHI", payload[o:o + 8])
             values = []
-            if flags & cls.Entry.FLAG_COMPLEX:
+            if e_flags & cls.Entry.FLAG_COMPLEX:
+                hdr_sz, key_idx = hdr_sz_or_key, key_idx_or_data
                 value = None
                 par_ent, n = struct.unpack("<II", payload[o + 8:o + 16])
                 for j in range(n):
                     data = payload[o + 16 + 12 * j:o + 16 + 12 * (j + 1)]
                     k, brv_data = _unpack("<I", data)
                     values.append((k, _read_brv(brv_data)))
+            elif e_flags & cls.Entry.FLAG_COMPACT:
+                hdr_sz, key_idx = 8, hdr_sz_or_key
+                value = _brv(8, e_flags >> 8, payload[o + 4:o + 8])
+                par_ent = 0
             else:
+                hdr_sz, key_idx = hdr_sz_or_key, key_idx_or_data
                 value = _read_brv(payload[o + 8:o + 16])
                 par_ent = 0
-            e = cls.Entry(header_size=hdr_sz, flags=flags, key_idx=key_idx,
+            e = cls.Entry(header_size=hdr_sz, flags=e_flags, key_idx=key_idx,
                           value=value, values=tuple(values), parent_entry=par_ent,
                           parent=weakref.ref(chunk))
             entries.append((i, e))
@@ -1005,11 +1031,23 @@ class TypeChunk(TypeOrSpecChunk):
         return rid.package_id == c.id and rid.type_id == self.id \
             and rid.entry_id in self.entries_as_dict
 
+    @property
+    def is_sparse(self) -> bool:
+        """Whether the entry is sparse."""
+        return bool(self.flags & self.FLAG_SPARSE)
+
+    @property
+    def is_offset16(self) -> bool:
+        """Whether the entry is using 16-bit offsets."""
+        return bool(self.flags & self.FLAG_OFFSET16)
+
 
 @dataclass(frozen=True)
 class TypeSpecChunk(TypeOrSpecChunk):
     """Type spec chunk."""
     resources: Tuple[int, ...]
+    res0: int
+    res1: int
 
     TYPE_ID: ClassVar[int] = 0x0202
 
@@ -1017,8 +1055,8 @@ class TypeSpecChunk(TypeOrSpecChunk):
     def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> TypeSpecChunk:
         "Parse TypeSpecChunk."""
         d = TypeOrSpecChunk._parse(header=header, payload=payload, **kwargs)
-        id_, n = struct.unpack("<II", header)
-        return cls(**d, id=id_, resources=struct.unpack(f"<{n}I", payload))
+        id_, res0, res1, n = struct.unpack("<BBHI", header)
+        return cls(**d, id=id_, resources=struct.unpack(f"<{n}I", payload), res0=res0, res1=res1)
 
 
 # FIXME: untested!
@@ -1069,6 +1107,7 @@ class BinResVal:
     size: int
     type: Type
     data: int
+    res0: int
 
     COMPLEX_UNITS: ClassVar[Tuple[str, ...]] = ("px", "dp", "sp", "pt", "in", "mm")
     COMPLEX_UNIT_FRACTIONS: ClassVar[Tuple[str, ...]] = ("%", "%p")
@@ -1649,7 +1688,10 @@ def show_cfg(c: BinResCfg, indent: int, *, file: Optional[TextIO] = None) -> Non
 
 
 def _fs_info(fs: List[Tuple[str, Any]]) -> str:
-    fs_joined = ", ".join(f"{k}={hex(v) if k == 'id' else repr(v)}" for k, v in fs)
+    zero_keys = ("flags", "res0", "res1")
+    hex_keys = ("id",) + zero_keys
+    fs_ = [(k, v) for k, v in fs if not (k in zero_keys and v == 0)]
+    fs_joined = ", ".join(f"{k}={hex(v) if k in hex_keys else repr(v)}" for k, v in fs_)
     return f" [{fs_joined}]" if fs else ""
 
 
@@ -1921,9 +1963,13 @@ def _read_attrs(data: bytes, parent: XMLNodeChunkRef,
 
 
 def _read_brv(data: bytes) -> BinResVal:
-    size, _, typ = struct.unpack("<HBB", data[:4])
-    i, = struct.unpack("<i" if typ == BinResVal.Type.INT_DEC.value else "<I", data[4:])
-    return BinResVal(size, BinResVal.Type(typ), i)
+    size, res0, typ = struct.unpack("<HBB", data[:4])
+    return _brv(size, typ, data[4:], res0)
+
+
+def _brv(size: int, typ: int, data: bytes, res0: int = 0) -> BinResVal:
+    i, = struct.unpack("<i" if typ == BinResVal.Type.INT_DEC.value else "<I", data)
+    return BinResVal(size, BinResVal.Type(typ), i, res0)
 
 
 def _read_strings(data: bytes, off: int, n: int, codec: str) -> Iterator[str]:

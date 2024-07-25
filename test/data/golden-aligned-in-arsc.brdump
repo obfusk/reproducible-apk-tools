@@ -1,9 +1,9 @@
 entry='resources.arsc'
 RESOURCE TABLE
-  STRING POOL [flags=256, #strings=3, #styles=0]
+  STRING POOL [flags=0x100, #strings=3, #styles=0]
   PACKAGE [id=0x7f, package_name='android.appsecurity.cts.tinyapp']
-    STRING POOL [flags=256, #strings=2, #styles=0]
-    STRING POOL [flags=256, #strings=1, #styles=0]
+    STRING POOL [flags=0x100, #strings=2, #styles=0]
+    STRING POOL [flags=0x100, #strings=1, #styles=0]
     TYPE SPEC [id=0x1, type_name='attr', #resources=0]
     TYPE SPEC [id=0x2, type_name='string', #resources=1]
     TYPE [id=0x2, type_name='string', #entries=1]

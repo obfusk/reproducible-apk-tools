@@ -1,8 +1,8 @@
 RESOURCE TABLE
-  STRING POOL [flags=256, #strings=5, #styles=0]
+  STRING POOL [flags=0x100, #strings=5, #styles=0]
   PACKAGE [id=0x7f, package_name='dev.obfusk.sokobang']
-    STRING POOL [flags=0, #strings=3, #styles=0]
-    STRING POOL [flags=256, #strings=5, #styles=0]
+    STRING POOL [#strings=3, #styles=0]
+    STRING POOL [flags=0x100, #strings=5, #styles=0]
     TYPE SPEC [id=0x1, type_name='drawable', #resources=2]
     TYPE [id=0x1, type_name='drawable', #entries=2]
       CONFIG [default]
