@@ -905,8 +905,10 @@ class TypeChunk(TypeOrSpecChunk):
 
         @cached_property
         def values_as_dict(self) -> Dict[Optional[int], BinResVal]:
-            """Values as dict."""
+            """Values as dict (array will be enumerated)."""
             if self.is_complex:
+                if self.is_array:
+                    return dict(enumerate(self.values_as_list))
                 d: Dict[Optional[int], BinResVal] = {}
                 for k, v in self.values:
                     if k in d:
@@ -915,6 +917,18 @@ class TypeChunk(TypeOrSpecChunk):
                 return d
             assert self.value is not None
             return {None: self.value}
+
+        @cached_property
+        def values_as_list(self) -> List[BinResVal]:
+            """Values as list (must be array)."""
+            if not self.is_array:
+                raise ParseError("Expected array")
+            return [v for k, v in self.values]
+
+        @cached_property
+        def is_array(self) -> bool:
+            """Whether the entry is complex with all zero keys."""
+            return self.is_complex and all(k == 0 for k, v in self.values)
 
         @property
         def is_complex(self) -> bool:
