@@ -957,7 +957,7 @@ class TypeChunk(TypeOrSpecChunk):
         chunk = cls(**d, id=id_, entries=(), configuration=_read_cfg(cfg_data), flags=t_flags)
         entries = []
         if t_flags & cls.FLAG_SPARSE:
-            raise NotImplementedError("FLAG_SPARSE not (yet) supported")
+            raise _notimplemented("FLAG_SPARSE")
         for i in range(n_ents):
             if t_flags & cls.FLAG_OFFSET16:
                 off16, = struct.unpack("<H", payload[2 * i:2 * (i + 1)])
@@ -1611,8 +1611,7 @@ def _show_subs(chunk: Chunk, subs: List[Tuple[str, Any]], indent: int, *,
                         show_type_entry(chunk, i, entry, indent, file=file)
                 else:
                     # FIXME: LibraryChunk
-                    err = f"Showing entries for {chunk.__class__.__name__} not (yet) supported"
-                    raise NotImplementedError(err)
+                    raise _notimplemented(f"Showing entries for {chunk.__class__.__name__}")
             else:
                 print(f"{' ' * indent}{k.upper()}:", file=file)
                 for x in v:
@@ -1885,7 +1884,7 @@ def brv_to_py(brv: BinResVal, raw_value: str) \
     if t is T.FRACTION:
         return c2s, c2s, BinResVal.complex2pair(brv.data, fraction=True)
     if t in (T.DYNAMIC_REFERENCE, T.DYNAMIC_ATTRIBUTE):
-        raise NotImplementedError("Dynamic reference/attribute not (yet) supported")
+        raise _notimplemented("Dynamic reference/attribute")
     if t is T.INT_DEC:
         return str, str, brv.data
     if t is T.INT_HEX:
@@ -2167,6 +2166,11 @@ def _safe(x: Any) -> str:
     if not isinstance(x, str):
         return repr(x)
     return "".join(c if c.isprintable() and c != '\\' else repr(c)[1:-1] for c in x)
+
+
+def _notimplemented(what: str) -> NotImplementedError:
+    msg = f"{what} not (yet) supported; please file an issue with a test case"
+    return NotImplementedError(msg)
 
 
 def quick_get_idver_perms(apk: str) \
