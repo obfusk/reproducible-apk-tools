@@ -868,7 +868,7 @@ class TypeOrSpecChunk(Chunk):
         return BinResId(c.id, self.id, entry_id)
 
 
-# FIXME: FLAG_PUBLIC, FLAG_WEAK; FLAG_SPARSE, overlay packages
+# FIXME: FLAG_SPARSE, overlay packages
 @dataclass(frozen=True)
 class TypeChunk(TypeOrSpecChunk):
     """Type chunk; contains entries and configuration."""
@@ -898,6 +898,8 @@ class TypeChunk(TypeOrSpecChunk):
         HIDDEN_FIELDS: ClassVar[Tuple[str, ...]] = ("header_size",)
 
         FLAG_COMPLEX: ClassVar[int] = 0x1
+        FLAG_PUBLIC: ClassVar[int] = 0x2
+        FLAG_WEAK: ClassVar[int] = 0x4
         FLAG_COMPACT: ClassVar[int] = 0x8
 
         @cached_property
@@ -917,6 +919,16 @@ class TypeChunk(TypeOrSpecChunk):
         def is_complex(self) -> bool:
             """Whether the entry has multiple values (instead of one value)."""
             return bool(self.flags & self.FLAG_COMPLEX)
+
+        @property
+        def is_public(self) -> bool:
+            """Whether the entry is public (libraries can reference it)."""
+            return bool(self.flags & self.FLAG_PUBLIC)
+
+        @property
+        def is_weak(self) -> bool:
+            """Whether the entry is weak (can be overridden)."""
+            return bool(self.flags & self.FLAG_WEAK)
 
         @property
         def is_compact(self) -> bool:
