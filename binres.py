@@ -868,7 +868,8 @@ class TypeOrSpecChunk(Chunk):
         return BinResId(c.id, self.id, entry_id)
 
 
-# FIXME: FLAG_SPARSE, overlay packages
+# FIXME: FLAG_SPARSE untested!
+# FIXME: overlay packages
 @dataclass(frozen=True)
 class TypeChunk(TypeOrSpecChunk):
     """Type chunk; contains entries and configuration."""
@@ -969,17 +970,20 @@ class TypeChunk(TypeOrSpecChunk):
         chunk = cls(**d, id=id_, entries=(), configuration=_read_cfg(cfg_data), flags=t_flags)
         entries = []
         if t_flags & cls.FLAG_SPARSE:
-            raise _notimplemented("FLAG_SPARSE")
+            _untested("FLAG_SPARSE")
         for i in range(n_ents):
-            if t_flags & cls.FLAG_OFFSET16:
-                off16, = struct.unpack("<H", payload[2 * i:2 * (i + 1)])
-                if off16 == cls.NO_ENTRY_OFFSET16:
-                    continue
+            if t_flags & cls.FLAG_SPARSE:
+                idx, off16 = struct.unpack("<HH", payload[4 * i:4 * (i + 1)])
                 off = off16 * 4
+            elif t_flags & cls.FLAG_OFFSET16:
+                idx = i
+                off16, = struct.unpack("<H", payload[2 * i:2 * (i + 1)])
+                off = cls.NO_ENTRY if off16 == cls.NO_ENTRY_OFFSET16 else off16 * 4
             else:
+                idx = i
                 off, = struct.unpack("<I", payload[4 * i:4 * (i + 1)])
-                if off == cls.NO_ENTRY:
-                    continue
+            if off == cls.NO_ENTRY:
+                continue
             o = off + start - d["header_size"]
             hdr_sz_or_key, e_flags, key_idx_or_data = struct.unpack("<HHI", payload[o:o + 8])
             values = []
@@ -1002,7 +1006,7 @@ class TypeChunk(TypeOrSpecChunk):
             e = cls.Entry(header_size=hdr_sz, flags=e_flags, key_idx=key_idx,
                           value=value, values=tuple(values), parent_entry=par_ent,
                           parent=weakref.ref(chunk))
-            entries.append((i, e))
+            entries.append((idx, e))
         object.__setattr__(chunk, "entries", tuple(entries))
         return chunk
 
@@ -2183,6 +2187,12 @@ def _safe(x: Any) -> str:
 def _notimplemented(what: str) -> NotImplementedError:
     msg = f"{what} not (yet) supported; please file an issue with a test case"
     return NotImplementedError(msg)
+
+
+def _untested(what: str) -> None:
+    msg = f"{what} not (yet) tested; please file an issue with a test case"
+    log = logging.getLogger(__name__)
+    log.warning(msg)
 
 
 def quick_get_idver_perms(apk: str) \
