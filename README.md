@@ -94,7 +94,8 @@ e.g. `'META-INF/services/*'`.
 
 ```bash
 $ fix-files.py --help
-usage: fix-files.py [-h] [-v] INPUT_APK OUTPUT_APK COMMAND PATTERN [PATTERN ...]
+usage: fix-files.py [-h] [-v] [--compresslevel PATTERN:LEVELS]
+                    INPUT_APK OUTPUT_APK COMMAND PATTERN [PATTERN ...]
 [...]
 $ apksigcopier compare signed.apk --unsigned unsigned.apk
 DOES NOT VERIFY

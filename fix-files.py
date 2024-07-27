@@ -9,7 +9,7 @@ import zipfile
 import zlib
 
 from fnmatch import fnmatch
-from typing import Any, Dict, IO, Tuple
+from typing import Any, Dict, IO, List, Optional, Tuple
 
 ATTRS = ("compress_type", "create_system", "create_version", "date_time",
          "external_attr", "extract_version", "flag_bits")
@@ -48,8 +48,10 @@ class ReproducibleZipInfo(zipfile.ZipInfo):
         return object.__getattribute__(self, name)
 
 
-def fix_files(input_apk: str, output_apk: str, command: Tuple[str, ...],
-              *patterns: str, verbose: bool = False) -> None:
+def fix_files(input_apk: str, output_apk: str, command: Tuple[str, ...], *patterns: str,
+              compresslevels: Optional[Dict[str, List[int]]] = None, verbose: bool = False) -> None:
+    if not compresslevels:
+        compresslevels = {}
     if not patterns:
         raise ValueError("No patterns")
     with open(input_apk, "rb") as fh_raw:
@@ -59,6 +61,12 @@ def fix_files(input_apk: str, output_apk: str, command: Tuple[str, ...],
                     attrs = {attr: getattr(info, attr) for attr in ATTRS}
                     zinfo = ReproducibleZipInfo(info, **attrs)
                     if info.compress_type == 8:
+                        for pat, lvls in compresslevels.items():
+                            if fnmatch(info.filename, pat):
+                                levels = lvls
+                                break
+                        else:
+                            levels = list(LEVELS)
                         fh_raw.seek(info.header_offset)
                         n, m = struct.unpack("<HH", fh_raw.read(30)[26:30])
                         fh_raw.seek(info.header_offset + 30 + m + n)
@@ -68,15 +76,15 @@ def fix_files(input_apk: str, output_apk: str, command: Tuple[str, ...],
                             ccrc = zlib.crc32(fh_raw.read(min(size, 4096)), ccrc)
                             size -= 4096
                         with zf_in.open(info) as fh_in:
-                            comps = {lvl: zlib.compressobj(lvl, 8, -15) for lvl in LEVELS}
-                            ccrcs = {lvl: 0 for lvl in LEVELS}
+                            comps = {lvl: zlib.compressobj(lvl, 8, -15) for lvl in levels}
+                            ccrcs = {lvl: 0 for lvl in levels}
                             while True:
                                 data = fh_in.read(4096)
                                 if not data:
                                     break
-                                for lvl in LEVELS:
+                                for lvl in levels:
                                     ccrcs[lvl] = zlib.crc32(comps[lvl].compress(data), ccrcs[lvl])
-                            for lvl in LEVELS:
+                            for lvl in levels:
                                 if ccrc == zlib.crc32(comps[lvl].flush(), ccrcs[lvl]):
                                     zinfo._compresslevel = lvl
                                     break
@@ -144,16 +152,23 @@ def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
     return matches
 
 
+def _compresslevels(*specs: str) -> Dict[str, List[int]]:
+    return {pat: [int(x) for x in lvls.split(",")] for spec in specs
+            for pat, lvls in [spec.rsplit(":", 1)]}
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(prog="fix-files.py")
+    parser.add_argument("--compresslevel", action="append", metavar="PATTERN:LEVELS")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("input_apk", metavar="INPUT_APK")
     parser.add_argument("output_apk", metavar="OUTPUT_APK")
     parser.add_argument("command", metavar="COMMAND")
     parser.add_argument("patterns", metavar="PATTERN", nargs="+")
     args = parser.parse_args()
+    compresslevels = _compresslevels(*args.compresslevel) if args.compresslevel else None
     fix_files(args.input_apk, args.output_apk, tuple(args.command.split()),
-              *args.patterns, verbose=args.verbose)
+              *args.patterns, compresslevels=compresslevels, verbose=args.verbose)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

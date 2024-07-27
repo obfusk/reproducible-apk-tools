@@ -210,15 +210,18 @@ def main() -> None:
         Specify which files to process by providing at least one fnmatch-style
         PATTERN, e.g. 'META-INF/services/*'.
     """)
+    @click.option("--compresslevel", multiple=True, metavar="PATTERN:LEVELS",
+                  help="Specify compresslevel(s) (e.g '*.foo:6,9').")
     @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     @click.argument("command")
     @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
-    def fix_files(input_apk: str, output_apk: str, command: str,
-                  patterns: Tuple[str, ...], verbose: bool) -> None:
+    def fix_files(input_apk: str, output_apk: str, command: str, patterns: Tuple[str, ...],
+                  compresslevel: Tuple[str, ...], verbose: bool) -> None:
+        compresslevels = _fix_files._compresslevels(*compresslevel)
         _fix_files.fix_files(input_apk, output_apk, tuple(command.split()),
-                             *patterns, verbose=verbose)
+                             *patterns, compresslevels=compresslevels, verbose=verbose)
 
     @cli.command(help="""
         Change line endings from LF to CRLF (or vice versa).
