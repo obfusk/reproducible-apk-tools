@@ -327,8 +327,8 @@ alignment itself plus zero padding and is thus always at least 6 bytes).
 
 ```bash
 $ zipalign.py --help
-usage: zipalign.py [-h] [-p] [-P N] [--pad-like-apksigner] [--replace]
-                   [--copy-extra] [--no-update-lfh]
+usage: zipalign.py [-h] [-p] [-P N] [--pad-like-apksigner] [--replace] [--copy-extra]
+                   [--no-update-lfh]
                    [ALIGN] INPUT_APK OUTPUT_APK
 [...]
 $ zipalign -f 4 fixed.apk fixed-aligned.apk
@@ -351,14 +351,13 @@ Parse & dump ARSC or AXML.
 
 ```bash
 $ binres.py dump --help
-usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [--deref] [--prolog]
-                      [-q] [-v]
+usage: binres.py dump [-h] [--apk APK] [--json] [--xml] [--deref] [--prolog] [-q] [-v]
                       FILE_OR_PATTERN [FILE_OR_PATTERN ...]
 [...]
 $ binres.py dump AndroidManifest.xml
 file='AndroidManifest.xml'
 XML
-  STRING POOL [flags=0, #strings=16, #styles=0]
+  STRING POOL [#strings=16, #styles=0]
   XML RESOURCE MAP [#resources=6]
   XML NS START [lineno=1, prefix='android', uri='http://schemas.android.com/apk/res/android']
     XML ELEM START [lineno=1, name='manifest', #attributes=7]
@@ -383,11 +382,11 @@ $ binres.py dump --xml AndroidManifest.xml
 $ binres.py dump --apk some.apk '*.arsc' '*.xml'
 entry='AndroidManifest.xml'
 XML
-  STRING POOL [flags=0, #strings=26, #styles=0]
+  STRING POOL [#strings=26, #styles=0]
 [...]
 entry='resources.arsc'
 RESOURCE TABLE
-  STRING POOL [flags=256, #strings=3, #styles=0]
+  STRING POOL [flags=0x100, #strings=3, #styles=0]
 [...]
 ```
 
