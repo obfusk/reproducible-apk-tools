@@ -661,7 +661,7 @@ fnmatch-style patterns, e.g. `'assets/foo/*.bar'`.
 
 ```bash
 $ list-compresslevel.py --help
-usage: list-compresslevel.py [-h] APK [PATTERN ...]
+usage: list-compresslevel.py [-h] [--levels LEVELS] APK [PATTERN ...]
 [...]
 $ list-compresslevel.py some.apk
 filename='AndroidManifest.xml' compresslevel=9|6

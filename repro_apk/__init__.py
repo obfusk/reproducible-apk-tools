@@ -263,10 +263,13 @@ def main() -> None:
         You can optionally specify which files to list by providing one or more
         fnmatch-style patterns, e.g. 'assets/foo/*.bar'.
     """)
+    @click.option("--levels", metavar="LEVELS", help="Level(s) (0-9) to try"
+                  f" [default: '{','.join(map(str, _list_compresslevel.LEVELS))}'].")
     @click.argument("apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("patterns", metavar="[PATTERN...]", nargs=-1)
-    def list_compresslevel(apk: str, patterns: Tuple[str, ...]) -> None:
-        _list_compresslevel.list_compresslevel(apk, *patterns)
+    def list_compresslevel(apk: str, patterns: Tuple[str, ...], levels: Optional[str]) -> None:
+        _list_compresslevel.list_compresslevel(
+            apk, *patterns, levels=_list_compresslevel._levels(levels))
 
     @cli.command(help="""
         Remove entries from ZIP file.
