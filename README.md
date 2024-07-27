@@ -125,7 +125,8 @@ LF line endings, this script may help.
 
 ```bash
 $ fix-newlines.py --help
-usage: fix-newlines.py [-h] [--from-crlf] [--to-crlf] [-v] INPUT_APK OUTPUT_APK PATTERN [PATTERN ...]
+usage: fix-newlines.py [-h] [--from-crlf] [--to-crlf] [--compresslevel PATTERN:LEVELS] [-v]
+                       INPUT_APK OUTPUT_APK PATTERN [PATTERN ...]
 [...]
 $ apksigcopier compare signed.apk --unsigned unsigned.apk
 DOES NOT VERIFY

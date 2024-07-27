@@ -228,14 +228,17 @@ def main() -> None:
     """)
     @click.option("--from-crlf/--to-crlf", is_flag=True,
                   help="Change from CRLF to LF.  [default: LF to CRLF]")
+    @click.option("--compresslevel", multiple=True, metavar="PATTERN:LEVELS",
+                  help="Specify compresslevel(s) (e.g '*.foo:6,9').")
     @click.option("-v", "--verbose", is_flag=True, help="Be verbose.")
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
     def fix_newlines(input_apk: str, output_apk: str, patterns: Tuple[str, ...],
-                     from_crlf: bool, verbose: bool) -> None:
+                     from_crlf: bool, compresslevel: Tuple[str, ...], verbose: bool) -> None:
         replace = ("\r\n", "\n") if from_crlf else ("\n", "\r\n")
-        _fix_newlines.fix_newlines(input_apk, output_apk, *patterns,
+        compresslevels = _fix_newlines._compresslevels(*compresslevel)
+        _fix_newlines.fix_newlines(input_apk, output_apk, *patterns, compresslevels=compresslevels,
                                    replace=replace, verbose=verbose)
 
     @cli.command(help="""
