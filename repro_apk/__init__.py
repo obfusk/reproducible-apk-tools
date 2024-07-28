@@ -277,9 +277,14 @@ def main() -> None:
                   f" [default: '{','.join(map(str, _list_compresslevel.LEVELS))}'].")
     @click.argument("apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("patterns", metavar="[PATTERN...]", nargs=-1)
-    def list_compresslevel(apk: str, patterns: Tuple[str, ...], levels: Optional[str]) -> None:
-        _list_compresslevel.list_compresslevel(
-            apk, *patterns, levels=_list_compresslevel._levels(levels))
+    @click.pass_context
+    def list_compresslevel(ctx: click.Context, apk: str, patterns: Tuple[str, ...],
+                           levels: Optional[str]) -> None:
+        try:
+            clevels = _list_compresslevel.levels_from_spec(levels)
+        except ValueError as e:
+            raise click.exceptions.BadParameter(str(e), ctx)
+        _list_compresslevel.list_compresslevel(apk, *patterns, levels=clevels)
 
     @cli.command(help="""
         Remove entries from ZIP file.

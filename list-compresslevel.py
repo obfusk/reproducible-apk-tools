@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC (Fay) Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import struct
+import sys
 import zipfile
 import zlib
 
@@ -86,16 +87,44 @@ def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
     return matches
 
 
-def _levels(spec: Optional[str]) -> List[int]:
+def levels_from_spec(spec: Optional[str]) -> List[int]:
+    r"""
+    Get compresslevels from spec.
+
+    >>> levels_from_spec("1,4-6,9")
+    [1, 4, 5, 6, 9]
+    >>> levels_from_spec("1,9-6,4")
+    [1, 9, 8, 7, 6, 4]
+    >>> try:
+    ...     levels_from_spec("1,4-x")
+    ... except ValueError as e:
+    ...     str(e)
+    "Invalid LEVELS spec: '4-x'"
+    >>> try:
+    ...     levels_from_spec("1,10")
+    ... except ValueError as e:
+    ...     str(e)
+    "Invalid LEVELS spec: '10'"
+
+    """
     if not spec:
         return list(LEVELS)
     levels: List[int] = []
-    for x in spec.split(","):
-        if "-" in x:
-            m, n = map(int, x.split("-"))
-            levels.extend(range(m, n + 1) if m <= n else range(m, n - 1, -1))
-        else:
-            levels.append(int(x))
+    for subspec in spec.split(","):
+        try:
+            if "-" in subspec:
+                m, n = map(int, subspec.split("-"))
+                if not (0 <= m <= 9 and 0 <= n <= 9):
+                    raise ValueError("Out of range")
+                add = list(range(m, n + 1) if m <= n else range(m, n - 1, -1))
+            else:
+                n = int(subspec)
+                if not (0 <= n <= 9):
+                    raise ValueError("Out of range")
+                add = [n]
+        except ValueError as e:
+            raise ValueError(f"Invalid LEVELS spec: {subspec!r}") from e
+        levels.extend(add)
     return levels
 
 
@@ -107,7 +136,12 @@ if __name__ == "__main__":
     parser.add_argument("patterns", metavar="PATTERN", nargs="*")
     args = parser.parse_args()
     try:
-        list_compresslevel(args.apk, *args.patterns, levels=_levels(args.levels))
+        clevels = levels_from_spec(args.levels)
+    except ValueError as e:
+        print(f"Error: {e}.")
+        sys.exit(1)
+    try:
+        list_compresslevel(args.apk, *args.patterns, levels=clevels)
     except BrokenPipeError:
         pass
 
