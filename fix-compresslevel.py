@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC (Fay) Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import struct
@@ -59,7 +59,11 @@ def fix_compresslevel(input_apk: str, output_apk: str, compresslevel: int,
                     zinfo = ReproducibleZipInfo(info, **attrs)
                     tofix = fnmatches_with_negation(info.filename, *patterns)
                     level = None
-                    if info.compress_type == 8:
+                    if info.compress_type not in (0, 8):
+                        raise Error(f"Unsupported compress_type {info.compress_type}")
+                    if info.compress_type == 0 and tofix:
+                        raise Error("Expected compress_type 8 to fix compresslevel")
+                    if info.compress_type == 8 and not tofix:
                         fh_raw.seek(info.header_offset)
                         n, m = struct.unpack("<HH", fh_raw.read(30)[26:30])
                         fh_raw.seek(info.header_offset + 30 + m + n)
@@ -83,8 +87,6 @@ def fix_compresslevel(input_apk: str, output_apk: str, compresslevel: int,
                                     break
                             else:
                                 raise Error(f"Unable to determine compresslevel for {info.filename!r}")
-                    elif tofix or info.compress_type != 0:
-                        raise Error(f"Unsupported compress_type {info.compress_type}")
                     if tofix:
                         print(f"fixing {info.filename!r}...")
                         zinfo._compresslevel = compresslevel
