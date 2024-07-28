@@ -171,7 +171,7 @@ def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
 
 
 def compresslevels_from_spec(*specs: str) -> Dict[str, List[int]]:
-    """
+    r"""
     Get compresslevels from PATTERN:LEVELS specs.
 
     >>> compresslevels_from_spec("foo/*.bar:6,9", "*:4")
