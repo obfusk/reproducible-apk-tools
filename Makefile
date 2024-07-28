@@ -50,16 +50,18 @@ test-examples:
 	$(REPROAPK) fix-compresslevel test/data/level9.apk .tmp/level9-to-6.apk 6 'LICENSE.*'
 	zipalign -f 4 .tmp/level9-to-6.apk .tmp/level9-to-6-aligned.apk
 	cmp test/data/level6.apk .tmp/level9-to-6-aligned.apk
-	# fix-files
+	# fix-files (& fix-compresslevel)
 	$(REPROAPK) fix-files test/data/unix.apk .tmp/unix2dos.apk unix2dos 'LICENSE.*'
 	zipalign -f 4 .tmp/unix2dos.apk .tmp/unix2dos-aligned.apk
 	cmp test/data/crlf.apk .tmp/unix2dos-aligned.apk
 	$(REPROAPK) fix-files test/data/test-unix.zip .tmp/unix2dos.zip unix2dos '*'
 	! cmp test/data/test-dos.zip .tmp/unix2dos.zip
+	$(REPROAPK) fix-compresslevel .tmp/unix2dos.zip .tmp/unix2dos-fixed.zip 6 test
+	cmp test/data/test-dos.zip .tmp/unix2dos-fixed.zip
 	$(REPROAPK) fix-files test/data/test-unix.zip .tmp/unix2dos-l6.zip unix2dos '*' \
 	  --compresslevel '*:6'
 	cmp test/data/test-dos.zip .tmp/unix2dos-l6.zip
-	# fix-newlines
+	# fix-newlines (& fix-compresslevel)
 	$(REPROAPK) fix-newlines test/data/unix.apk .tmp/unix-to-crlf.apk 'LICENSE.*'
 	zipalign -f 4 .tmp/unix-to-crlf.apk .tmp/unix-to-crlf-aligned.apk
 	cmp test/data/crlf.apk .tmp/unix-to-crlf-aligned.apk
@@ -68,6 +70,8 @@ test-examples:
 	cmp test/data/unix.apk .tmp/crlf-to-unix-aligned.apk
 	$(REPROAPK) fix-newlines test/data/test-unix.zip .tmp/lf2crlf.zip '*'
 	! cmp test/data/test-dos.zip .tmp/lf2crlf.zip
+	$(REPROAPK) fix-compresslevel .tmp/lf2crlf.zip .tmp/lf2crlf-fixed.zip 6 test
+	cmp test/data/test-dos.zip .tmp/lf2crlf-fixed.zip
 	$(REPROAPK) fix-newlines test/data/test-unix.zip .tmp/lf2crlf-l6.zip '*' \
 	  --compresslevel '*:6'
 	cmp test/data/test-dos.zip .tmp/lf2crlf-l6.zip
