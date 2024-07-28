@@ -1,10 +1,11 @@
 #!/usr/bin/python3
 # encoding: utf-8
-# SPDX-FileCopyrightText: 2023 FC (Fay) Stegerman <flx@obfusk.net>
+# SPDX-FileCopyrightText: 2024 FC (Fay) Stegerman <flx@obfusk.net>
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import struct
 import subprocess
+import sys
 import zipfile
 import zlib
 
@@ -152,9 +153,32 @@ def fnmatches_with_negation(filename: str, *patterns: str) -> bool:
     return matches
 
 
-def _compresslevels(*specs: str) -> Dict[str, List[int]]:
-    return {pat: [int(x) for x in lvls.split(",")] for spec in specs
-            for pat, lvls in [spec.rsplit(":", 1)]}
+def compresslevels_from_spec(*specs: str) -> Dict[str, List[int]]:
+    """
+    Get compresslevels from PATTERN:LEVELS specs.
+
+    >>> compresslevels_from_spec("foo/*.bar:6,9", "*:4")
+    {'foo/*.bar': [6, 9], '*': [4]}
+    >>> try:
+    ...     compresslevels_from_spec("foo:4", "oops")
+    ... except ValueError as e:
+    ...     str(e)
+    "Invalid PATTERN:LEVELS spec: 'oops'"
+    >>> try:
+    ...     compresslevels_from_spec("oops:x,y")
+    ... except ValueError as e:
+    ...     str(e)
+    "Invalid PATTERN:LEVELS spec: 'oops:x,y'"
+
+    """
+    levels = {}
+    for spec in specs:
+        try:
+            pat, lvls = spec.rsplit(":", 1)
+            levels[pat] = [int(x) for x in lvls.split(",")]
+        except ValueError as e:
+            raise ValueError(f"Invalid PATTERN:LEVELS spec: {spec!r}") from e
+    return levels
 
 
 if __name__ == "__main__":
@@ -167,8 +191,12 @@ if __name__ == "__main__":
     parser.add_argument("command", metavar="COMMAND")
     parser.add_argument("patterns", metavar="PATTERN", nargs="+")
     args = parser.parse_args()
-    compresslevels = _compresslevels(*args.compresslevel) if args.compresslevel else None
+    try:
+        clevels = compresslevels_from_spec(*args.compresslevel) if args.compresslevel else None
+    except ValueError as e:
+        print(f"Error: {e}.")
+        sys.exit(1)
     fix_files(args.input_apk, args.output_apk, tuple(args.command.split()),
-              *args.patterns, compresslevels=compresslevels, verbose=args.verbose)
+              *args.patterns, compresslevels=clevels, verbose=args.verbose)
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :

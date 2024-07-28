@@ -217,11 +217,16 @@ def main() -> None:
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     @click.argument("command")
     @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
-    def fix_files(input_apk: str, output_apk: str, command: str, patterns: Tuple[str, ...],
-                  compresslevel: Tuple[str, ...], verbose: bool) -> None:
-        compresslevels = _fix_files._compresslevels(*compresslevel)
+    @click.pass_context
+    def fix_files(ctx: click.Context, input_apk: str, output_apk: str, command: str,
+                  patterns: Tuple[str, ...], compresslevel: Tuple[str, ...],
+                  verbose: bool) -> None:
+        try:
+            clevels = _fix_files.compresslevels_from_spec(*compresslevel)
+        except ValueError as e:
+            raise click.exceptions.BadParameter(str(e), ctx)
         _fix_files.fix_files(input_apk, output_apk, tuple(command.split()),
-                             *patterns, compresslevels=compresslevels, verbose=verbose)
+                             *patterns, compresslevels=clevels, verbose=verbose)
 
     @cli.command(help="""
         Change line endings from LF to CRLF (or vice versa).
@@ -237,11 +242,16 @@ def main() -> None:
     @click.argument("input_apk", type=click.Path(exists=True, dir_okay=False))
     @click.argument("output_apk", type=click.Path(dir_okay=False))
     @click.argument("patterns", metavar="PATTERN...", nargs=-1, required=True)
-    def fix_newlines(input_apk: str, output_apk: str, patterns: Tuple[str, ...],
-                     from_crlf: bool, compresslevel: Tuple[str, ...], verbose: bool) -> None:
+    @click.pass_context
+    def fix_newlines(ctx: click.Context, input_apk: str, output_apk: str,
+                     patterns: Tuple[str, ...], from_crlf: bool,
+                     compresslevel: Tuple[str, ...], verbose: bool) -> None:
         replace = ("\r\n", "\n") if from_crlf else ("\n", "\r\n")
-        compresslevels = _fix_newlines._compresslevels(*compresslevel)
-        _fix_newlines.fix_newlines(input_apk, output_apk, *patterns, compresslevels=compresslevels,
+        try:
+            clevels = _fix_newlines.compresslevels_from_spec(*compresslevel)
+        except ValueError as e:
+            raise click.exceptions.BadParameter(str(e), ctx)
+        _fix_newlines.fix_newlines(input_apk, output_apk, *patterns, compresslevels=clevels,
                                    replace=replace, verbose=verbose)
 
     @cli.command(help="""
