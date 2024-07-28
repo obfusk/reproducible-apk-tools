@@ -54,6 +54,11 @@ test-examples:
 	$(REPROAPK) fix-files test/data/unix.apk .tmp/unix2dos.apk unix2dos 'LICENSE.*'
 	zipalign -f 4 .tmp/unix2dos.apk .tmp/unix2dos-aligned.apk
 	cmp test/data/crlf.apk .tmp/unix2dos-aligned.apk
+	$(REPROAPK) fix-files test/data/test-unix.zip .tmp/unix2dos.zip unix2dos '*'
+	! cmp test/data/test-dos.zip .tmp/unix2dos.zip
+	$(REPROAPK) fix-files test/data/test-unix.zip .tmp/unix2dos-l6.zip unix2dos '*' \
+	  --compresslevel '*:6'
+	cmp test/data/test-dos.zip .tmp/unix2dos-l6.zip
 	# fix-newlines
 	$(REPROAPK) fix-newlines test/data/unix.apk .tmp/unix-to-crlf.apk 'LICENSE.*'
 	zipalign -f 4 .tmp/unix-to-crlf.apk .tmp/unix-to-crlf-aligned.apk
@@ -61,6 +66,11 @@ test-examples:
 	$(REPROAPK) fix-newlines --from-crlf test/data/crlf.apk .tmp/crlf-to-unix.apk 'LICENSE.*'
 	zipalign -f 4 .tmp/crlf-to-unix.apk .tmp/crlf-to-unix-aligned.apk
 	cmp test/data/unix.apk .tmp/crlf-to-unix-aligned.apk
+	$(REPROAPK) fix-newlines test/data/test-unix.zip .tmp/lf2crlf.zip '*'
+	! cmp test/data/test-dos.zip .tmp/lf2crlf.zip
+	$(REPROAPK) fix-newlines test/data/test-unix.zip .tmp/lf2crlf-l6.zip '*' \
+	  --compresslevel '*:6'
+	cmp test/data/test-dos.zip .tmp/lf2crlf-l6.zip
 	# fix-newlines via repro-apk-inplace-fix
 	cp test/data/unix.apk .tmp/unix-to-crlf-inplace.apk
 	$(INPLACEFIX) --zipalign fix-newlines .tmp/unix-to-crlf-inplace.apk 'LICENSE.*'
@@ -199,6 +209,12 @@ test-examples:
 	  <( $(REPROAPK) list-compresslevel level9.apk )
 	cd test/data && diff -Naur <( echo "filename='LICENSE.GPLv3' compresslevel=6" ) \
 	  <( $(REPROAPK) list-compresslevel unix.apk LICENSE.GPLv3 )
+	cd test/data && diff -Naur <( echo "filename='test' compresslevel=9|6" ) \
+	  <( $(REPROAPK) list-compresslevel test-unix.zip )
+	cd test/data && diff -Naur <( echo "filename='test' compresslevel=6|4|1" ) \
+	  <( $(REPROAPK) list-compresslevel test-dos.zip )
+	cd test/data && diff -Naur <( echo "filename='test' compresslevel=6" ) \
+	  <( $(REPROAPK) list-compresslevel test-dos.zip --levels 6,9 )
 	# zipalign
 	$(REPROAPK) zipalign .tmp/level6-to-9.apk .tmp/level6-to-9-aligned-py.apk
 	cmp .tmp/level6-to-9-aligned.apk .tmp/level6-to-9-aligned-py.apk
