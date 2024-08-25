@@ -11,7 +11,8 @@ import os
 import struct
 
 from dataclasses import dataclass
-from typing import BinaryIO, List, Optional, Tuple, Union
+from functools import cached_property
+from typing import BinaryIO, Dict, List, Optional, Tuple, Union
 
 CDFH_SIGNATURE = b"\x50\x4b\x01\x02"    # central directory file header
 ELFH_SIGNATURE = b"\x50\x4b\x03\x04"    # entry local file header
@@ -95,6 +96,9 @@ class CDEntry:
     extra: bytes                # extra_len (m)
     comment: bytes              # comment_len (k)
 
+    def load_entry(self, fh: BinaryIO) -> ZipEntry:
+        return ZipEntry.load(fh, self.header_offset)
+
     @property
     def datetime(self) -> Tuple[int, int, int, int, int, int]:
         return parse_datetime(self.mdate, self.mtime)
@@ -149,6 +153,18 @@ class ZipFile:
     file: Union[BinaryIO, str]
     cd_entries: List[CDEntry]
     eocd: EOCD
+
+    # FIXME
+    @cached_property
+    def cd_entries_by_name(self) -> Dict[str, CDEntry]:
+        return {e.filename.decode(): e for e in self.cd_entries}
+
+    def load_entry(self, filename: str) -> Tuple[CDEntry, ZipEntry]:
+        cd_entry = self.cd_entries_by_name[filename]
+        if isinstance(self.file, str):
+            with open(self.file, "rb") as fh:
+                return cd_entry, cd_entry.load_entry(fh)
+        return cd_entry, cd_entry.load_entry(self.file)
 
     @classmethod
     def load(cls, zipfile: Union[BinaryIO, str], *, count: int = 1024) -> ZipFile:
