@@ -77,8 +77,11 @@ ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=1, num_cd_records_to
 'BBBBBBBBBBBBBBBBBBB\n'
 
 >>> with ZipFile.open("test/data/foo.zip") as zf:
-...     list(zf.compressed_chunks("foo"))
-...     zf.read("foo").decode()
+...     for filename, entry in zf.cd_entries_by_name.items():
+...         filename
+...         list(zf.compressed_chunks(filename))
+...         zf.read(entry).decode()
+'foo'
 [b'foo']
 'foo'
 
