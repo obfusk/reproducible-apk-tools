@@ -10,6 +10,7 @@ https://en.wikipedia.org/wiki/ZIP_(file_format)
 
 >>> import dataclasses
 >>> with ZipFile.open("test/data/golden-aligned-in.apk") as zf:
+...     zf.validate()
 ...     zf.filename
 ...     for ent in zf.cd_entries:
 ...         lent = zf.load_entry(ent)
@@ -48,6 +49,7 @@ ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=8, num_cd_records_to
 
 from __future__ import annotations
 
+import dataclasses
 import os
 import struct
 
@@ -69,7 +71,18 @@ FLAG_UTF8 = 0x800
 
 class ZipError(Exception):
     """ZIP error base class."""
-    pass
+
+
+class BrokenZipError(ZipError):
+    """Broken ZIP file."""
+
+
+class BadZipError(ZipError):
+    """Bad (but not broken) ZIP file."""
+
+
+class ZipValidationError(ZipError):
+    """ZIP file validation error."""
 
 
 # FIXME
@@ -122,6 +135,16 @@ class ZipEntry:
         """Parse mdate & mtime into datetime tuple."""
         return parse_datetime(self.mdate, self.mtime)
 
+    # FIXME: handle data descriptor
+    def validate(self, extra: bool = False) -> None:
+        """Validate against cd_entry."""
+        exclude = {"signature", "cd_entry"}
+        if not extra:
+            exclude.update({"extra_len", "extra"})
+        for f in sorted(set(f.name for f in dataclasses.fields(self)) - exclude):
+            if getattr(self, f) != getattr(self.cd_entry, f):
+                raise ZipValidationError(f"Field {f!r} differs between entry and central directory")
+
     @classmethod
     def load(_cls, fh: BinaryIO, cd_entry: ZipCDEntry) -> ZipEntry:
         """Load ZipEntry corresponding to ZipCDEntry from file handle."""
@@ -129,7 +152,7 @@ class ZipEntry:
         data = fh.read(30)
         signature = data[:4]
         if signature != ELFH_SIGNATURE:
-            raise ZipError("Expected local file header")
+            raise BrokenZipError("Expected local file header")
         (version_extract, flags, compression_method, mtime, mdate, crc32, compressed_size,
             uncompressed_size, n, m) = struct.unpack("<HHHHHIIIHH", data[4:30])
         data += fh.read(n + m)
@@ -192,7 +215,7 @@ class ZipCDEntry:
         """Parse one ZipCDEntry from CD data, return (entry, remaining data)."""
         signature = data[:4]
         if signature != CDFH_SIGNATURE:
-            raise ZipError("Expected central directory file header")
+            raise BrokenZipError("Expected central directory file header")
         (version_created, version_extract, flags, compression_method, mtime, mdate, crc32,
             compressed_size, uncompressed_size, n, m, k, start_disk, internal_attrs,
             external_attrs, header_offset) = struct.unpack("<HHHHHHIIIHHHHHII", data[4:46])
@@ -228,11 +251,11 @@ class ZipEOCD:
         """Parse ZipEOCD from EOCD data + offset."""
         signature = data[:4]
         if signature != EOCD_SIGNATURE:
-            raise ZipError("Expected end of central directory record (EOCD)")
+            raise BrokenZipError("Expected end of central directory record (EOCD)")
         (disk_number, cd_start_disk, num_cd_records_disk, num_cd_records_total,
             cd_size, cd_offset, n) = struct.unpack("<HHHHIIH", data[4:22])
         if cd_offset + cd_size != offset:
-            raise ZipError("Expected eocd_offset = cd_offset + cd_size")
+            raise BrokenZipError("Expected eocd_offset = cd_offset + cd_size")
         comment = data[22:]
         return _cls(signature, disk_number, cd_start_disk, num_cd_records_disk,
                     num_cd_records_total, cd_size, cd_offset, n, comment)
@@ -263,7 +286,7 @@ class ZipFile:
         entries: Dict[str, ZipCDEntry] = {}
         for e in self.cd_entries:
             if e.decoded_filename in entries:
-                raise ZipError(f"Duplicate entry {e.decoded_filename!r}")
+                raise BadZipError(f"Duplicate entry {e.decoded_filename!r}")
             entries[e.decoded_filename] = e
         return entries
 
@@ -275,6 +298,18 @@ class ZipFile:
         if hasattr(self.file, "name"):
             return self.file.name
         return None
+
+    def validate(self, extra: bool = False) -> None:
+        """Validate local entries against cental directory."""
+        if isinstance(self.file, str):
+            with open(self.file, "rb") as fh:
+                self._validate(fh, extra=extra)
+        else:
+            self._validate(self.file, extra=extra)
+
+    def _validate(self, fh: BinaryIO, extra: bool) -> None:
+        for e in self.cd_entries:
+            e.load_entry(fh).validate(extra)
 
     @classmethod
     @contextmanager
@@ -306,7 +341,7 @@ class ZipFile:
                 eocd_data = fh.read()
                 return ZipFile(filename or fh, cls._parse_cd_entries(cd_data),
                                ZipEOCD.parse(eocd_data, eocd_offset))
-        raise ZipError("Expected end of central directory record (EOCD)")
+        raise BrokenZipError("Expected end of central directory record (EOCD)")
 
     @classmethod
     def _parse_cd_entries(_cls, data: bytes) -> List[ZipCDEntry]:
