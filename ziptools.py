@@ -21,28 +21,28 @@ https://en.wikipedia.org/wiki/ZIP_(file_format)
 'test/data/golden-aligned-in.apk'
 ('META-INF/', 'META-INF/')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=0, compressed_size=2, uncompressed_size=0, filename_len=9, extra_len=4, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=0, filename=b'META-INF/', extra=b'\xfe\xca\x00\x00', comment=b'')
-ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=0, compressed_size=2, uncompressed_size=0, filename_len=9, extra_len=4, filename=b'META-INF/', extra=4)
+ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=0, compressed_size=2, uncompressed_size=0, filename_len=9, extra_len=4, filename=b'META-INF/', extra=4, size=61)
 ('META-INF/MANIFEST.MF', 'META-INF/MANIFEST.MF')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=3037116564, compressed_size=76, uncompressed_size=77, filename_len=20, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=61, filename=b'META-INF/MANIFEST.MF', extra=b'', comment=b'')
-ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=3037116564, compressed_size=76, uncompressed_size=77, filename_len=20, extra_len=0, filename=b'META-INF/MANIFEST.MF', extra=0)
+ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=3037116564, compressed_size=76, uncompressed_size=77, filename_len=20, extra_len=0, filename=b'META-INF/MANIFEST.MF', extra=0, size=142)
 ('AndroidManifest.xml', 'AndroidManifest.xml')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=0, mdate=14881, crc32=1633612288, compressed_size=630, uncompressed_size=1672, filename_len=19, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=203, filename=b'AndroidManifest.xml', extra=b'', comment=b'')
-ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=0, mdate=14881, crc32=1633612288, compressed_size=630, uncompressed_size=1672, filename_len=19, extra_len=0, filename=b'AndroidManifest.xml', extra=0)
+ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=0, mdate=14881, crc32=1633612288, compressed_size=630, uncompressed_size=1672, filename_len=19, extra_len=0, filename=b'AndroidManifest.xml', extra=0, size=695)
 ('classes.dex', 'classes.dex')
 ZipCDEntry(version_created=10, version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=2575816152, compressed_size=1536, uncompressed_size=1536, filename_len=11, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=898, filename=b'classes.dex', extra=b'', comment=b'')
-ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=2575816152, compressed_size=1536, uncompressed_size=1536, filename_len=11, extra_len=9, filename=b'classes.dex', extra=9)
+ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=2575816152, compressed_size=1536, uncompressed_size=1536, filename_len=11, extra_len=9, filename=b'classes.dex', extra=9, size=50)
 ('temp.txt', 'temp.txt')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23386, mdate=19119, crc32=4286586065, compressed_size=6, uncompressed_size=29, filename_len=8, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=2484, filename=b'temp.txt', extra=b'', comment=b'')
-ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23386, mdate=19119, crc32=4286586065, compressed_size=6, uncompressed_size=29, filename_len=8, extra_len=0, filename=b'temp.txt', extra=0)
+ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23386, mdate=19119, crc32=4286586065, compressed_size=6, uncompressed_size=29, filename_len=8, extra_len=0, filename=b'temp.txt', extra=0, size=60)
 ('lib/armeabi/fake.so', 'lib/armeabi/fake.so')
 ZipCDEntry(version_created=10, version_extract=10, flags=2048, compression_method=0, mtime=23312, mdate=19119, crc32=831927574, compressed_size=6, uncompressed_size=6, filename_len=19, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=2544, filename=b'lib/armeabi/fake.so', extra=b'', comment=b'')
-ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=23312, mdate=19119, crc32=831927574, compressed_size=6, uncompressed_size=6, filename_len=19, extra_len=1503, filename=b'lib/armeabi/fake.so', extra=1503)
+ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=23312, mdate=19119, crc32=831927574, compressed_size=6, uncompressed_size=6, filename_len=19, extra_len=1503, filename=b'lib/armeabi/fake.so', extra=1503, size=1552)
 ('resources.arsc', 'resources.arsc')
 ZipCDEntry(version_created=10, version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=1338685473, compressed_size=896, uncompressed_size=896, filename_len=14, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=4102, filename=b'resources.arsc', extra=b'', comment=b'')
-ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=1338685473, compressed_size=896, uncompressed_size=896, filename_len=14, extra_len=6, filename=b'resources.arsc', extra=6)
+ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=1338685473, compressed_size=896, uncompressed_size=896, filename_len=14, extra_len=6, filename=b'resources.arsc', extra=6, size=50)
 ('temp2.txt', 'temp2.txt')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23444, mdate=19119, crc32=3382197893, compressed_size=6, uncompressed_size=20, filename_len=9, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=5048, filename=b'temp2.txt', extra=b'', comment=b'')
-ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23444, mdate=19119, crc32=3382197893, compressed_size=6, uncompressed_size=20, filename_len=9, extra_len=0, filename=b'temp2.txt', extra=0)
+ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23444, mdate=19119, crc32=3382197893, compressed_size=6, uncompressed_size=20, filename_len=9, extra_len=0, filename=b'temp2.txt', extra=0, size=61)
 ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=8, num_cd_records_total=8, cd_size=481, cd_offset=5109, comment_len=0, comment=b'')
 
 """
@@ -56,11 +56,12 @@ import struct
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import BinaryIO, Dict, Generator, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import BinaryIO, ClassVar, Dict, Generator, List, Optional, Tuple, Union, TYPE_CHECKING
 
 CDFH_SIGNATURE = b"\x50\x4b\x01\x02"    # central directory file header
 ELFH_SIGNATURE = b"\x50\x4b\x03\x04"    # entry local file header
 EOCD_SIGNATURE = b"\x50\x4b\x05\x06"    # end of central directory
+ODDH_SIGNATURE = b"\x50\x4b\x07\x08"    # optional data descriptor header
 
 COMPRESSION_STORED = 0
 COMPRESSION_DEFLATE = 8
@@ -85,7 +86,6 @@ class ZipValidationError(ZipError):
     """ZIP file validation error."""
 
 
-# FIXME
 @dataclass(frozen=True)
 class ZipDataDescriptor:
     """ZIP entry data descriptor."""
@@ -95,12 +95,11 @@ class ZipDataDescriptor:
     uncompressed_size: int                          # 4
 
 
-# FIXME: data descriptor, load & decompress data, ...
-# FIXME: check against ZipCDEntry
+# FIXME: load & decompress data, ...
 @dataclass(frozen=True)
 class ZipEntry:
     """ZIP entry."""
-    signature: bytes = field(repr=False)            # 4
+    signature: ClassVar[bytes] = ELFH_SIGNATURE     # 4
     version_extract: int                            # 2
     flags: int                                      # 2
     compression_method: int                         # 2
@@ -113,6 +112,8 @@ class ZipEntry:
     extra_len: int                                  # 2
     filename: bytes                                 # filename_len (n)
     extra: bytes                                    # extra_len (m)
+    size: int                                       # total size
+    data_descriptor: Optional[ZipDataDescriptor] = field(repr=False)
     cd_entry: ZipCDEntry = field(repr=False)
 
     @cached_property
@@ -138,11 +139,16 @@ class ZipEntry:
     # FIXME: handle data descriptor
     def validate(self, extra: bool = False) -> None:
         """Validate against cd_entry."""
-        exclude = {"signature", "cd_entry"}
+        dd_fields = {"crc32", "compressed_size", "uncompressed_size"}
+        exclude = {"size", "data_descriptor", "cd_entry"}
         if not extra:
             exclude.update({"extra_len", "extra"})
         for f in sorted(set(f.name for f in dataclasses.fields(self)) - exclude):
-            if getattr(self, f) != getattr(self.cd_entry, f):
+            if self.data_descriptor and f in dd_fields:
+                value = getattr(self.data_descriptor, f)
+            else:
+                value = getattr(self, f)
+            if getattr(self.cd_entry, f) != value:
                 raise ZipValidationError(f"Field {f!r} differs between entry and central directory")
 
     @classmethod
@@ -158,14 +164,26 @@ class ZipEntry:
         data += fh.read(n + m)
         filename = data[30:30 + n]
         extra = data[30 + n:30 + n + m]
-        return _cls(signature, version_extract, flags, compression_method, mtime, mdate, crc32,
-                    compressed_size, uncompressed_size, n, m, filename, extra, cd_entry)
+        if flags & FLAG_DATA_DESCRIPTOR:
+            fh.seek(cd_entry.compressed_size, os.SEEK_CUR)
+            dd_data = fh.read(12)
+            if dd_data[:4] == ODDH_SIGNATURE:
+                dd_sig, dd_data = ODDH_SIGNATURE, dd_data[4:] + fh.read(4)
+            else:
+                dd_sig = None
+            dd_crc32, dd_compressed_size, dd_uncompressed_size = struct.unpack("<III", dd_data)
+            data_descriptor = ZipDataDescriptor(dd_sig, dd_crc32, dd_compressed_size, dd_uncompressed_size)
+        else:
+            data_descriptor = None
+        size = fh.tell() - cd_entry.header_offset
+        return _cls(version_extract, flags, compression_method, mtime, mdate, crc32, compressed_size,
+                    uncompressed_size, n, m, filename, extra, size, data_descriptor, cd_entry)
 
 
 @dataclass(frozen=True)
 class ZipCDEntry:
     """ZIP central directory entry."""
-    signature: bytes = field(repr=False)            # 4
+    signature: ClassVar[bytes] = CDFH_SIGNATURE     # 4
     version_created: int                            # 2
     version_extract: int                            # 2
     flags: int                                      # 2
@@ -222,7 +240,7 @@ class ZipCDEntry:
         filename = data[46:46 + n]
         extra = data[46 + n:46 + n + m]
         comment = data[46 + n + m:46 + n + m + k]
-        return _cls(signature, version_created, version_extract, flags, compression_method,
+        return _cls(version_created, version_extract, flags, compression_method,
                     mtime, mdate, crc32, compressed_size, uncompressed_size, n, m, k,
                     start_disk, internal_attrs, external_attrs, header_offset, filename,
                     extra, comment), data[46 + n + m + k:]
@@ -231,7 +249,7 @@ class ZipCDEntry:
 @dataclass(frozen=True)
 class ZipEOCD:
     """ZIP end of central directory record."""
-    signature: bytes = field(repr=False)            # 4
+    signature: ClassVar[bytes] = EOCD_SIGNATURE     # 4
     disk_number: int                                # 2
     cd_start_disk: int                              # 2
     num_cd_records_disk: int                        # 2
@@ -257,12 +275,13 @@ class ZipEOCD:
         if cd_offset + cd_size != offset:
             raise BrokenZipError("Expected eocd_offset = cd_offset + cd_size")
         comment = data[22:]
-        return _cls(signature, disk_number, cd_start_disk, num_cd_records_disk,
-                    num_cd_records_total, cd_size, cd_offset, n, comment)
+        return _cls(disk_number, cd_start_disk, num_cd_records_disk, num_cd_records_total,
+                    cd_size, cd_offset, n, comment)
 
 
 # FIXME: zip64, write & append, modify, ...
 # FIXME: check overlap etc.
+# FIXME: space before/after: read & check
 # FIXME: zipalign, zipinfo, ...
 @dataclass(frozen=True)
 class ZipFile:
