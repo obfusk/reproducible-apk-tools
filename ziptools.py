@@ -44,8 +44,6 @@ ZipEOCD(signature=b'PK\x05\x06', disk_number=0, cd_start_disk=0, num_cd_records_
 
 """
 
-# FIXME: zip64, ...
-
 from __future__ import annotations
 
 import os
@@ -82,7 +80,8 @@ class ZipDataDescriptor:
     uncompressed_size: int      # 4
 
 
-# FIXME: data descriptor, load data, Flags, check against ZipCDEntry, ...
+# FIXME: data descriptor, load & decompress data, ...
+# FIXME: check against ZipCDEntry
 @dataclass(frozen=True)
 class ZipEntry:
     """ZIP entry."""
@@ -231,7 +230,9 @@ class ZipEOCD:
                     num_cd_records_total, cd_size, cd_offset, n, comment, offset)
 
 
-# FIXME: load entry, ...
+# FIXME: zip64, write & append, modify, ...
+# FIXME: check overlap etc.
+# FIXME: zipalign, zipinfo, ...
 @dataclass(frozen=True)
 class ZipFile:
     """ZIP file."""
@@ -248,7 +249,6 @@ class ZipFile:
                 return entry.load_entry(fh)
         return entry.load_entry(self.file)
 
-    # FIXME
     @cached_property
     def cd_entries_by_name(self) -> Dict[str, ZipCDEntry]:
         """Map of decoded filename to ZipCDEntry."""
@@ -300,7 +300,6 @@ class ZipFile:
                                ZipEOCD.parse(eocd_data, eocd_offset))
         raise ZipError("Expected end of central directory record (EOCD)")
 
-    # FIXME: check overlap, ...
     @classmethod
     def _parse_cd_entries(_cls, data: bytes) -> List[ZipCDEntry]:
         entries = []
