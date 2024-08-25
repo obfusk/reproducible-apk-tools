@@ -358,13 +358,13 @@ class ZipEOCD:
 @dataclass(frozen=True)
 class ZipFile:
     """ZIP file."""
-    file: BinaryIO = field(compare=False, repr=False)
+    _file: BinaryIO = field(compare=False, repr=False)
     cd_entries: List[ZipCDEntry]
     eocd: ZipEOCD
 
     def load_entry(self, entry: Union[ZipCDEntry, str]) -> ZipEntry:
         """Load ZipEntry from ZipCDEntry or by name."""
-        return self._entry(entry).load_entry(self.file)
+        return self._entry(entry).load_entry(self._file)
 
     def read(self, entry: Union[ZipCDEntry, str]) -> bytes:
         """Read entire uncompressed file."""
@@ -373,12 +373,12 @@ class ZipFile:
     def compressed_chunks(self, entry: Union[ZipCDEntry, str], *,
                           chunk_size: int = 4096) -> Iterator[bytes]:
         """Read chunks of raw (compressed) data."""
-        return self.load_entry(entry).compressed_chunks(self.file, chunk_size=chunk_size)
+        return self.load_entry(entry).compressed_chunks(self._file, chunk_size=chunk_size)
 
     def uncompressed_chunks(self, entry: Union[ZipCDEntry, str], *,
                             chunk_size: int = 4096) -> Iterator[bytes]:
         """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
-        return self.load_entry(entry).uncompressed_chunks(self.file, chunk_size=chunk_size)
+        return self.load_entry(entry).uncompressed_chunks(self._file, chunk_size=chunk_size)
 
     def _entry(self, entry: Union[ZipCDEntry, str]) -> ZipCDEntry:
         return self.cd_entries_by_name[entry] if isinstance(entry, str) else entry
@@ -396,12 +396,12 @@ class ZipFile:
     @property
     def filename(self) -> Optional[str]:
         """Get file name."""
-        return getattr(self.file, "name", None)
+        return getattr(self._file, "name", None)
 
     def validate(self, extra: bool = False) -> None:
         """Validate local entries against cental directory."""
         for e in self.cd_entries:
-            e.load_entry(self.file).validate(extra)
+            e.load_entry(self._file).validate(extra)
 
     @classmethod
     @contextmanager
