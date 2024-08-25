@@ -9,31 +9,37 @@ ZIP file tools.
 https://en.wikipedia.org/wiki/ZIP_(file_format)
 
 >>> import dataclasses
->>> with ZipFile.open("test/data/golden-aligned-in.apk") as zf:
-...     zf.validate()
-...     zf.filename
-...     for ent in zf.cd_entries:
-...         lent = zf.load_entry(ent)
-...         (ent.decoded_filename, lent.decoded_filename)
-...         ent
-...         dataclasses.replace(lent, extra=len(lent.extra))
-...     zf.eocd
+>>> for file in ("golden-aligned-in.apk", "foo.zip"):
+...     with ZipFile.open(f"test/data/{file}") as zf:
+...         zf.validate()
+...         zf.filename
+...         for ent in zf.cd_entries:
+...             lent = zf.load_entry(ent)
+...             (ent.decoded_filename, lent.decoded_filename)
+...             ent
+...             dataclasses.replace(lent, extra=len(lent.extra))
+...             lent.data_descriptor
+...         zf.eocd
 'test/data/golden-aligned-in.apk'
 ('META-INF/', 'META-INF/')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=0, compressed_size=2, uncompressed_size=0, filename_len=9, extra_len=4, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=0, filename=b'META-INF/', extra=b'\xfe\xca\x00\x00', comment=b'')
 ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=0, compressed_size=2, uncompressed_size=0, filename_len=9, extra_len=4, filename=b'META-INF/', extra=4, size=61)
+ZipDataDescriptor(crc32=0, compressed_size=2, uncompressed_size=0)
 ('META-INF/MANIFEST.MF', 'META-INF/MANIFEST.MF')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=3037116564, compressed_size=76, uncompressed_size=77, filename_len=20, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=61, filename=b'META-INF/MANIFEST.MF', extra=b'', comment=b'')
 ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=3037116564, compressed_size=76, uncompressed_size=77, filename_len=20, extra_len=0, filename=b'META-INF/MANIFEST.MF', extra=0, size=142)
+ZipDataDescriptor(crc32=3037116564, compressed_size=76, uncompressed_size=77)
 ('AndroidManifest.xml', 'AndroidManifest.xml')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=0, mdate=14881, crc32=1633612288, compressed_size=630, uncompressed_size=1672, filename_len=19, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=203, filename=b'AndroidManifest.xml', extra=b'', comment=b'')
 ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=0, mdate=14881, crc32=1633612288, compressed_size=630, uncompressed_size=1672, filename_len=19, extra_len=0, filename=b'AndroidManifest.xml', extra=0, size=695)
+ZipDataDescriptor(crc32=1633612288, compressed_size=630, uncompressed_size=1672)
 ('classes.dex', 'classes.dex')
 ZipCDEntry(version_created=10, version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=2575816152, compressed_size=1536, uncompressed_size=1536, filename_len=11, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=898, filename=b'classes.dex', extra=b'', comment=b'')
 ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14881, crc32=2575816152, compressed_size=1536, uncompressed_size=1536, filename_len=11, extra_len=9, filename=b'classes.dex', extra=9, size=50)
 ('temp.txt', 'temp.txt')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23386, mdate=19119, crc32=4286586065, compressed_size=6, uncompressed_size=29, filename_len=8, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=2484, filename=b'temp.txt', extra=b'', comment=b'')
 ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23386, mdate=19119, crc32=4286586065, compressed_size=6, uncompressed_size=29, filename_len=8, extra_len=0, filename=b'temp.txt', extra=0, size=60)
+ZipDataDescriptor(crc32=4286586065, compressed_size=6, uncompressed_size=29)
 ('lib/armeabi/fake.so', 'lib/armeabi/fake.so')
 ZipCDEntry(version_created=10, version_extract=10, flags=2048, compression_method=0, mtime=23312, mdate=19119, crc32=831927574, compressed_size=6, uncompressed_size=6, filename_len=19, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=2544, filename=b'lib/armeabi/fake.so', extra=b'', comment=b'')
 ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=23312, mdate=19119, crc32=831927574, compressed_size=6, uncompressed_size=6, filename_len=19, extra_len=1503, filename=b'lib/armeabi/fake.so', extra=1503, size=1552)
@@ -43,7 +49,14 @@ ZipEntry(version_extract=10, flags=2048, compression_method=0, mtime=0, mdate=14
 ('temp2.txt', 'temp2.txt')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23444, mdate=19119, crc32=3382197893, compressed_size=6, uncompressed_size=20, filename_len=9, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=5048, filename=b'temp2.txt', extra=b'', comment=b'')
 ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23444, mdate=19119, crc32=3382197893, compressed_size=6, uncompressed_size=20, filename_len=9, extra_len=0, filename=b'temp2.txt', extra=0, size=61)
+ZipDataDescriptor(crc32=3382197893, compressed_size=6, uncompressed_size=20)
 ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=8, num_cd_records_total=8, cd_size=481, cd_offset=5109, comment_len=0, comment=b'')
+'test/data/foo.zip'
+('foo', 'foo')
+ZipCDEntry(version_created=788, version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=22809, crc32=2356372769, compressed_size=3, uncompressed_size=3, filename_len=3, extra_len=0, comment_len=0, start_disk=0, internal_attrs=0, external_attrs=25165824, header_offset=0, filename=b'foo', extra=b'', comment=b'')
+ZipEntry(version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=22809, crc32=0, compressed_size=0, uncompressed_size=0, filename_len=3, extra_len=0, filename=b'foo', extra=0, size=52)
+ZipDataDescriptor(crc32=2356372769, compressed_size=3, uncompressed_size=3)
+ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=1, num_cd_records_total=1, cd_size=49, cd_offset=52, comment_len=0, comment=b'')
 
 """
 
@@ -132,6 +145,10 @@ class ZipEntry:
         return bool(self.flags & FLAG_UTF8)
 
     @property
+    def is_dir(self) -> bool:
+        return self.decoded_filename.endswith("/")
+
+    @property
     def datetime(self) -> Tuple[int, int, int, int, int, int]:
         """Parse mdate & mtime into datetime tuple."""
         return parse_datetime(self.mdate, self.mtime)
@@ -146,6 +163,8 @@ class ZipEntry:
         for f in sorted(set(f.name for f in dataclasses.fields(self)) - exclude):
             if self.data_descriptor and f in dd_fields:
                 value = getattr(self.data_descriptor, f)
+                if getattr(self, f) not in (value, 0):
+                    raise ZipValidationError(f"Field {f!r} differs between entry and data descriptor")
             else:
                 value = getattr(self, f)
             if getattr(self.cd_entry, f) != value:
@@ -222,6 +241,10 @@ class ZipCDEntry:
     def has_utf8_filename(self) -> bool:
         """Whether the entry has a UTF8 filename."""
         return bool(self.flags & FLAG_UTF8)
+
+    @property
+    def is_dir(self) -> bool:
+        return self.decoded_filename.endswith("/")
 
     @property
     def datetime(self) -> Tuple[int, int, int, int, int, int]:
