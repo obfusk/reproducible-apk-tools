@@ -64,9 +64,9 @@ ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=1, num_cd_records_to
 ...     list(zf.compressed_chunks("META-INF/MANIFEST.MF", chunk_size=16))
 ...     list(zf.uncompressed_chunks("META-INF/MANIFEST.MF", chunk_size=16))
 ...     list(map(len, zf.uncompressed_chunks("META-INF/MANIFEST.MF", chunk_size=16)))
-...     b"".join(zf.uncompressed_chunks("META-INF/MANIFEST.MF")).decode()
-...     b"".join(zf.uncompressed_chunks("temp.txt")).decode()
-...     b"".join(zf.uncompressed_chunks("temp2.txt")).decode()
+...     zf.read("META-INF/MANIFEST.MF").decode()
+...     zf.read("temp.txt").decode()
+...     zf.read("temp2.txt").decode()
 [b'Hello\n']
 [b'Hello\n']
 [b'\xf3M\xcc\xcbLK-.\xd1\rK-*\xce\xcc\xcf', b'\xb3R0\xd43\xe0\xe5r.JM,IM\xd1u', b'\xaa\x04\tX\xe8\x19\xc4\x9b\x98\xeaf\xe6\x95\xa4\x16\xe5', b'%\xe6(h\xf8\x17%&\xe7\xa4*8\xe7\x17\x15\xe4', b'\x17%\x96\x00\xf5i\xf2r\xf1r\x01\x00']
@@ -78,9 +78,9 @@ ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=1, num_cd_records_to
 
 >>> with ZipFile.open("test/data/foo.zip") as zf:
 ...     list(zf.compressed_chunks("foo"))
-...     list(zf.uncompressed_chunks("foo"))
+...     zf.read("foo").decode()
 [b'foo']
-[b'foo']
+'foo'
 
 """
 
@@ -362,6 +362,10 @@ class ZipFile:
     def load_entry(self, entry: Union[ZipCDEntry, str]) -> ZipEntry:
         """Load ZipEntry from ZipCDEntry or by name."""
         return self._entry(entry).load_entry(self.file)
+
+    def read(self, entry: Union[ZipCDEntry, str]) -> bytes:
+        """Read entire uncompressed file."""
+        return b"".join(self.uncompressed_chunks(entry))
 
     def compressed_chunks(self, entry: Union[ZipCDEntry, str], *,
                           chunk_size: int = 4096) -> Iterator[bytes]:
