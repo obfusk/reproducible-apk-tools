@@ -24,8 +24,51 @@ class Error(Exception):
 
 # FIXME
 @dataclass(frozen=True)
+class DataDescriptor:
+    """Data descriptor."""
+    signature: Optional[bytes]  # 4
+    crc32: int                  # 4
+    compressed_size: int        # 4
+    uncompressed_size: int      # 4
+
+
+# FIXME: data descriptor, load data
+@dataclass(frozen=True)
 class ZipEntry:
     """ZIP entry."""
+    signature: bytes            # 4
+    version_extract: int        # 2
+    flags: int                  # 2
+    compression_method: int     # 2
+    mtime: int                  # 2
+    mdate: int                  # 2
+    crc32: int                  # 4
+    compressed_size: int        # 4
+    uncompressed_size: int      # 4
+    filename_len: int           # 2
+    extra_len: int              # 2
+    filename: bytes             # filename_len (n)
+    extra: bytes                # extra_len (m)
+    offset: int
+
+    @property
+    def datetime(self) -> Tuple[int, int, int, int, int, int]:
+        return parse_datetime(self.mdate, self.mtime)
+
+    @classmethod
+    def load(_cls, fh: BinaryIO, offset: int) -> ZipEntry:
+        fh.seek(offset)
+        data = fh.read(30)
+        signature = data[:4]
+        if signature != ELFH_SIGNATURE:
+            raise Error("Expected local file header")
+        (version_extract, flags, compression_method, mtime, mdate, crc32, compressed_size,
+            uncompressed_size, n, m) = struct.unpack("<HHHHHIIIHH", data[4:30])
+        data += fh.read(n + m)
+        filename = data[30:30 + n]
+        extra = data[30 + n:30 + n + m]
+        return _cls(signature, version_extract, flags, compression_method, mtime, mdate, crc32,
+                    compressed_size, uncompressed_size, n, m, filename, extra, offset)
 
 
 @dataclass(frozen=True)
@@ -99,6 +142,7 @@ class EOCD:
                     num_cd_records_total, cd_size, cd_offset, n, comment, offset)
 
 
+# FIXME: load entry, ...
 @dataclass(frozen=True)
 class ZipFile:
     """ZIP file."""
