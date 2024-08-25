@@ -58,6 +58,30 @@ ZipEntry(version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=2
 ZipDataDescriptor(crc32=2356372769, compressed_size=3, uncompressed_size=3)
 ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=1, num_cd_records_total=1, cd_size=49, cd_offset=52, comment_len=0, comment=b'')
 
+>>> with ZipFile.open("test/data/golden-aligned-in.apk") as zf:
+...     list(zf.compressed_chunks("lib/armeabi/fake.so"))
+...     list(zf.uncompressed_chunks("lib/armeabi/fake.so"))
+...     list(zf.compressed_chunks("META-INF/MANIFEST.MF", chunk_size=16))
+...     list(zf.uncompressed_chunks("META-INF/MANIFEST.MF", chunk_size=16))
+...     list(map(len, zf.uncompressed_chunks("META-INF/MANIFEST.MF", chunk_size=16)))
+...     b"".join(zf.uncompressed_chunks("META-INF/MANIFEST.MF")).decode()
+...     b"".join(zf.uncompressed_chunks("temp.txt")).decode()
+...     b"".join(zf.uncompressed_chunks("temp2.txt")).decode()
+[b'Hello\n']
+[b'Hello\n']
+[b'\xf3M\xcc\xcbLK-.\xd1\rK-*\xce\xcc\xcf', b'\xb3R0\xd43\xe0\xe5r.JM,IM\xd1u', b'\xaa\x04\tX\xe8\x19\xc4\x9b\x98\xeaf\xe6\x95\xa4\x16\xe5', b'%\xe6(h\xf8\x17%&\xe7\xa4*8\xe7\x17\x15\xe4', b'\x17%\x96\x00\xf5i\xf2r\xf1r\x01\x00']
+[b'Manifest-Versio', b'n: 1.0\r\nCreated-', b'By: 1.8.0_45-inter', b'nal (Oracle Corp', b'oration)\r\n\r\n']
+[15, 16, 18, 16, 12]
+'Manifest-Version: 1.0\r\nCreated-By: 1.8.0_45-internal (Oracle Corporation)\r\n\r\n'
+'AAAAAAAAAAAAAAAAAAAAAAAAAAAA\n'
+'BBBBBBBBBBBBBBBBBBB\n'
+
+>>> with ZipFile.open("test/data/foo.zip") as zf:
+...     list(zf.compressed_chunks("foo"))
+...     list(zf.uncompressed_chunks("foo"))
+[b'foo']
+[b'foo']
+
 """
 
 from __future__ import annotations
@@ -65,11 +89,12 @@ from __future__ import annotations
 import dataclasses
 import os
 import struct
+import zlib
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import BinaryIO, ClassVar, Dict, Generator, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import BinaryIO, ClassVar, Dict, Generator, Iterator, List, Optional, Tuple, Union
 
 CDFH_SIGNATURE = b"\x50\x4b\x01\x02"    # central directory file header
 ELFH_SIGNATURE = b"\x50\x4b\x03\x04"    # entry local file header
@@ -153,7 +178,28 @@ class ZipEntry:
         """Parse mdate & mtime into datetime tuple."""
         return parse_datetime(self.mdate, self.mtime)
 
-    # FIXME: handle data descriptor
+    def compressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096) -> Iterator[bytes]:
+        """Read chunks of raw (compressed) data."""
+        fh.seek(self.cd_entry.header_offset + 30 + self.filename_len + self.extra_len)
+        remaining = self.cd_entry.compressed_size
+        while remaining > 0:
+            data = fh.read(min(chunk_size, remaining))
+            remaining -= len(data)
+            yield data
+
+    def uncompressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096) -> Iterator[bytes]:
+        """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
+        if self.compression_method == COMPRESSION_STORED:
+            yield from self.compressed_chunks(fh, chunk_size=chunk_size)
+        elif self.compression_method == COMPRESSION_DEFLATE:
+            decompressor = zlib.decompressobj(-15)
+            for chunk in self.compressed_chunks(fh, chunk_size=chunk_size):
+                yield decompressor.decompress(decompressor.unconsumed_tail + chunk)
+            if data := decompressor.flush():
+                yield data
+        else:
+            raise NotImplementedError(f"Unsupported compression method: {self.compression_method}")
+
     def validate(self, extra: bool = False) -> None:
         """Validate against cd_entry."""
         dd_fields = {"crc32", "compressed_size", "uncompressed_size"}
@@ -309,18 +355,26 @@ class ZipEOCD:
 @dataclass(frozen=True)
 class ZipFile:
     """ZIP file."""
-    file: Union[BinaryIO, str] = field(compare=False, repr=False)
+    file: BinaryIO = field(compare=False, repr=False)
     cd_entries: List[ZipCDEntry]
     eocd: ZipEOCD
 
     def load_entry(self, entry: Union[ZipCDEntry, str]) -> ZipEntry:
         """Load ZipEntry from ZipCDEntry or by name."""
-        if isinstance(entry, str):
-            entry = self.cd_entries_by_name[entry]
-        if isinstance(self.file, str):
-            with open(self.file, "rb") as fh:
-                return entry.load_entry(fh)
-        return entry.load_entry(self.file)
+        return self._entry(entry).load_entry(self.file)
+
+    def compressed_chunks(self, entry: Union[ZipCDEntry, str], *,
+                          chunk_size: int = 4096) -> Iterator[bytes]:
+        """Read chunks of raw (compressed) data."""
+        return self.load_entry(entry).compressed_chunks(self.file, chunk_size=chunk_size)
+
+    def uncompressed_chunks(self, entry: Union[ZipCDEntry, str], *,
+                            chunk_size: int = 4096) -> Iterator[bytes]:
+        """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
+        return self.load_entry(entry).uncompressed_chunks(self.file, chunk_size=chunk_size)
+
+    def _entry(self, entry: Union[ZipCDEntry, str]) -> ZipCDEntry:
+        return self.cd_entries_by_name[entry] if isinstance(entry, str) else entry
 
     @cached_property
     def cd_entries_by_name(self) -> Dict[str, ZipCDEntry]:
@@ -335,44 +389,26 @@ class ZipFile:
     @property
     def filename(self) -> Optional[str]:
         """Get file name."""
-        if isinstance(self.file, str):
-            return self.file
-        if hasattr(self.file, "name"):
-            return self.file.name
-        return None
+        return getattr(self.file, "name", None)
 
     def validate(self, extra: bool = False) -> None:
         """Validate local entries against cental directory."""
-        if isinstance(self.file, str):
-            with open(self.file, "rb") as fh:
-                self._validate(fh, extra=extra)
-        else:
-            self._validate(self.file, extra=extra)
-
-    def _validate(self, fh: BinaryIO, extra: bool) -> None:
         for e in self.cd_entries:
-            e.load_entry(fh).validate(extra)
+            e.load_entry(self.file).validate(extra)
 
     @classmethod
     @contextmanager
-    def open(cls, zipfile: str) -> ZipFileGenerator:
+    def open(cls, zipfile: str) -> Generator[ZipFile]:
         """ZipFile context manager."""
         with open(zipfile, "rb") as fh:
             yield cls.load(fh)
 
     @classmethod
-    def load(cls, zipfile: Union[BinaryIO, str]) -> ZipFile:
+    def load(cls, fh: BinaryIO, *, chunk_size: int = 1024) -> ZipFile:
         """Load ZipFile from file handle or named file."""
-        if isinstance(zipfile, str):
-            with open(zipfile, "rb") as fh:
-                return cls._load(fh, zipfile)
-        return cls._load(zipfile, None)
-
-    @classmethod
-    def _load(cls, fh: BinaryIO, filename: Optional[str], *, count: int = 1024) -> ZipFile:
-        for pos in range(fh.seek(0, os.SEEK_END) - count, -count, -count):
+        for pos in range(fh.seek(0, os.SEEK_END) - chunk_size, -chunk_size, -chunk_size):
             fh.seek(max(0, pos))
-            data = fh.read(count + len(EOCD_SIGNATURE))
+            data = fh.read(chunk_size + len(EOCD_SIGNATURE))
             if (idx := data.rfind(EOCD_SIGNATURE)) != -1:
                 fh.seek(idx - len(data), os.SEEK_CUR)
                 eocd_offset = fh.tell()
@@ -381,8 +417,7 @@ class ZipFile:
                 fh.seek(cd_offset)
                 cd_data = fh.read(eocd_offset - cd_offset)
                 eocd_data = fh.read()
-                return ZipFile(filename or fh, cls._parse_cd_entries(cd_data),
-                               ZipEOCD.parse(eocd_data, eocd_offset))
+                return ZipFile(fh, cls._parse_cd_entries(cd_data), ZipEOCD.parse(eocd_data, eocd_offset))
         raise BrokenZipError("Expected end of central directory record (EOCD)")
 
     @classmethod
@@ -399,10 +434,5 @@ def parse_datetime(d: int, t: int) -> Tuple[int, int, int, int, int, int]:
     return ((d >> 9) + 1980, (d >> 5) & 0xF, d & 0x1F,
             t >> 11, (t >> 5) & 0x3F, (t & 0x1F) * 2)
 
-
-if TYPE_CHECKING:
-    ZipFileGenerator = Generator[ZipFile]
-else:
-    ZipFileGenerator = Generator
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
