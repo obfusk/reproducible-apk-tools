@@ -167,6 +167,7 @@ class ZipDataDescriptor:
         return self.signature + struct.pack("<III", self.crc32, self.compressed_size, self.uncompressed_size)
 
 
+# FIXME: use seek() to allow interleaving generators?
 @dataclass(frozen=True)
 class ZipEntry:
     """ZIP entry."""
@@ -183,7 +184,7 @@ class ZipEntry:
     # extra_len: int                                # 2
     filename: bytes                                 # filename_len (n)
     extra: bytes                                    # extra_len (m)
-    size: int                                       # total size
+    size: int                                       # total size (not part of header)
     data_descriptor: Optional[ZipDataDescriptor] = field(repr=False)
     cd_entry: ZipCDEntry = field(repr=False)
 
@@ -212,6 +213,7 @@ class ZipEntry:
 
     @property
     def is_dir(self) -> bool:
+        """Is this entry a directory (i.e. does it end with a '/')?"""
         return self.decoded_filename.endswith("/")
 
     @property
@@ -349,6 +351,7 @@ class ZipCDEntry:
 
     @property
     def is_dir(self) -> bool:
+        """Is this entry a directory (i.e. does it end with a '/')?"""
         return self.decoded_filename.endswith("/")
 
     @property
@@ -434,13 +437,13 @@ class ZipEOCD:
 @dataclass(frozen=True)
 class ZipFile:
     """ZIP file."""
-    _file: BinaryIO = field(compare=False, repr=False)
+    _fh: BinaryIO = field(compare=False, repr=False)
     cd_entries: List[ZipCDEntry]
     eocd: ZipEOCD
 
     def load_entry(self, entry: Union[ZipCDEntry, str]) -> ZipEntry:
         """Load ZipEntry from ZipCDEntry or by name."""
-        return self._entry(entry).load_entry(self._file)
+        return self._entry(entry).load_entry(self._fh)
 
     def read(self, entry: Union[ZipCDEntry, str]) -> bytes:
         """Read entire uncompressed file."""
@@ -449,12 +452,12 @@ class ZipFile:
     def compressed_chunks(self, entry: Union[ZipCDEntry, str], *,
                           chunk_size: int = 4096) -> Iterator[bytes]:
         """Read chunks of raw (compressed) data."""
-        return self.load_entry(entry).compressed_chunks(self._file, chunk_size=chunk_size)
+        return self.load_entry(entry).compressed_chunks(self._fh, chunk_size=chunk_size)
 
     def uncompressed_chunks(self, entry: Union[ZipCDEntry, str], *,
                             chunk_size: int = 4096) -> Iterator[bytes]:
         """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
-        return self.load_entry(entry).uncompressed_chunks(self._file, chunk_size=chunk_size)
+        return self.load_entry(entry).uncompressed_chunks(self._fh, chunk_size=chunk_size)
 
     def _entry(self, entry: Union[ZipCDEntry, str]) -> ZipCDEntry:
         return self.cd_entries_by_name[entry] if isinstance(entry, str) else entry
@@ -472,12 +475,12 @@ class ZipFile:
     @property
     def filename(self) -> Optional[str]:
         """Get file name."""
-        return getattr(self._file, "name", None)
+        return getattr(self._fh, "name", None)
 
     def validate(self, extra: bool = False) -> None:
         """Validate local entries against cental directory."""
         for e in self.cd_entries:
-            e.load_entry(self._file).validate(extra)
+            e.load_entry(self._fh).validate(extra)
 
     @classmethod
     @contextmanager
@@ -526,6 +529,7 @@ class ZipFile:
         return entries
 
 
+# FIXME: permissions etc.
 class ZipFileBuilder:
     """ZIP file builder."""
 
@@ -533,7 +537,6 @@ class ZipFileBuilder:
         self.comment = comment
         self._fh = fh
         self._cd_entries: List[ZipCDEntry] = []
-        self._lh_entries: List[ZipEntry] = []
 
     @contextmanager
     def append(self, *, compression_level: Optional[int] = None,
@@ -545,27 +548,24 @@ class ZipFileBuilder:
         if datetime:
             kwargs["mdate"], kwargs["mtime"] = unparse_datetime(*datetime)
         header_offset = self._fh.tell()
-        cd_ent, lh_ent = build_zip_entries(**kwargs, header_offset=header_offset)
-        data_descriptor = lh_ent.data_descriptor
+        cd_ent, lh_ent = build_zip_entries(
+            **kwargs, header_offset=header_offset, local_entry_size=-1, data_descriptor=None)
         self._fh.write(lh_ent.dump())
         zw = ZipEntryWriter(self._fh, cd_ent.compression_method, compression_level)
         yield zw
         uncompressed_size, compressed_size, crc32 = zw.finish()
-        if not data_descriptor and lh_ent.has_data_descriptor:
+        if lh_ent.has_data_descriptor:
             data_descriptor = ZipDataDescriptor(True, crc32, compressed_size, uncompressed_size)
-        if data_descriptor:
             self._fh.write(data_descriptor.dump())
         pos = self._fh.tell()
         cd_ent = dataclasses.replace(
             cd_ent, crc32=crc32, compressed_size=compressed_size, uncompressed_size=uncompressed_size)
-        lh_ent = dataclasses.replace(
-            lh_ent, crc32=crc32, compressed_size=compressed_size, uncompressed_size=uncompressed_size,
-            cd_entry=cd_ent, data_descriptor=data_descriptor, size=pos - header_offset)
+        lh_ent = dataclasses.replace(   # discarded, no need to update other fields
+            lh_ent, crc32=crc32, compressed_size=compressed_size, uncompressed_size=uncompressed_size)
         self._fh.seek(header_offset)
         self._fh.write(lh_ent.dump())
         self._fh.seek(pos)
         self._cd_entries.append(cd_ent)
-        self._lh_entries.append(lh_ent)
 
     def append_file(self, file: Union[str, BinaryIO], *,
                     chunk_size: int = 4096, **kwargs: Any) -> None:
@@ -594,10 +594,9 @@ class ZipFileBuilder:
             cd_ent = dataclasses.replace(cd_ent, header_offset=header_offset)
             lh_ent = dataclasses.replace(lh_ent, cd_entry=cd_ent)
             self._cd_entries.append(cd_ent)
-            self._lh_entries.append(lh_ent)
             self._fh.write(lh_ent.dump())
-            zipfile._file.seek(offset)
-            copy_data(zipfile._file, self._fh, cd_ent.compressed_size)
+            zipfile._fh.seek(offset)
+            copy_data(zipfile._fh, self._fh, cd_ent.compressed_size)
             if lh_ent.data_descriptor:
                 self._fh.write(lh_ent.data_descriptor.dump())
 
@@ -648,14 +647,16 @@ class ZipEntryWriter:
         return self._uncompressed_size, self._compressed_size, self._crc32
 
 
-def build_zip_entries(version_created: int = CREATE_VERSION | CREATE_SYSTEM << 8,
-                      version_extract: int = CREATE_VERSION, flags: int = 0,
-                      compression_method: int = COMPRESSION_DEFLATE,
-                      mtime: int = 0, mdate: int = 0, crc32: int = 0,
-                      compressed_size: int = 0, uncompressed_size: int = 0,
-                      start_disk: int = 0, internal_attrs: int = 0, external_attrs: int = 0,
-                      header_offset: int = 0, filename: Union[bytes, str] = b"-",
-                      extra: bytes = b"", comment: bytes = b"") -> Tuple[ZipCDEntry, ZipEntry]:
+def build_zip_entries(
+        *, version_created: int = CREATE_VERSION | CREATE_SYSTEM << 8,
+        version_extract: int = CREATE_VERSION, flags: int = 0,
+        compression_method: int = COMPRESSION_DEFLATE, mtime: int = 0, mdate: int = 0,
+        crc32: int = 0, compressed_size: int = 0, uncompressed_size: int = 0,
+        start_disk: int = 0, internal_attrs: int = 0, external_attrs: int = 0,
+        header_offset: int = 0, filename: Union[bytes, str] = b"-", extra: bytes = b"",
+        comment: bytes = b"", local_entry_size: int = -1,
+        data_descriptor: Optional[ZipDataDescriptor] = None) -> Tuple[ZipCDEntry, ZipEntry]:
+    """Build ZipCDEntry & ZipEntry from kwargs."""
     if isinstance(filename, str):
         filename = filename.encode()
         flags |= FLAG_UTF8
@@ -665,7 +666,7 @@ def build_zip_entries(version_created: int = CREATE_VERSION | CREATE_SYSTEM << 8
         header_offset, filename, extra, comment)
     lh_ent = ZipEntry(
         version_extract, flags, compression_method, mtime, mdate, crc32, compressed_size,
-        uncompressed_size, filename, extra, -1, None, cd_ent)
+        uncompressed_size, filename, extra, local_entry_size, data_descriptor, cd_ent)
     return cd_ent, lh_ent
 
 
@@ -682,6 +683,7 @@ def unparse_datetime(year: int, month: int, day: int, hours: int,
 
 
 def copy_data(fin: BinaryIO, fout: BinaryIO, size: int, chunk_size: int = 4096) -> None:
+    """Copy data from one file handle to another in chunks."""
     while size > 0:
         data = fin.read(min(chunk_size, size))
         size -= len(data)
