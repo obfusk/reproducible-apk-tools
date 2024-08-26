@@ -84,24 +84,47 @@ ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=1, num_cd_records_to
 [b'foo']
 'foo'
 
->>> import io
+>>> import io, tempfile
 >>> out = io.BytesIO()
 >>> with ZipFile.open("test/data/foo.zip") as zf:
 ...     with ZipFile.build(out) as zb:
 ...         zb.copy_from(zf)
 ...         with zb.append(filename="bar") as zw:
 ...             zw.write(b"bar")
->>> with open("test/data/bar.zip", "rb") as fh:
-...     fh.read() == out.getvalue()
-True
->>> with ZipFile.open("test/data/bar.zip") as zf:
-...     for filename, entry in zf.cd_entries_by_name.items():
-...         entry
-...         zf.read(entry).decode()
+>>> zf = ZipFile.load(out)
+>>> for filename, entry in zf.cd_entries_by_name.items():
+...     entry
+...     zf.read(entry).decode()
 ZipCDEntry(version_created=788, version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=22809, crc32=2356372769, compressed_size=3, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=25165824, header_offset=0, filename=b'foo', extra=b'', comment=b'')
 'foo'
 ZipCDEntry(version_created=788, version_extract=20, flags=2048, compression_method=8, mtime=0, mdate=0, crc32=1996459178, compressed_size=5, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=52, filename=b'bar', extra=b'', comment=b'')
 'bar'
+>>> with open("test/data/bar.zip", "rb") as fh:
+...     fh.read() == out.getvalue()
+True
+>>> with tempfile.TemporaryDirectory() as tmpdir:
+...     out_zip = os.path.join(tmpdir, "out.zip")
+...     with ZipFile.open("test/data/foo.zip") as zf:
+...         with ZipFile.build(out_zip) as zb:
+...             zb.copy_from(zf)
+...             with zb.append(filename="bar") as zw:
+...                 zw.write(b"bar")
+...     with open(out_zip, "rb") as fh:
+...         fh.read() == out.getvalue()
+...     with ZipFile.build(out_zip, append=True) as zb:
+...         with zb.append(filename="baz") as zw:
+...             zw.write(b"baz")
+...     with ZipFile.open(out_zip) as zf:
+...         for filename, entry in zf.cd_entries_by_name.items():
+...             entry
+...             zf.read(entry).decode()
+True
+ZipCDEntry(version_created=788, version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=22809, crc32=2356372769, compressed_size=3, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=25165824, header_offset=0, filename=b'foo', extra=b'', comment=b'')
+'foo'
+ZipCDEntry(version_created=788, version_extract=20, flags=2048, compression_method=8, mtime=0, mdate=0, crc32=1996459178, compressed_size=5, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=52, filename=b'bar', extra=b'', comment=b'')
+'bar'
+ZipCDEntry(version_created=788, version_extract=20, flags=2048, compression_method=8, mtime=0, mdate=0, crc32=2015626392, compressed_size=5, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=90, filename=b'baz', extra=b'', comment=b'')
+'baz'
 
 """
 
@@ -491,15 +514,16 @@ class ZipFile:
 
     @classmethod
     @contextmanager
-    def build(cls, zipfile: Union[str, BinaryIO], comment: bytes = b"") -> Generator[ZipFileBuilder]:
+    def build(cls, zipfile: Union[str, BinaryIO], *, comment: bytes = b"",
+              append: bool = False) -> Generator[ZipFileBuilder]:
         """ZipFile builder context manager."""
         if isinstance(zipfile, str):
-            with open(zipfile, "wb") as fh:
-                builder = ZipFileBuilder(fh, comment)
+            with open(zipfile, "r+b" if append else "wb") as fh:
+                builder = ZipFileBuilder(fh, comment=comment, append=append)
                 yield builder
                 builder.finish()
         else:
-            builder = ZipFileBuilder(zipfile, comment)
+            builder = ZipFileBuilder(zipfile, comment=comment, append=append)
             yield builder
             builder.finish()
 
@@ -533,10 +557,16 @@ class ZipFile:
 class ZipFileBuilder:
     """ZIP file builder."""
 
-    def __init__(self, fh: BinaryIO, comment: bytes = b""):
+    def __init__(self, fh: BinaryIO, *, comment: bytes = b"", append: bool = False):
         self.comment = comment
         self._fh = fh
-        self._cd_entries: List[ZipCDEntry] = []
+        if append:
+            zf = ZipFile.load(fh)
+            self._cd_entries = zf.cd_entries
+            fh.seek(zf.eocd.cd_offset)
+            fh.truncate()
+        else:
+            self._cd_entries = []
 
     @contextmanager
     def append(self, *, compression_level: Optional[int] = None,
