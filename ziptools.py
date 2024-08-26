@@ -100,7 +100,7 @@ True
 ...         zf.read(entry).decode()
 ZipCDEntry(version_created=788, version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=22809, crc32=2356372769, compressed_size=3, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=25165824, header_offset=0, filename=b'foo', extra=b'', comment=b'')
 'foo'
-ZipCDEntry(version_created=788, version_extract=20, flags=0, compression_method=8, mtime=0, mdate=0, crc32=1996459178, compressed_size=5, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=52, filename=b'bar', extra=b'', comment=b'')
+ZipCDEntry(version_created=788, version_extract=20, flags=8, compression_method=8, mtime=0, mdate=0, crc32=1996459178, compressed_size=5, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=52, filename=b'bar', extra=b'', comment=b'')
 'bar'
 
 """
@@ -658,7 +658,7 @@ def build_zip_entries(version_created: int = CREATE_VERSION | CREATE_SYSTEM << 8
                       extra: bytes = b"", comment: bytes = b"") -> Tuple[ZipCDEntry, ZipEntry]:
     if isinstance(filename, str):
         filename = filename.encode()
-        flags &= FLAG_UTF8
+        flags |= FLAG_UTF8
     cd_ent = ZipCDEntry(
         version_created, version_extract, flags, compression_method, mtime, mdate, crc32,
         compressed_size, uncompressed_size, start_disk, internal_attrs, external_attrs,
