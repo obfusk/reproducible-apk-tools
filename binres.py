@@ -430,6 +430,8 @@ class ResourceTableChunk(ParentChunk):
         entries = []
         fltr = dict(language=language, region=region, density=density)
         rid = BinResId.from_int(id)
+        if rid.package_id not in self.packages_by_id:
+            raise ResourceError(f"No package with id {rid.package_id}")
         for t in self.package_with_id(rid.package_id).type_chunks(rid.type_id):
             for k, v in fltr.items():
                 if getattr(t.configuration, k) != v:
