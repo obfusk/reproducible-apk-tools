@@ -190,7 +190,6 @@ class ZipDataDescriptor:
         return self.signature + struct.pack("<III", self.crc32, self.compressed_size, self.uncompressed_size)
 
 
-# FIXME: use seek() to allow interleaving generators?
 @dataclass(frozen=True)
 class ZipEntry:
     """ZIP entry."""
@@ -246,11 +245,13 @@ class ZipEntry:
 
     def compressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096) -> Iterator[bytes]:
         """Read chunks of raw (compressed) data."""
-        fh.seek(self.cd_entry.header_offset + 30 + self.filename_len + self.extra_len)
         remaining = self.cd_entry.compressed_size
+        pos = self.cd_entry.header_offset + 30 + self.filename_len + self.extra_len
         while remaining > 0:
+            fh.seek(pos)
             data = fh.read(min(chunk_size, remaining))
             remaining -= len(data)
+            pos = fh.tell()
             yield data
 
     def uncompressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096) -> Iterator[bytes]:
