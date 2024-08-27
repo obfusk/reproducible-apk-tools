@@ -558,15 +558,15 @@ class ZipFileBuilder:
     """ZIP file builder."""
 
     def __init__(self, fh: BinaryIO, *, comment: bytes = b"", append: bool = False):
-        self.comment = comment
         self._fh = fh
+        self.comment = comment
         if append:
             zf = ZipFile.load(fh)
-            self._cd_entries = zf.cd_entries
+            self.cd_entries = zf.cd_entries
             fh.seek(zf.eocd.cd_offset)
             fh.truncate()
         else:
-            self._cd_entries = []
+            self.cd_entries = []
 
     @contextmanager
     def append(self, *, compression_level: Optional[int] = None,
@@ -595,7 +595,7 @@ class ZipFileBuilder:
         self._fh.seek(header_offset)
         self._fh.write(lh_ent.dump())
         self._fh.seek(pos)
-        self._cd_entries.append(cd_ent)
+        self.cd_entries.append(cd_ent)
 
     def append_file(self, file: Union[str, BinaryIO], *,
                     chunk_size: int = 4096, **kwargs: Any) -> None:
@@ -623,7 +623,7 @@ class ZipFileBuilder:
             offset = cd_ent.header_offset + 30 + lh_ent.filename_len + lh_ent.extra_len
             cd_ent = dataclasses.replace(cd_ent, header_offset=header_offset)
             lh_ent = dataclasses.replace(lh_ent, cd_entry=cd_ent)
-            self._cd_entries.append(cd_ent)
+            self.cd_entries.append(cd_ent)
             self._fh.write(lh_ent.dump())
             zipfile._fh.seek(offset)
             copy_data(zipfile._fh, self._fh, cd_ent.compressed_size)
@@ -632,9 +632,9 @@ class ZipFileBuilder:
 
     def finish(self) -> None:
         """Write CD & EOCD."""
-        n = len(self._cd_entries)
+        n = len(self.cd_entries)
         cd_offset = self._fh.tell()
-        for ent in self._cd_entries:
+        for ent in self.cd_entries:
             self._fh.write(ent.dump())
         eocd_offset = self._fh.tell()
         eocd = ZipEOCD(0, 0, n, n, eocd_offset - cd_offset, cd_offset, self.comment)
