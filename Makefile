@@ -7,7 +7,8 @@ INPLACEFIX ?= repro-apk-inplace-fix
 PYCOV      := $(PYTHON) -mcoverage run --data-file=$(PWD)/.coverage --source $(PWD)
 
 DOCTEST    := binres.py diff-zip-meta.py fix-compresslevel.py fix-files.py fix-newlines.py \
-              inplace-fix.py list-compresslevel.py rm-files.py zipalignment.py zipinfo.py
+              inplace-fix.py list-compresslevel.py rm-files.py zipalignment.py zipinfo.py \
+              ziptools.py
 
 export PYTHONWARNINGS := default
 
