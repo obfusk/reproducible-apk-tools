@@ -538,16 +538,15 @@ class ZipFile:
 
     @classmethod
     @contextmanager
-    def build(cls, zipfile: Union[str, BinaryIO], *, comment: bytes = b"",
-              append: bool = False) -> Generator[ZipFileBuilder]:
+    def build(cls, zipfile: Union[str, BinaryIO], **kwargs: Any) -> Generator[ZipFileBuilder]:
         """ZipFile builder context manager."""
         if isinstance(zipfile, str):
-            with open(zipfile, "r+b" if append else "wb") as fh:
-                builder = ZipFileBuilder(fh, comment=comment, append=append)
+            with open(zipfile, "r+b" if kwargs.get("append") else "wb") as fh:
+                builder = ZipFileBuilder(fh, **kwargs)
                 yield builder
                 builder.finish()
         else:
-            builder = ZipFileBuilder(zipfile, comment=comment, append=append)
+            builder = ZipFileBuilder(zipfile, **kwargs)
             yield builder
             builder.finish()
 
@@ -581,9 +580,10 @@ class ZipFile:
 class ZipFileBuilder:
     """ZIP file builder."""
 
-    def __init__(self, fh: BinaryIO, *, comment: bytes = b"", append: bool = False):
+    def __init__(self, fh: BinaryIO, *, comment: bytes = b"", append: bool = False, **kwargs: Any):
         self._fh = fh
         self.comment = comment
+        self.defaults = kwargs
         if append:
             zf = ZipFile.load(fh)
             self.cd_entries = zf.cd_entries
@@ -601,6 +601,7 @@ class ZipFileBuilder:
             compression_level = COMPRESSION_LEVEL
         if datetime:
             kwargs["mdate"], kwargs["mtime"] = unparse_datetime(*datetime)
+        kwargs = {**self.defaults, **kwargs}
         header_offset = self._fh.tell()
         cd_ent, lh_ent = build_zip_entries(
             **kwargs, header_offset=header_offset, local_entry_size=-1, data_descriptor=None)
