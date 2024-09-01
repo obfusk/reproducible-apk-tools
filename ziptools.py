@@ -248,6 +248,11 @@ class ZipEntry:
         return self.decoded_filename.endswith("/")
 
     @property
+    def version_extract_split(self) -> Tuple[Tuple[int, int], int]:
+        """Split .version_extract."""
+        return split_version(self.version_extract)
+
+    @property
     def datetime(self) -> Tuple[int, int, int, int, int, int]:
         """Parse mdate & mtime into datetime tuple."""
         return parse_datetime(self.mdate, self.mtime)
@@ -386,6 +391,16 @@ class ZipCDEntry:
     def is_dir(self) -> bool:
         """Is this entry a directory (i.e. does it end with a '/')?"""
         return self.decoded_filename.endswith("/")
+
+    @property
+    def version_created_split(self) -> Tuple[Tuple[int, int], int]:
+        """Split .version_created."""
+        return split_version(self.version_created)
+
+    @property
+    def version_extract_split(self) -> Tuple[Tuple[int, int], int]:
+        """Split .version_extract."""
+        return split_version(self.version_extract)
 
     @property
     def datetime(self) -> Tuple[int, int, int, int, int, int]:
