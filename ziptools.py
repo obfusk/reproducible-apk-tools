@@ -19,6 +19,8 @@ https://en.wikipedia.org/wiki/ZIP_(file_format)
 ...             dataclasses.replace(lent, extra=len(lent.extra))
 ...             lent.data_descriptor
 ...         zf.eocd
+...         for ent in zf.cd_entries:
+...             f"{ent.decoded_filename}: {zf.compression_level(ent)}"
 'test/data/golden-aligned-in.apk'
 ('META-INF/', 'META-INF/')
 ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_method=8, mtime=23337, mdate=19119, crc32=0, compressed_size=2, uncompressed_size=0, start_disk=0, internal_attrs=0, external_attrs=0, header_offset=0, filename=b'META-INF/', extra=b'\xfe\xca\x00\x00', comment=b'')
@@ -50,12 +52,21 @@ ZipCDEntry(version_created=20, version_extract=20, flags=2056, compression_metho
 ZipEntry(version_extract=20, flags=2056, compression_method=8, mtime=23444, mdate=19119, crc32=3382197893, compressed_size=6, uncompressed_size=20, filename=b'temp2.txt', extra=0, size=61)
 ZipDataDescriptor(crc32=3382197893, compressed_size=6, uncompressed_size=20)
 ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=8, num_cd_records_total=8, cd_size=481, cd_offset=5109, comment=b'')
+'META-INF/: [9, 6, 4, 1]'
+'META-INF/MANIFEST.MF: [9, 6, 4, 1]'
+'AndroidManifest.xml: [9, 6]'
+'classes.dex: None'
+'temp.txt: [9, 6, 4, 1]'
+'lib/armeabi/fake.so: None'
+'resources.arsc: None'
+'temp2.txt: [9, 6, 4, 1]'
 'test/data/foo.zip'
 ('foo', 'foo')
 ZipCDEntry(version_created=788, version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=22809, crc32=2356372769, compressed_size=3, uncompressed_size=3, start_disk=0, internal_attrs=0, external_attrs=25165824, header_offset=0, filename=b'foo', extra=b'', comment=b'')
 ZipEntry(version_extract=20, flags=8, compression_method=0, mtime=44338, mdate=22809, crc32=0, compressed_size=0, uncompressed_size=0, filename=b'foo', extra=0, size=52)
 ZipDataDescriptor(crc32=2356372769, compressed_size=3, uncompressed_size=3)
 ZipEOCD(disk_number=0, cd_start_disk=0, num_cd_records_disk=1, num_cd_records_total=1, cd_size=49, cd_offset=52, comment=b'')
+'foo: None'
 
 >>> with ZipFile.open("test/data/golden-aligned-in.apk") as zf:
 ...     list(zf.compressed_chunks("lib/armeabi/fake.so"))
@@ -149,8 +160,13 @@ ODDH_SIGNATURE = b"\x50\x4b\x07\x08"    # optional data descriptor header
 CREATE_VERSION = 20
 COMPRESSION_LEVEL = 6
 
-COMPRESSION_STORED = 0
-COMPRESSION_DEFLATE = 8
+COMPRESSION_LEVELS = [9, 6, 4, 1]
+
+
+class Compression(IntEnum):
+    """Compression type."""
+    STORED = 0
+    DEFLATE = 8
 
 
 class Flags(IntFlag):
@@ -270,9 +286,9 @@ class ZipEntry:
 
     def uncompressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096) -> Iterator[bytes]:
         """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
-        if self.compression_method == COMPRESSION_STORED:
+        if self.compression_method == Compression.STORED:
             yield from self.compressed_chunks(fh, chunk_size=chunk_size)
-        elif self.compression_method == COMPRESSION_DEFLATE:
+        elif self.compression_method == Compression.DEFLATE:
             decompressor = zlib.decompressobj(-15)
             for chunk in self.compressed_chunks(fh, chunk_size=chunk_size):
                 yield decompressor.decompress(decompressor.unconsumed_tail + chunk)
@@ -280,6 +296,26 @@ class ZipEntry:
                 yield data
         else:
             raise NotImplementedError(f"Unsupported compression method: {self.compression_method}")
+
+    def compression_level(self, fh: BinaryIO, *, levels: Optional[List[int]] = None) -> Optional[List[int]]:
+        """Try to determine likely compression level(s)."""
+        if self.compression_method != Compression.DEFLATE:
+            return None
+        if not levels:
+            levels = COMPRESSION_LEVELS
+        result = []
+        comp_crc = 0
+        for chunk in self.compressed_chunks(fh):
+            comp_crc = zlib.crc32(chunk, comp_crc)
+        comps = {lvl: zlib.compressobj(lvl, zlib.DEFLATED, -15) for lvl in levels}
+        ccrcs = {lvl: 0 for lvl in levels}
+        for chunk in self.uncompressed_chunks(fh):
+            for lvl in levels:
+                ccrcs[lvl] = zlib.crc32(comps[lvl].compress(chunk), ccrcs[lvl])
+        for lvl in levels:
+            if comp_crc == zlib.crc32(comps[lvl].flush(), ccrcs[lvl]):
+                result.append(lvl)
+        return result
 
     def validate(self, extra: bool = False) -> None:
         """Validate against cd_entry."""
@@ -506,6 +542,11 @@ class ZipFile:
         """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
         return self.load_entry(entry).uncompressed_chunks(self._fh, chunk_size=chunk_size)
 
+    def compression_level(self, entry: Union[ZipCDEntry, str], *,
+                          levels: Optional[List[int]] = None) -> Optional[List[int]]:
+        """Try to determine likely compression level(s)."""
+        return self.load_entry(entry).compression_level(self._fh, levels=levels)
+
     def _entry(self, entry: Union[ZipCDEntry, str]) -> ZipCDEntry:
         return self.cd_entries_by_name[entry] if isinstance(entry, str) else entry
 
@@ -674,9 +715,9 @@ class ZipEntryWriter:
         self._fh = fh
         self._compression_method = compression_method
         self._uncompressed_size = self._compressed_size = self._crc32 = 0
-        if compression_method == COMPRESSION_STORED:
+        if compression_method == Compression.STORED:
             self._compressor = None
-        if compression_method == COMPRESSION_DEFLATE:
+        if compression_method == Compression.DEFLATE:
             self._compressor = zlib.compressobj(compression_level, zlib.DEFLATED, -15)
         else:
             raise NotImplementedError(f"Unsupported compression method: {compression_method}")
@@ -750,7 +791,7 @@ def unparse_datetime(year: int, month: int, day: int, hours: int,
 def build_zip_entries(
         *, version_created: int = unsplit_version((CREATE_VERSION, CreateSystem.UNIX)),
         version_extract: int = CREATE_VERSION, flags: int = 0,
-        compression_method: int = COMPRESSION_DEFLATE, mtime: int = 0, mdate: int = 0,
+        compression_method: int = Compression.DEFLATE, mtime: int = 0, mdate: int = 0,
         crc32: int = 0, compressed_size: int = 0, uncompressed_size: int = 0,
         start_disk: int = 0, internal_attrs: int = 0, external_attrs: int = 0,
         header_offset: int = 0, filename: Union[bytes, str] = b"-", extra: bytes = b"",
