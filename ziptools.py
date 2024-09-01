@@ -133,11 +133,11 @@ from __future__ import annotations
 import dataclasses
 import os
 import struct
-import sys
 import zlib
 
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from enum import IntEnum, IntFlag
 from functools import cached_property
 from typing import Any, BinaryIO, ClassVar, Dict, Generator, Iterator, List, Optional, Tuple, Union
 
@@ -146,15 +146,24 @@ ELFH_SIGNATURE = b"\x50\x4b\x03\x04"    # entry local file header
 EOCD_SIGNATURE = b"\x50\x4b\x05\x06"    # end of central directory
 ODDH_SIGNATURE = b"\x50\x4b\x07\x08"    # optional data descriptor header
 
-CREATE_SYSTEM = 0 if sys.platform == "win32" else 3
 CREATE_VERSION = 20
 COMPRESSION_LEVEL = 6
 
 COMPRESSION_STORED = 0
 COMPRESSION_DEFLATE = 8
 
-FLAG_DATA_DESCRIPTOR = 0x08
-FLAG_UTF8 = 0x800
+
+class Flags(IntFlag):
+    """Flags."""
+    DATA_DESCRIPTOR = 0x08
+    UTF8 = 0x800
+
+
+# FIXME
+class CreateSystem(IntEnum):
+    """Create system."""
+    WIN32 = 0
+    UNIX = 3
 
 
 class ZipError(Exception):
@@ -226,12 +235,12 @@ class ZipEntry:
     @property
     def has_data_descriptor(self) -> bool:
         """Whether the entry has a data descriptor."""
-        return bool(self.flags & FLAG_DATA_DESCRIPTOR)
+        return bool(self.flags & Flags.DATA_DESCRIPTOR)
 
     @property
     def has_utf8_filename(self) -> bool:
         """Whether the entry has a UTF8 filename."""
-        return bool(self.flags & FLAG_UTF8)
+        return bool(self.flags & Flags.UTF8)
 
     @property
     def is_dir(self) -> bool:
@@ -304,7 +313,7 @@ class ZipEntry:
         data += fh.read(n + m)
         filename = data[30:30 + n]
         extra = data[30 + n:30 + n + m]
-        if flags & FLAG_DATA_DESCRIPTOR:
+        if flags & Flags.DATA_DESCRIPTOR:
             fh.seek(cd_entry.compressed_size, os.SEEK_CUR)
             dd_data = fh.read(12)
             if dd_sig := dd_data[:4] == ODDH_SIGNATURE:
@@ -366,12 +375,12 @@ class ZipCDEntry:
     @property
     def has_data_descriptor(self) -> bool:
         """Whether the entry has a data descriptor."""
-        return bool(self.flags & FLAG_DATA_DESCRIPTOR)
+        return bool(self.flags & Flags.DATA_DESCRIPTOR)
 
     @property
     def has_utf8_filename(self) -> bool:
         """Whether the entry has a UTF8 filename."""
-        return bool(self.flags & FLAG_UTF8)
+        return bool(self.flags & Flags.UTF8)
 
     @property
     def is_dir(self) -> bool:
@@ -677,27 +686,37 @@ class ZipEntryWriter:
         return self._uncompressed_size, self._compressed_size, self._crc32
 
 
-def build_zip_entries(
-        *, version_created: int = CREATE_VERSION | CREATE_SYSTEM << 8,
-        version_extract: int = CREATE_VERSION, flags: int = 0,
-        compression_method: int = COMPRESSION_DEFLATE, mtime: int = 0, mdate: int = 0,
-        crc32: int = 0, compressed_size: int = 0, uncompressed_size: int = 0,
-        start_disk: int = 0, internal_attrs: int = 0, external_attrs: int = 0,
-        header_offset: int = 0, filename: Union[bytes, str] = b"-", extra: bytes = b"",
-        comment: bytes = b"", local_entry_size: int = -1,
-        data_descriptor: Optional[ZipDataDescriptor] = None) -> Tuple[ZipCDEntry, ZipEntry]:
-    """Build ZipCDEntry & ZipEntry from kwargs."""
-    if isinstance(filename, str):
-        filename = filename.encode()
-        flags |= FLAG_UTF8
-    cd_ent = ZipCDEntry(
-        version_created, version_extract, flags, compression_method, mtime, mdate, crc32,
-        compressed_size, uncompressed_size, start_disk, internal_attrs, external_attrs,
-        header_offset, filename, extra, comment)
-    lh_ent = ZipEntry(
-        version_extract, flags, compression_method, mtime, mdate, crc32, compressed_size,
-        uncompressed_size, filename, extra, local_entry_size, data_descriptor, cd_ent)
-    return cd_ent, lh_ent
+def split_version(version: int) -> Tuple[Tuple[int, int], int]:
+    r"""
+    Split version into ((hi, lo), os).
+
+    >>> version = CREATE_VERSION | CreateSystem.UNIX << 8
+    >>> version
+    788
+    >>> split_version(version)
+    ((2, 0), 3)
+
+    """
+    ver, os = version & 0xFF, version >> 8
+    return (ver // 10, ver % 10), os
+
+
+def unsplit_version(version: Union[Tuple[Tuple[int, int], int], Tuple[int, int]]) -> int:
+    r"""
+    Unsplit version from ((hi, lo), os) or (ver, os).
+
+    >>> unsplit_version((CREATE_VERSION, CreateSystem.UNIX))
+    788
+    >>> unsplit_version(((2, 0), 3))
+    788
+
+    """
+    if isinstance(version[0], tuple):
+        (hi, lo), os = version
+        ver = hi * 10 + lo
+    else:
+        ver, os = version
+    return ver | os << 8
 
 
 def parse_datetime(d: int, t: int) -> Tuple[int, int, int, int, int, int]:
@@ -710,6 +729,29 @@ def unparse_datetime(year: int, month: int, day: int, hours: int,
                      minutes: int, seconds: int) -> Tuple[int, int]:
     """Turn datetime into mdate + mtime."""
     return ((year - 1980) << 9 | month << 5 | day, hours << 11 | minutes << 5 | seconds // 2)
+
+
+def build_zip_entries(
+        *, version_created: int = unsplit_version((CREATE_VERSION, CreateSystem.UNIX)),
+        version_extract: int = CREATE_VERSION, flags: int = 0,
+        compression_method: int = COMPRESSION_DEFLATE, mtime: int = 0, mdate: int = 0,
+        crc32: int = 0, compressed_size: int = 0, uncompressed_size: int = 0,
+        start_disk: int = 0, internal_attrs: int = 0, external_attrs: int = 0,
+        header_offset: int = 0, filename: Union[bytes, str] = b"-", extra: bytes = b"",
+        comment: bytes = b"", local_entry_size: int = -1,
+        data_descriptor: Optional[ZipDataDescriptor] = None) -> Tuple[ZipCDEntry, ZipEntry]:
+    """Build ZipCDEntry & ZipEntry from kwargs."""
+    if isinstance(filename, str):
+        filename = filename.encode()
+        flags |= Flags.UTF8
+    cd_ent = ZipCDEntry(
+        version_created, version_extract, flags, compression_method, mtime, mdate, crc32,
+        compressed_size, uncompressed_size, start_disk, internal_attrs, external_attrs,
+        header_offset, filename, extra, comment)
+    lh_ent = ZipEntry(
+        version_extract, flags, compression_method, mtime, mdate, crc32, compressed_size,
+        uncompressed_size, filename, extra, local_entry_size, data_descriptor, cd_ent)
+    return cd_ent, lh_ent
 
 
 def copy_data(fin: BinaryIO, fout: BinaryIO, size: int, chunk_size: int = 4096) -> None:
