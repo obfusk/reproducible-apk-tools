@@ -183,10 +183,12 @@ def main() -> None:
     parser.add_argument("command", metavar="COMMAND")
     parser.add_argument("input_file", metavar="INPUT_FILE")
     args, rest = parser.parse_known_args()
+    palign = bool(args.page_align or args.page_size)
+    zalign = bool(args.zipalign or palign)
     try:
-        inplace_fix(args.command, args.input_file, *rest,
-                    zipalign=bool(args.zipalign or args.page_align or args.page_size),
-                    page_align=bool(args.page_align or args.page_size),
+        if args.internal and not zalign:
+            raise Error("Conflicting options: --internal without --zipalign/--page-align/--page-size")
+        inplace_fix(args.command, args.input_file, *rest, zipalign=zalign, page_align=palign,
                     page_size=args.page_size, internal=args.internal)
     except Error as e:
         print(f"Error: {e}.", file=sys.stderr)
