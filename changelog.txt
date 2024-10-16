@@ -1,3 +1,13 @@
+v0.3.0
+
+• change license from GPLv3+ to AGPLv3+.
+• binres.py: support offset16, compact, FLAG_SPARSE (untested) etc.
+• binres.py: small fixes, warn "please file an issue" for untested/notimplemented code.
+• fix-newlines.py, fix-files.py: add --compresslevel.
+• list-compresslevel.py: add --levels, small fixes.
+• inplace-fix.py: --internal requires --zipalign/--page-align/--page-size.
+• improve tests & error handling.
+
 v0.2.8
 
 • binres.py: add manifest-info subcommand, various fixes & improvements.
