@@ -833,6 +833,7 @@ def copy_data(fin: BinaryIO, fout: BinaryIO, size: int, chunk_size: int = 4096) 
         fout.write(data)
 
 
+# FIXME: use in compressed_chunks() etc.
 # https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
 def pk_decrypt(chunks: Iterator[bytes], password: bytes) -> Iterator[bytes]:
     """Decrypt (traditional PKWARE)."""
@@ -862,7 +863,6 @@ def _pk_init(chunk: bytes, password: bytes) -> Tuple[_PKKeys, bytes, bytes]:
     return keys, dheader, chunk
 
 
-# FIXME: proper 1-byte crc32
 def _pk_update_keys(b: int, keys: _PKKeys) -> None:
     keys.key0 = _pk_crc32(b, keys.key0)
     keys.key1 = (keys.key1 + (keys.key0 & 0xFF)) & 0xFFFFFFFF
