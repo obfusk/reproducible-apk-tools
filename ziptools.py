@@ -153,7 +153,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import IntEnum, IntFlag
 from functools import cached_property
-from typing import Any, BinaryIO, ClassVar, Dict, Generator, Iterator, List, Optional, Tuple, Union
+from typing import (Any, BinaryIO, Callable, ClassVar, Dict, Generator,
+                    Iterator, List, Optional, Tuple, Union)
 
 CDFH_SIGNATURE = b"\x50\x4b\x01\x02"    # central directory file header
 ELFH_SIGNATURE = b"\x50\x4b\x03\x04"    # entry local file header
@@ -283,7 +284,7 @@ class ZipEntry:
         return parse_datetime(self.mdate, self.mtime)
 
     def compressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096) -> Iterator[bytes]:
-        """Read chunks of raw (compressed) data."""
+        """Read chunks of raw (likely compressed, possibly encrypted) data."""
         remaining = self.cd_entry.compressed_size
         pos = self.cd_entry.header_offset + 30 + self.filename_len + self.extra_len
         while remaining > 0:
@@ -293,20 +294,45 @@ class ZipEntry:
             pos = fh.tell()
             yield data
 
-    def uncompressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096) -> Iterator[bytes]:
-        """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
+    # FIXME: check encryption type
+    # FIXME: support AES etc.
+    def unencrypted_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096,
+                           passwd_cb: Optional[Callable[[], bytes]] = None) -> Iterator[bytes]:
+        """
+        Read chunks of unencrypted (but still likely compressed) data.
+
+        NB: raw data may be uncompressed (self.compression_method ==
+        Compression.STORED) and is already unencrypted (unless
+        self.is_encrypted).
+
+        NB: currently only supports legacy PKWARE encryption, not AES etc.
+        """
+        chunks = self.compressed_chunks(fh, chunk_size=chunk_size)
+        if self.is_encrypted:
+            if not passwd_cb:
+                raise ZipError("No password to decrypt")
+            check_byte = (self.mtime >> 8 if self.has_data_descriptor else self.crc32 >> 32) & 0xFF
+            yield from pk_decrypt(chunks, passwd_cb, check_byte)
+        else:
+            yield from chunks
+
+    def uncompressed_chunks(self, fh: BinaryIO, *, chunk_size: int = 4096,
+                            passwd_cb: Optional[Callable[[], bytes]] = None) -> Iterator[bytes]:
+        """Read chunks of uncompressed unencrypted data (chunk_size applies to compressed data)."""
+        chunks = self.unencrypted_chunks(fh, chunk_size=chunk_size, passwd_cb=passwd_cb)
         if self.compression_method == Compression.STORED:
-            yield from self.compressed_chunks(fh, chunk_size=chunk_size)
+            yield from chunks
         elif self.compression_method == Compression.DEFLATE:
             decompressor = zlib.decompressobj(-15)
-            for chunk in self.compressed_chunks(fh, chunk_size=chunk_size):
+            for chunk in chunks:
                 yield decompressor.decompress(decompressor.unconsumed_tail + chunk)
             if data := decompressor.flush():
                 yield data
         else:
             raise NotImplementedError(f"Unsupported compression method: {self.compression_method}")
 
-    def compression_level(self, fh: BinaryIO, *, levels: Optional[List[int]] = None) -> Optional[List[int]]:
+    def compression_level(self, fh: BinaryIO, *, levels: Optional[List[int]] = None,
+                          passwd_cb: Optional[Callable[[], bytes]] = None) -> Optional[List[int]]:
         """Try to determine likely compression level(s)."""
         if self.compression_method != Compression.DEFLATE:
             return None
@@ -314,7 +340,7 @@ class ZipEntry:
             levels = COMPRESSION_LEVELS
         result = []
         comp_crc = 0
-        for chunk in self.compressed_chunks(fh):
+        for chunk in self.unencrypted_chunks(fh, passwd_cb=passwd_cb):
             comp_crc = zlib.crc32(chunk, comp_crc)
         comps = {lvl: zlib.compressobj(lvl, zlib.DEFLATED, -15) for lvl in levels}
         ccrcs = {lvl: 0 for lvl in levels}
@@ -537,29 +563,47 @@ class ZipFile:
     _fh: BinaryIO = field(compare=False, repr=False)
     cd_entries: List[ZipCDEntry]
     eocd: ZipEOCD
+    _passwd_cb: Optional[Callable[[], bytes]] = field(compare=False, repr=False, default=None)
 
     def load_entry(self, entry: Union[ZipCDEntry, str]) -> ZipEntry:
         """Load ZipEntry from ZipCDEntry or by name."""
         return self._entry(entry).load_entry(self._fh)
 
-    def read(self, entry: Union[ZipCDEntry, str]) -> bytes:
+    def read(self, entry: Union[ZipCDEntry, str], *,
+             passwd_cb: Optional[Callable[[], bytes]] = None) -> bytes:
         """Read entire uncompressed file."""
-        return b"".join(self.uncompressed_chunks(entry))
+        return b"".join(self.uncompressed_chunks(entry, passwd_cb=passwd_cb or self._passwd_cb))
 
     def compressed_chunks(self, entry: Union[ZipCDEntry, str], *,
                           chunk_size: int = 4096) -> Iterator[bytes]:
-        """Read chunks of raw (compressed) data."""
+        """Read chunks of raw (likely compressed, possibly encrypted) data."""
         return self.load_entry(entry).compressed_chunks(self._fh, chunk_size=chunk_size)
 
-    def uncompressed_chunks(self, entry: Union[ZipCDEntry, str], *,
-                            chunk_size: int = 4096) -> Iterator[bytes]:
-        """Read chunks of uncompressed data (chunk_size applies to compressed data)."""
-        return self.load_entry(entry).uncompressed_chunks(self._fh, chunk_size=chunk_size)
+    def unencrypted_chunks(self, entry: Union[ZipCDEntry, str], *, chunk_size: int = 4096,
+                           passwd_cb: Optional[Callable[[], bytes]] = None) -> Iterator[bytes]:
+        """
+        Read chunks of unencrypted (but still likely compressed) data.
 
-    def compression_level(self, entry: Union[ZipCDEntry, str], *,
-                          levels: Optional[List[int]] = None) -> Optional[List[int]]:
+        NB: raw data may be uncompressed (self.compression_method ==
+        Compression.STORED) and is already unencrypted (unless
+        self.is_encrypted).
+
+        NB: currently only supports legacy PKWARE encryption, not AES etc.
+        """
+        return self.load_entry(entry).unencrypted_chunks(
+            self._fh, chunk_size=chunk_size, passwd_cb=passwd_cb or self._passwd_cb)
+
+    def uncompressed_chunks(self, entry: Union[ZipCDEntry, str], *, chunk_size: int = 4096,
+                            passwd_cb: Optional[Callable[[], bytes]] = None) -> Iterator[bytes]:
+        """Read chunks of uncompressed unencrypted data (chunk_size applies to compressed data)."""
+        return self.load_entry(entry).uncompressed_chunks(
+            self._fh, chunk_size=chunk_size, passwd_cb=passwd_cb or self._passwd_cb)
+
+    def compression_level(self, entry: Union[ZipCDEntry, str], *, levels: Optional[List[int]] = None,
+                          passwd_cb: Optional[Callable[[], bytes]] = None) -> Optional[List[int]]:
         """Try to determine likely compression level(s)."""
-        return self.load_entry(entry).compression_level(self._fh, levels=levels)
+        return self.load_entry(entry).compression_level(
+            self._fh, levels=levels, passwd_cb=passwd_cb or self._passwd_cb)
 
     def _entry(self, entry: Union[ZipCDEntry, str]) -> ZipCDEntry:
         return self.cd_entries_by_name[entry] if isinstance(entry, str) else entry
@@ -586,10 +630,11 @@ class ZipFile:
 
     @classmethod
     @contextmanager
-    def open(cls, zipfile: str) -> Generator[ZipFile]:
+    def open(cls, zipfile: str, *, chunk_size: int = 1024,
+             passwd_cb: Optional[Callable[[], bytes]] = None) -> Generator[ZipFile]:
         """ZipFile reader context manager."""
         with open(zipfile, "rb") as fh:
-            yield cls.load(fh)
+            yield cls.load(fh, chunk_size=chunk_size, passwd_cb=passwd_cb)
 
     @classmethod
     @contextmanager
@@ -606,7 +651,8 @@ class ZipFile:
             builder.finish()
 
     @classmethod
-    def load(cls, fh: BinaryIO, *, chunk_size: int = 1024) -> ZipFile:
+    def load(cls, fh: BinaryIO, *, chunk_size: int = 1024,
+             passwd_cb: Optional[Callable[[], bytes]] = None) -> ZipFile:
         """Load ZipFile from file handle or named file."""
         for pos in range(fh.seek(0, os.SEEK_END) - chunk_size, -chunk_size, -chunk_size):
             fh.seek(max(0, pos))
@@ -619,7 +665,8 @@ class ZipFile:
                 fh.seek(cd_offset)
                 cd_data = fh.read(eocd_offset - cd_offset)
                 eocd_data = fh.read()
-                return ZipFile(fh, cls._parse_cd_entries(cd_data), ZipEOCD.parse(eocd_data, eocd_offset))
+                return ZipFile(fh, cls._parse_cd_entries(cd_data),
+                               ZipEOCD.parse(eocd_data, eocd_offset), passwd_cb)
         raise BrokenZipError("Expected end of central directory record (EOCD)")
 
     @classmethod
@@ -833,15 +880,21 @@ def copy_data(fin: BinaryIO, fout: BinaryIO, size: int, chunk_size: int = 4096) 
         fout.write(data)
 
 
-# FIXME: use in compressed_chunks() etc.
 # https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
-def pk_decrypt(chunks: Iterator[bytes], password: bytes) -> Iterator[bytes]:
-    """Decrypt (traditional PKWARE)."""
-    header = b""
+def pk_decrypt(chunks: Iterator[bytes], passwd_cb: Callable[[], bytes],
+               check_byte: Optional[int]) -> Iterator[bytes]:
+    """Legacy PKWARE decryption."""
+    keys: Optional[_PKKeys] = None
+    first = b""
     for chunk in chunks:
-        if not header:
-            keys, header, chunk = _pk_init(chunk, password)
-        yield _pk_decrypt(chunk, keys)
+        if not keys:
+            if len(first := first + chunk) < 12:
+                continue
+            keys, chunk = _pk_init(first, passwd_cb, check_byte)
+        if chunk:
+            yield _pk_decrypt(chunk, keys)
+    if not keys:
+        raise BrokenZipError("Not enough bytes for encryption header")
 
 
 @dataclass
@@ -851,16 +904,17 @@ class _PKKeys:
     key2: int = 878082192
 
 
-# FIXME: check crc
-# FIXME: handle first chunk < 12 bytes?
-def _pk_init(chunk: bytes, password: bytes) -> Tuple[_PKKeys, bytes, bytes]:
+def _pk_init(chunk: bytes, passwd_cb: Callable[[], bytes],
+             check_byte: Optional[int]) -> Tuple[_PKKeys, bytes]:
     _pk_generate_crc32table()
     keys = _PKKeys()
     eheader, chunk = chunk[:12], chunk[12:]
-    for b in password:
+    for b in passwd_cb():
         _pk_update_keys(b, keys)
     dheader = _pk_decrypt(eheader, keys)
-    return keys, dheader, chunk
+    if check_byte is not None and dheader[-1] != check_byte:
+        raise ZipError("Bad password")
+    return keys, chunk
 
 
 def _pk_update_keys(b: int, keys: _PKKeys) -> None:
@@ -872,11 +926,11 @@ def _pk_update_keys(b: int, keys: _PKKeys) -> None:
 
 def _pk_decrypt(chunk: bytes, keys: _PKKeys) -> bytes:
     result = bytearray()
-    for c in chunk:
+    for b in chunk:
         k = keys.key2 | 2
-        c ^= ((k * (k ^ 1)) >> 8) & 0xFF
-        _pk_update_keys(c, keys)
-        result.append(c)
+        b ^= ((k * (k ^ 1)) >> 8) & 0xFF
+        _pk_update_keys(b, keys)
+        result.append(b)
     return bytes(result)
 
 
@@ -886,9 +940,8 @@ def _pk_crc32(b: int, crc: int) -> int:
 
 def _pk_generate_crc32table() -> None:
     if not _pk_crc32table:
-        for i in range(256):
-            crc = i
-            for j in range(8):
+        for crc in range(256):
+            for i in range(8):
                 crc = (crc >> 1) ^ 0xEDB88320 if crc & 1 else crc >> 1
             _pk_crc32table.append(crc)
 
