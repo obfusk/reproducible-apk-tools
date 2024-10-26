@@ -174,6 +174,7 @@ class Compression(IntEnum):
 
 class Flags(IntFlag):
     """Flags."""
+    ENCRYPTED = 0x01
     DATA_DESCRIPTOR = 0x08
     UTF8 = 0x800
 
@@ -260,6 +261,11 @@ class ZipEntry:
     def has_utf8_filename(self) -> bool:
         """Whether the entry has a UTF8 filename."""
         return bool(self.flags & Flags.UTF8)
+
+    @property
+    def is_encrypted(self) -> bool:
+        """Whether the entry is encrypted."""
+        return bool(self.flags & Flags.ENCRYPTED)
 
     @property
     def is_dir(self) -> bool:
@@ -425,6 +431,11 @@ class ZipCDEntry:
     def has_utf8_filename(self) -> bool:
         """Whether the entry has a UTF8 filename."""
         return bool(self.flags & Flags.UTF8)
+
+    @property
+    def is_encrypted(self) -> bool:
+        """Whether the entry is encrypted."""
+        return bool(self.flags & Flags.ENCRYPTED)
 
     @property
     def is_dir(self) -> bool:
@@ -820,5 +831,68 @@ def copy_data(fin: BinaryIO, fout: BinaryIO, size: int, chunk_size: int = 4096) 
         data = fin.read(min(chunk_size, size))
         size -= len(data)
         fout.write(data)
+
+
+# https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
+def pk_decrypt(chunks: Iterator[bytes], password: bytes) -> Iterator[bytes]:
+    """Decrypt (traditional PKWARE)."""
+    header = b""
+    for chunk in chunks:
+        if not header:
+            keys, header, chunk = _pk_init(chunk, password)
+        yield _pk_decrypt(chunk, keys)
+
+
+@dataclass
+class _PKKeys:
+    key0: int = 305419896
+    key1: int = 591751049
+    key2: int = 878082192
+
+
+# FIXME: check crc
+# FIXME: handle first chunk < 12 bytes?
+def _pk_init(chunk: bytes, password: bytes) -> Tuple[_PKKeys, bytes, bytes]:
+    _pk_generate_crc32table()
+    keys = _PKKeys()
+    eheader, chunk = chunk[:12], chunk[12:]
+    for b in password:
+        _pk_update_keys(b, keys)
+    dheader = _pk_decrypt(eheader, keys)
+    return keys, dheader, chunk
+
+
+# FIXME: proper 1-byte crc32
+def _pk_update_keys(b: int, keys: _PKKeys) -> None:
+    keys.key0 = _pk_crc32(b, keys.key0)
+    keys.key1 = (keys.key1 + (keys.key0 & 0xFF)) & 0xFFFFFFFF
+    keys.key1 = (keys.key1 * 134775813 + 1) & 0xFFFFFFFF
+    keys.key2 = _pk_crc32(keys.key1 >> 24, keys.key2)
+
+
+def _pk_decrypt(chunk: bytes, keys: _PKKeys) -> bytes:
+    result = bytearray()
+    for c in chunk:
+        k = keys.key2 | 2
+        c ^= ((k * (k ^ 1)) >> 8) & 0xFF
+        _pk_update_keys(c, keys)
+        result.append(c)
+    return bytes(result)
+
+
+def _pk_crc32(b: int, crc: int) -> int:
+    return (crc >> 8) ^ _pk_crc32table[(crc ^ b) & 0xFF]
+
+
+def _pk_generate_crc32table() -> None:
+    if not _pk_crc32table:
+        for i in range(256):
+            crc = i
+            for j in range(8):
+                crc = (crc >> 1) ^ 0xEDB88320 if crc & 1 else crc >> 1
+            _pk_crc32table.append(crc)
+
+
+_pk_crc32table: List[int] = []
 
 # vim: set tw=80 sw=4 sts=4 et fdm=marker :
