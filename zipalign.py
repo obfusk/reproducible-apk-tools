@@ -144,6 +144,7 @@ def zip_data(apkfile: str, count: int = 1024) -> ZipData:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(prog="zipalign.py")
+    parser.add_argument("-f", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("-p", "--page-align", action="store_true",
                         help="use 4096-byte memory page alignment for .so files")
     parser.add_argument("-P", "--page-size", metavar="N", type=int,
