@@ -9,7 +9,7 @@ import zipfile
 import zlib
 
 from fnmatch import fnmatch
-from typing import List, Optional
+from typing import List, Optional, Union
 
 LEVELS = (9, 6, 4, 1)
 
@@ -18,7 +18,8 @@ class Error(RuntimeError):
     pass
 
 
-def list_compresslevel(apk: str, *patterns: str, levels: Optional[List[int]] = None) -> None:
+def list_compresslevel(apk: str, *patterns: str, levels: Optional[List[int]] = None,
+                       error: bool = False) -> None:
     if not levels:
         levels = list(LEVELS)
     with open(apk, "rb") as fh_raw:
@@ -26,7 +27,7 @@ def list_compresslevel(apk: str, *patterns: str, levels: Optional[List[int]] = N
             for info in zf.infolist():
                 if patterns and not fnmatches_with_negation(info.filename, *patterns):
                     continue
-                lvls = []
+                lvls: List[Union[int, str]] = []
                 if info.compress_type == 8:
                     fh_raw.seek(info.header_offset)
                     n, m = struct.unpack("<HH", fh_raw.read(30)[26:30])
@@ -49,9 +50,13 @@ def list_compresslevel(apk: str, *patterns: str, levels: Optional[List[int]] = N
                             if ccrc == zlib.crc32(comps[lvl].flush(), ccrcs[lvl]):
                                 lvls.append(lvl)
                         if not lvls:
-                            raise Error(f"Unable to determine compresslevel for {info.filename!r}")
+                            if error:
+                                raise Error(f"Unable to determine compresslevel for {info.filename!r}")
+                            lvls = ["Undetermined"]
                 elif info.compress_type != 0:
-                    raise Error(f"Unsupported compress_type {info.compress_type}")
+                    if error:
+                        raise Error(f"Unsupported compress_type {info.compress_type}")
+                    lvls = ["Unsupported"]
                 result = "|".join(map(str, lvls)) if lvls else None
                 print(f"filename={info.filename!r} compresslevel={result}")
 
@@ -131,6 +136,7 @@ def levels_from_spec(spec: Optional[str]) -> List[int]:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(prog="list-compresslevel.py")
+    parser.add_argument("--error", action="store_true")
     parser.add_argument("--levels")
     parser.add_argument("apk", metavar="APK")
     parser.add_argument("patterns", metavar="PATTERN", nargs="*")
@@ -141,7 +147,7 @@ if __name__ == "__main__":
         print(f"Error: {e}.")
         sys.exit(1)
     try:
-        list_compresslevel(args.apk, *args.patterns, levels=clevels)
+        list_compresslevel(args.apk, *args.patterns, levels=clevels, error=args.error)
     except BrokenPipeError:
         pass
 
