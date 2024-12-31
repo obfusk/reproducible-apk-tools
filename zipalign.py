@@ -41,9 +41,9 @@ def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
                 raise Error("Expected local file header signature")
             n, m = struct.unpack("<HH", hdr[26:30])
             hdr += fhi.read(n + m)
-            if info.filename in offsets:
-                raise Error(f"Duplicate ZIP entry: {info.filename!r}")
-            offsets[info.filename] = off_o = fho.tell()
+            if info.orig_filename in offsets:
+                raise Error(f"Duplicate ZIP entry: {info.orig_filename!r}")
+            offsets[info.orig_filename] = off_o = fho.tell()
             if info.compress_type == 0:
                 hdr = _align_zip_entry(
                     info, hdr, n, m, off_o, page_align=page_align, page_size=page_size,
@@ -72,7 +72,7 @@ def zipalign(input_apk: str, output_apk: str, *, page_align: bool = False,
                 raise Error("Expected central directory file header signature")
             n, m, k = struct.unpack("<HHH", hdr[28:34])
             hdr += fhi.read(n + m + k)
-            off = int.to_bytes(offsets[info.filename], 4, "little")
+            off = int.to_bytes(offsets[info.orig_filename], 4, "little")
             hdr = hdr[:42] + off + hdr[46:]
             fho.write(hdr)
         eocd_offset = fho.tell()
@@ -87,7 +87,7 @@ def _align_zip_entry(info: zipfile.ZipInfo, hdr: bytes, n: int, m: int, off_o: i
                      page_align: bool = False, page_size: Optional[int] = None,
                      pad_like_apksigner: bool = False, replace: bool = False) -> bytes:
     psize = DEFAULT_PAGE_SIZE if page_size is None else page_size
-    align = psize * 1024 if page_align and info.filename.endswith(".so") else 4
+    align = psize * 1024 if page_align and info.orig_filename.endswith(".so") else 4
     new_off = 30 + n + m + off_o
     old_xtr = hdr[30 + n:30 + n + m]
     new_xtr = b""
