@@ -94,7 +94,9 @@ class Time:
 
 def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity()) -> bool:
     def show(x: Any) -> str:
-        return x if isinstance(x, str) and x.isprintable() else repr(x)
+        if isinstance(x, str):
+            return x if x.isprintable() else repr(x)[1:-1]
+        return repr(x)
 
     def diff_bytes(a: bytes, b: bytes, attr: str) -> None:
         a_lines = textwrap.wrap(binascii.hexlify(a).decode(), 76)
@@ -119,10 +121,10 @@ def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity
         with zipfile.ZipFile(zipfile1) as zf1, zipfile.ZipFile(zipfile2) as zf2:
             info1 = zf1.infolist()
             info2 = zf2.infolist()
-            ftoi1 = {i.filename: i for i in info1}
-            ftoi2 = {i.filename: i for i in info2}
-            name1 = zf1.namelist()
-            name2 = zf2.namelist()
+            ftoi1 = {i.orig_filename: i for i in info1}
+            ftoi2 = {i.orig_filename: i for i in info2}
+            name1 = [i.orig_filename for i in info1]
+            name2 = [i.orig_filename for i in info2]
             nset1 = set(name1)
             nset2 = set(name2)
             data_before_cd1, ents1 = read_entries(fh1, ftoi1, verbosity.additional)
@@ -257,8 +259,8 @@ def read_entries(fh: BinaryIO, ftoi: Dict[str, zipfile.ZipInfo], additional: boo
     ents: Dict[str, Entry] = {}
     ent = None
     for p, i in zip([None] + infos[:-1], infos):  # type: ignore[operator]
-        prev = ents[p.filename] if p is not None else None
-        ents[i.filename] = ent = read_entry(fh, i, prev, additional)
+        prev = ents[p.orig_filename] if p is not None else None
+        ents[i.orig_filename] = ent = read_entry(fh, i, prev, additional)
     if additional:
         # FIXME
         cd_offset = zipfile._EndRecData(fh)[zipfile._ECD_OFFSET]    # type: ignore[attr-defined]
