@@ -72,7 +72,7 @@ def alignment_info(apkfile: str) -> AlignmentInfo:
                 offset = fh.tell()
                 if offset % 4 != 0:
                     zipaligned = False
-                if info.filename.endswith(".so"):
+                if info.orig_filename.endswith(".so"):
                     page_aligned += 1
                     for page_size in PAGE_SIZES:
                         if offset % (page_size * 1024) == 0:
