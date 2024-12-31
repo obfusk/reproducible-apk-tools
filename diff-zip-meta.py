@@ -94,9 +94,7 @@ class Time:
 
 def diff_zip_meta(zipfile1: str, zipfile2: str, verbosity: Verbosity = Verbosity()) -> bool:
     def show(x: Any) -> str:
-        if isinstance(x, str):
-            return x if x.isprintable() else repr(x)[1:-1]
-        return repr(x)
+        return repr(x)[1:-1] if isinstance(x, str) else repr(x)
 
     def diff_bytes(a: bytes, b: bytes, attr: str) -> None:
         a_lines = textwrap.wrap(binascii.hexlify(a).decode(), 76)
