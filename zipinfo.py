@@ -96,7 +96,7 @@ def format_info(info: zipfile.ZipInfo, *, extended: bool = False,
     else:
         date_time = info.date_time
     perm = format_permissions(info)
-    if extended and info.filename.endswith("/"):
+    if extended and info.orig_filename.endswith("/"):
         perm = "d" + perm[1:]                       # directory
     vers = "{}.{}".format(info.create_version // 10,
                           info.create_version % 10)
@@ -124,7 +124,7 @@ def format_info(info: zipfile.ZipInfo, *, extended: bool = False,
     fields += [comp, dt, tm]
     if extended:
         fields.append(f"{info.CRC:08x}")
-    fields.append(printable_filename(info.filename))
+    fields.append(printable_filename(info.orig_filename))
     return " ".join(fields)
 
 
@@ -155,7 +155,7 @@ def format_permissions(info: zipfile.ZipInfo) -> str:
     hi = info.external_attr >> 16
     if hi and info.create_system in (SYS_UNX, SYS_FAT):
         return stat.filemode(hi)
-    exe = os.path.splitext(info.filename)[1][1:].lower() in EXE_EXTS
+    exe = os.path.splitext(info.orig_filename)[1][1:].lower() in EXE_EXTS
     xat = info.external_attr & 0xFF
     return "".join((
         'd' if xat & 0x10 else '-',
@@ -313,7 +313,7 @@ def zip_filenames(zip_file: str, *, sort_by_offset: bool = False) -> None:
         else:
             infos = zf.infolist()
         for info in infos:
-            print(printable_filename(info.filename))
+            print(printable_filename(info.orig_filename))
 
 
 if __name__ == "__main__":
