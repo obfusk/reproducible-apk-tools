@@ -323,6 +323,8 @@ class ResourceTableChunk(ParentChunk):
 
     TYPE_ID: ClassVar[int] = 0x0002
 
+    EntryFilter = Enum("EntryFilter", ("ALL",), start=0)
+
     @classmethod
     def parse(cls, header: bytes, payload: bytes, **kwargs: Any) -> ResourceTableChunk:
         """Parse ResourceTableChunk."""
@@ -419,13 +421,38 @@ class ResourceTableChunk(ParentChunk):
         r"""
         Get (first/all matching) type chunk entries with specified ID.
 
-        NB: there should only be one matching entry, but this is not enforced;
-        finding all entries is thus provided for analysis purposes.
+        NB: there should only be one matching entry for a specific combination
+        of language/region/density, but this is not enforced; finding all
+        entries using return_first=False is thus provided for analysis purposes;
+        see select_entries() to select entries from all densities etc.
 
         >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
         >>> entries = chunk.find_entries(0x7f020000)
         >>> [e.str_value() for e in entries]
         ['Tiny App for CTS']
+        """
+        entries = self.select_entries(id, typ=typ, array=array, return_first=return_first,
+                                      language=language, region=region, density=density)
+        return [entry for configuration, entry in entries]
+
+    def select_entries(self, id: int, *, typ: Optional[BinResVal.Type] = None, array: bool = False,
+                       return_first: bool = False, language: Union[str, EntryFilter, None] = None,
+                       region: Union[str, EntryFilter, None] = None,
+                       density: Union[int, EntryFilter] = 0) -> List[Tuple[BinResCfg, TypeChunk.Entry]]:
+        r"""
+        Select type chunk entries with specified ID; returns results from all
+        configurations when EntryFilter.ALL is used; unlike find_entries(),
+        return_first defaults to False and it returns pairs of (configuration,
+        entry).
+
+        >>> ALL = ResourceTableChunk.EntryFilter.ALL
+        >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
+        >>> entries = chunk.select_entries(0x7f020000, language=ALL, region=ALL)
+        >>> for c, e in entries:
+        ...     (c.locale, e.str_value())
+        ('', 'Tiny App for CTS')
+        ('en-XA', '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]')
+        ('ar-XB', '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f')
         """
         entries = []
         fltr = dict(language=language, region=region, density=density)
@@ -434,7 +461,7 @@ class ResourceTableChunk(ParentChunk):
             raise ResourceError(f"No package with id {rid.package_id}")
         for t in self.package_with_id(rid.package_id).type_chunks(rid.type_id):
             for k, v in fltr.items():
-                if getattr(t.configuration, k) != v:
+                if v is not self.EntryFilter.ALL and getattr(t.configuration, k) != v:
                     break
             else:
                 for i, e in t.entries:
@@ -447,7 +474,7 @@ class ResourceTableChunk(ParentChunk):
                             if typ and val.type is not typ:
                                 raise ResourceError(f"Type mismatch for {hex(id)}: expected "
                                                     f"{typ.name}, got {val.type.name}")
-                        entries.append(e)
+                        entries.append((t.configuration, e))
                         if return_first:
                             return entries
         return entries
@@ -1232,6 +1259,10 @@ class BinResCfg:
     locale_variant: Optional[bytes]
     screen_layout2: int         # screen_round, FIXME
     unknown: Optional[bytes]
+
+    @property
+    def locale(self) -> str:
+        return (self.language or "") + (f"-{self.region}" if self.region else "")
 
     @property
     def mobile_country_code(self) -> int:
