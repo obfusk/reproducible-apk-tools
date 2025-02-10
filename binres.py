@@ -84,6 +84,34 @@ RESOURCE TABLE
   </domain-config>
 </network-security-config>
 
+>>> dump_apk("test/data/golden-aligned-in.apk", "AndroidManifest.xml", xml=True)
+<!-- entry='AndroidManifest.xml' -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="10" android:versionName="1.0" package="android.appsecurity.cts.tinyapp" platformBuildVersionCode="23" platformBuildVersionName="6.0-2166767">
+  <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="23" />
+  <application android:label="@0x7f020000">
+    <activity android:label="@0x7f020000" android:name=".MainActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>
+
+>>> dump_apk("test/data/golden-aligned-in.apk", "AndroidManifest.xml", xml=True, xml_deref=True)
+<!-- entry='AndroidManifest.xml' -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="10" android:versionName="1.0" package="android.appsecurity.cts.tinyapp" platformBuildVersionCode="23" platformBuildVersionName="6.0-2166767">
+  <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="23" />
+  <application android:label="Tiny App for CTS">
+    <activity android:label="Tiny App for CTS" android:name=".MainActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>
+
 >>> fastid("test/data/golden-aligned-in.apk")
 package=android.appsecurity.cts.tinyapp versionCode=10 versionName=1.0
 
@@ -113,6 +141,34 @@ permission=android.permission.READ_EXTERNAL_STORAGE [maxSdkVersion=23]
     ]
   }
 ]
+
+>>> _ = manifest_info("test/data/golden-aligned-in.apk", extended=True)
+{
+  "test/data/golden-aligned-in.apk": {
+    "appid": "android.appsecurity.cts.tinyapp",
+    "version_code": 10,
+    "version_name": "1.0",
+    "min_sdk": 23,
+    "target_sdk": 23,
+    "features": [],
+    "permissions": [],
+    "abis": [
+      "armeabi"
+    ],
+    "app_label": {
+      "": [
+        "Tiny App for CTS"
+      ],
+      "ar-XB": [
+        "\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f"
+      ],
+      "en-XA": [
+        "[\u0162\u00ee\u00f1\u00fd \u00c5\u00fe\u00fe \u0192\u00f6\u0155 \u00c7\u0162\u0160 one two three]"
+      ]
+    },
+    "app_icon": null
+  }
+}
 
 """
 
@@ -994,13 +1050,14 @@ class TypeChunk(TypeOrSpecChunk):
                 return p.string(idx)
             raise ParentError("Parent deallocated")
 
-        def str_value(self, resources: Optional[ResourceTableChunk] = None) -> str:
+        def str_value(self, *, resources: Optional[ResourceTableChunk] = None,
+                      deref_limit: int = 16) -> str:
             """Get string value."""
             if self.is_complex:
                 raise ResourceError("Expected scalar value")
             assert self.value is not None
-            if resources and self.value.type is BinResVal.Type.REFERENCE:
-                return brv_str_deref(self.value, "", resources=resources)
+            if resources and self.value.type is BinResVal.Type.REFERENCE and deref_limit > 0:
+                return brv_str_deref(self.value, "", resources=resources, deref_limit=deref_limit - 1)
             if self.value.type is not BinResVal.Type.STRING:
                 raise ResourceError("Expected string value")
             return self.string(self.value.data)
@@ -1887,8 +1944,8 @@ def brv_str(brv: BinResVal, raw_value: str) -> str:
     return f_str(x)
 
 
-def brv_str_deref(brv: BinResVal, raw_value: str,
-                  resources: Optional[ResourceTableChunk] = None) -> str:
+def brv_str_deref(brv: BinResVal, raw_value: str, *,
+                  resources: Optional[ResourceTableChunk] = None, deref_limit: int = 16) -> str:
     """brv_str() that follows references (if resouces is provided)."""
     if resources and brv.type is BinResVal.Type.REFERENCE:
         try:
@@ -1897,8 +1954,10 @@ def brv_str_deref(brv: BinResVal, raw_value: str,
             pass
         else:
             if entries:
-                _, entry = max(entries, key=lambda x: x[0].density)
+                _, entry = min(entries, key=lambda x: (-x[0].density, x[0]))
                 assert entry.value is not None
+                if entry.value.type is BinResVal.Type.REFERENCE and deref_limit > 0:
+                    return entry.str_value(resources=resources, deref_limit=deref_limit - 1)
                 if entry.value.type is BinResVal.Type.STRING:
                     return entry.str_value()
                 return brv_str(entry.value, "")
