@@ -1885,18 +1885,17 @@ def brv_str_deref(brv: BinResVal, raw_value: str,
                   resources: Optional[ResourceTableChunk] = None) -> str:
     """brv_str() that follows references (if resouces is provided)."""
     if resources and brv.type is BinResVal.Type.REFERENCE:
-        ds = [0] + sorted([x.value for x in BinResCfg.Density if x.value != 0], reverse=True)
-        for d in ds:
-            try:
-                entry = resources.get_entry(brv.data, density=d)
+        try:
+            entries = resources.select_entries(brv.data, density=ResourceTableChunk.EntryFilter.ALL)
+        except ResourceError:
+            pass
+        else:
+            if entries:
+                _, entry = max(entries, key=lambda x: x[0].density)
                 assert entry.value is not None
                 if entry.value.type is BinResVal.Type.STRING:
                     return entry.str_value()
                 return brv_str(entry.value, "")
-            except ResourceNotFound:
-                pass
-            except ResourceError:
-                break
     return brv_str(brv, raw_value)
 
 
