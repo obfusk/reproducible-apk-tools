@@ -151,9 +151,9 @@ test-examples:
 	  <( $(REPROAPK) binres fastperms perms.apk -q )
 	# binres manifest-info
 	cd test/data && diff -Naur golden-aligned-in.apk.json \
-	  <( $(REPROAPK) binres manifest-info golden-aligned-in.apk )
+	  <( $(REPROAPK) binres manifest-info -e golden-aligned-in.apk )
 	cd test/data && diff -Naur perms.apk.json \
-	  <( $(REPROAPK) binres manifest-info perms.apk )
+	  <( $(REPROAPK) binres manifest-info -e perms.apk )
 	# diff-zip-meta
 	cd test/data && diff -Naur golden-aligned-in-sorted.diff \
 	  <( $(REPROAPK) diff-zip-meta golden-aligned-in.apk golden-aligned-in-sorted.apk )

@@ -9,6 +9,18 @@
     "permissions": [],
     "abis": [
       "armeabi"
-    ]
+    ],
+    "app_label": {
+      "": [
+        "Tiny App for CTS"
+      ],
+      "ar-XB": [
+        "\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f"
+      ],
+      "en-XA": [
+        "[\u0162\u00ee\u00f1\u00fd \u00c5\u00fe\u00fe \u0192\u00f6\u0155 \u00c7\u0162\u0160 one two three]"
+      ]
+    },
+    "app_icon": null
   }
 }

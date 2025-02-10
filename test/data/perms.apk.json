@@ -18,6 +18,8 @@
         "max_sdk_version": 23
       }
     ],
-    "abis": []
+    "abis": [],
+    "app_label": null,
+    "app_icon": null
   }
 }

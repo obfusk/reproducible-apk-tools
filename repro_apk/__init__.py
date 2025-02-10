@@ -119,10 +119,11 @@ def main() -> None:
     @binres.command(help="""
         Dump basic manifest info from APK(s) as JSON.
     """, name="manifest-info")
+    @click.option("-e", "--extended", is_flag=True, help="Also extract app label and icon.")
     @click.argument("apks", metavar="APK...", nargs=-1, required=True,
                     type=click.Path(exists=True, dir_okay=False))
-    def binres_manifest_info(apks: Tuple[str, ...]) -> None:
-        if _binres.manifest_info(*apks):
+    def binres_manifest_info(apks: Tuple[str, ...], extended: bool) -> None:
+        if _binres.manifest_info(*apks, extended=extended):
             sys.exit(1)
 
     @cli.command(help="""

@@ -430,6 +430,7 @@ class ResourceTableChunk(ParentChunk):
         >>> entries = chunk.find_entries(0x7f020000)
         >>> [e.str_value() for e in entries]
         ['Tiny App for CTS']
+
         """
         entries = self.select_entries(id, typ=typ, array=array, return_first=return_first,
                                       language=language, region=region, density=density)
@@ -453,6 +454,7 @@ class ResourceTableChunk(ParentChunk):
         ('', 'Tiny App for CTS')
         ('en-XA', '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]')
         ('ar-XB', '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f')
+
         """
         entries = []
         fltr = dict(language=language, region=region, density=density)
@@ -992,11 +994,13 @@ class TypeChunk(TypeOrSpecChunk):
                 return p.string(idx)
             raise ParentError("Parent deallocated")
 
-        def str_value(self) -> str:
+        def str_value(self, resources: Optional[ResourceTableChunk] = None) -> str:
             """Get string value."""
             if self.is_complex:
                 raise ResourceError("Expected scalar value")
             assert self.value is not None
+            if resources and self.value.type is BinResVal.Type.REFERENCE:
+                return brv_str_deref(self.value, "", resources=resources)
             if self.value.type is not BinResVal.Type.STRING:
                 raise ResourceError("Expected string value")
             return self.string(self.value.data)
@@ -1232,7 +1236,7 @@ class BinResId:
 
 
 # FIXME: incomplete?
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class BinResCfg:
     """Binary resource configuration."""
     size: int
@@ -1444,7 +1448,9 @@ class ManifestInfo:
     target_sdk: int
     features: List[UsesFeature]
     permissions: List[UsesPermission]
-    abis: Optional[List[str]]
+    abis: Optional[List[str]] = None
+    app_label: Optional[Dict[str, List[str]]] = None
+    app_icon: Optional[Dict[int, List[str]]] = None
 
 
 if TYPE_CHECKING:
@@ -1563,12 +1569,12 @@ def fastperms(*apks: str, json: bool = False, quiet: bool = False,
                 print(f"permission={_safe(perm)}{f' [{info}]' if info else ''}")
 
 
-def manifest_info(*apks: str) -> int:
+def manifest_info(*apks: str, extended: bool = False) -> int:
     """Dump basic manifest info as JSON; returns number of errors."""
     data, errors = {}, 0
     for apkfile in apks:
         try:
-            m = get_manifest_info_apk(apkfile)
+            m = get_manifest_info_apk(apkfile, extended=extended)
             data[apkfile] = dataclasses.asdict(m)
         except Error as e:
             errors += 1
@@ -2283,7 +2289,7 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
 
 
 # FIXME
-def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None, *,
+def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None, *, extended: bool = False,
                       resources: Optional[ResourceTableChunk] = None) -> ManifestInfo:
     r"""
     Get ManifestInfo from AXML (and optionally list of APK files for abis).
@@ -2317,22 +2323,32 @@ def get_manifest_info(axml: bytes, files: Optional[Set[str]] = None, *,
       UsesPermission(name='android.permission.READ_EXTERNAL_STORAGE', min_sdk_version=None, max_sdk_version=23)
       UsesPermission(name='me.hackerchick.catima.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION', min_sdk_version=None, max_sdk_version=None)
     abis=None
+    app_label=None
+    app_icon=None
+    >>> with open("test/data/resources-catima.arsc", "rb") as fh:
+    ...     resources = _quick_get_resources(fh.read())
+    >>> man = get_manifest_info(axml, extended=True, resources=resources)
+    >>> man.app_label
+    {'': ['Catima'], 'ar': ['كاتيما'], 'bg': ['Catima'], 'bn': ['ক্যাটিমা'], 'cs': ['Catima'], 'da': ['Catima'], 'de': ['Catima'], 'el-GR': ['Catima'], 'eo': ['Catima'], 'es': ['Catima'], 'es-AR': ['Catima'], 'fi': ['Catima'], 'fr': ['Catima'], 'hi': ['कैटिमा'], 'hr': ['Catima'], 'hu': ['Catima'], 'in-ID': ['Catima'], 'it': ['Catima'], 'ja': ['Catima'], 'ko': ['Catima'], 'nb-NO': ['Catima'], 'nl': ['Catima'], 'pl': ['Catima'], 'pt-PT': ['Catima'], 'ro-RO': ['Catima'], 'ru': ['Catima'], 'sk': ['Catima'], 'sv': ['Catima'], 'tr': ['Catima'], 'uk': ['Catima'], 'vi': ['Catima'], 'zh-CN': ['Catima'], 'zh-TW': ['Catima']}
+    >>> man.app_icon
+    {160: ['res/9w.png'], 240: ['res/yn.png'], 320: ['res/FS.png'], 480: ['res/RJ.png'], 640: ['res/o-.png'], 65534: ['res/BW.xml']}
 
     """
     chunk = read_chunk(axml)[0]
     if not isinstance(chunk, XMLChunk):
         raise ParseError("Expected XMLChunk")
-    return _get_manifest_info(chunk, files, resources=resources)
+    return _get_manifest_info(chunk, files, extended=extended, resources=resources)
 
 
 # FIXME
 # FIXME: minSdkVersion/targetSdkVersion="Q"
-def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None, *,
+def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None, *, extended: bool = False,
                        resources: Optional[ResourceTableChunk] = None) -> ManifestInfo:
-    manifest = uses_sdk = abis = None
+    manifest = uses_sdk = application = abis = app_label = None
     min_sdk = target_sdk = 1
     features: List[UsesFeature] = []
     permissions: List[UsesPermission] = []
+    app_icon: Optional[Dict[int, List[str]]] = None
     if files:
         abis = sorted(set(f.split("/")[1] for f in files
                           if f.startswith("lib/") and f.endswith(".so")))
@@ -2372,6 +2388,31 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None, *,
                 max_sdk_version = c.attr_as_int("maxSdkVersion", android=True, optional=True)
                 permissions.append(UsesPermission(name=name, min_sdk_version=min_sdk_version,
                                                   max_sdk_version=max_sdk_version))
+            elif c.name == "application" and extended:
+                if application:
+                    raise ParseError("Expected only one application element")
+                application = c
+                ALL = ResourceTableChunk.EntryFilter.ALL
+                if label := c.attrs_as_dict.get(f"{{{SCHEMA_ANDROID}}}label"):
+                    if label.typed_value.type is BinResVal.Type.STRING:
+                        label_str = c.attr_as_str("label", android=True, resources=resources)
+                        assert label_str is not None
+                        app_label = {"": [label_str]}
+                    elif label.typed_value.type is not BinResVal.Type.REFERENCE:
+                        raise ResourceError("Expected reference value for label")
+                    elif resources:
+                        app_label = {}
+                        entries = resources.select_entries(label.typed_value.data, language=ALL, region=ALL)
+                        for config, entry in sorted(entries, key=lambda x: (x[0].locale, x[0])):
+                            app_label.setdefault(config.locale, []).append(entry.str_value(resources=resources))
+                if icon := c.attrs_as_dict.get(f"{{{SCHEMA_ANDROID}}}icon"):
+                    if icon.typed_value.type is not BinResVal.Type.REFERENCE:
+                        raise ResourceError("Expected reference value for icon")
+                    if resources:
+                        app_icon = {}
+                        entries = resources.select_entries(icon.typed_value.data, density=ALL)
+                        for config, entry in sorted(entries, key=lambda x: (x[0].density, x[0])):
+                            app_icon.setdefault(config.density, []).append(entry.str_value(resources=resources))
         elif isinstance(c, XMLElemEndChunk):
             tag_stack.pop()
     if not manifest:
@@ -2379,22 +2420,29 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None, *,
     appid, vercode, vername = _manifest_idver(manifest, resources=resources)
     return ManifestInfo(
         appid=appid, version_code=vercode, version_name=vername, min_sdk=min_sdk,
-        target_sdk=target_sdk, features=features, permissions=permissions, abis=abis)
+        target_sdk=target_sdk, features=features, permissions=permissions, abis=abis,
+        app_label=app_label, app_icon=app_icon)
 
 
-def get_manifest_info_apk(apk: str) -> ManifestInfo:
+def get_manifest_info_apk(apk: str, *, extended: bool = False) -> ManifestInfo:
     r"""
     Get ManifestInfo from APK.
 
     >>> get_manifest_info_apk("test/data/golden-aligned-in.apk")
-    ManifestInfo(appid='android.appsecurity.cts.tinyapp', version_code=10, version_name='1.0', min_sdk=23, target_sdk=23, features=[], permissions=[], abis=['armeabi'])
+    ManifestInfo(appid='android.appsecurity.cts.tinyapp', version_code=10, version_name='1.0', min_sdk=23, target_sdk=23, features=[], permissions=[], abis=['armeabi'], app_label=None, app_icon=None)
+    >>> get_manifest_info_apk("test/data/golden-aligned-in.apk", extended=True)
+    ManifestInfo(appid='android.appsecurity.cts.tinyapp', version_code=10, version_name='1.0', min_sdk=23, target_sdk=23, features=[], permissions=[], abis=['armeabi'], app_label={'': ['Tiny App for CTS'], 'ar-XB': ['\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f'], 'en-XA': ['[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]']}, app_icon=None)
 
     """
     file_data, files = load_and_list_apk(apk, MANIFEST)
-    try:
-        return get_manifest_info(file_data[MANIFEST], files)
-    except ParseError:
-        return get_manifest_info(file_data[MANIFEST], files, resources=quick_get_resources(apk))
+    have_arsc = ARSC_FILE in files
+    if have_arsc and not extended:
+        try:
+            return get_manifest_info(file_data[MANIFEST], files)
+        except ParseError:
+            pass
+    resources = quick_get_resources(apk) if have_arsc else None
+    return get_manifest_info(file_data[MANIFEST], files, extended=extended, resources=resources)
 
 
 # NB: includes declarations
@@ -2632,6 +2680,7 @@ if __name__ == "__main__":
     sub_fastperms.add_argument("-q", "--quiet", action="store_true", help="don't show filenames")
     sub_fastperms.add_argument("apks", metavar="APK", nargs="+")
     sub_manifest_info = subs.add_parser("manifest-info", help="dump basic manifest info as JSON")
+    sub_manifest_info.add_argument("-e", "--extended", action="store_true", help="also extract app label and icon")
     sub_manifest_info.add_argument("apks", metavar="APK", nargs="+")
     args = parser.parse_args()
     try:
@@ -2655,7 +2704,7 @@ if __name__ == "__main__":
         elif args.command == "fastperms":
             fastperms(*args.apks, json=args.json, quiet=args.quiet, with_id=args.with_id)
         elif args.command == "manifest-info":
-            if manifest_info(*args.apks):
+            if manifest_info(*args.apks, extended=args.extended):
                 sys.exit(1)
         else:
             raise Error(f"Unknown command: {args.command}")
