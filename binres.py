@@ -431,7 +431,7 @@ class ResourceTableChunk(ParentChunk):
         '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]'
 
         >>> with open("test/data/resources1.arsc", "rb") as fh:
-        ...     chunk = parse(fh.read())[0]
+        ...     chunk = read_chunk(fh.read())[0]
         >>> chunk.get_str(0x7f010001)
         'res/drawable/presplash.jpg'
 
@@ -2573,7 +2573,7 @@ def quick_get_resources(apk: str) -> ResourceTableChunk:
 
 
 def _quick_get_resources(data: bytes) -> ResourceTableChunk:
-    chunk = parse(data)[0]
+    chunk = read_chunk(data)[0]
     if not isinstance(chunk, ResourceTableChunk):
         raise ParseError("Expected ResourceTableChunk")
     return chunk
