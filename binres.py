@@ -2344,7 +2344,10 @@ def quick_get_perms(apk: str, *, chunk: Optional[XMLChunk] = None) \
             elif manifest and parent_tag is manifest and _is_perm_tag(c):
                 yield _perm_from_tag(c)
         elif isinstance(c, XMLElemEndChunk):
-            tag_stack.pop()
+            if not tag_stack:
+                raise ParseError("End tag with empty stack")
+            if c.name != tag_stack.pop().name:
+                raise ParseError("Expected end tag to match start")
 
 
 # FIXME
@@ -2473,7 +2476,10 @@ def _get_manifest_info(chunk: XMLChunk, files: Optional[Set[str]] = None, *, ext
                         for config, entry in sorted(entries, key=lambda x: (x[0].density, x[0])):
                             app_icon.setdefault(config.density, []).append(entry.str_value(resources=resources))
         elif isinstance(c, XMLElemEndChunk):
-            tag_stack.pop()
+            if not tag_stack:
+                raise ParseError("End tag with empty stack")
+            if c.name != tag_stack.pop().name:
+                raise ParseError("Expected end tag to match start")
     if not manifest:
         raise ParseError("No manifest element")
     appid, vercode, vername = _manifest_idver(manifest, resources=resources)
