@@ -419,6 +419,14 @@ class ResourceTableChunk(ParentChunk):
         assert e.value is not None
         return e.value.data
 
+    def get_float(self, id: int, *, language: Optional[str] = None,
+                  region: Optional[str] = None, density: int = 0) -> float:
+        """Get float value."""
+        e = self.get_entry(id, typ=BinResVal.Type.FLOAT, language=language,
+                           region=region, density=density)
+        assert e.value is not None
+        return e.value.float_value
+
     def get_str(self, id: int, *, language: Optional[str] = None,
                 region: Optional[str] = None, density: int = 0) -> str:
         r"""
@@ -445,6 +453,8 @@ class ResourceTableChunk(ParentChunk):
             return self.get_bool(*args, **kwargs)
         if typ is int:
             return self.get_int(*args, **kwargs)
+        if typ is float:
+            return self.get_float(*args, **kwargs)
         if typ is str:
             return self.get_str(*args, **kwargs)
         raise ValueError(f"Unsupported type {typ.__name__}")
@@ -702,6 +712,12 @@ class XMLElemStartChunk(XMLNodeChunk):
         """Get int attr."""
         value = self._attr_as(int, name, **kwargs)
         assert value is None or isinstance(value, int)
+        return value
+
+    def attr_as_float(self, name: str, **kwargs: Any) -> Optional[float]:
+        """Get float attr."""
+        value = self._attr_as(float, name, **kwargs)
+        assert value is None or isinstance(value, float)
         return value
 
     def attr_as_str(self, name: str, **kwargs: Any) -> Optional[str]:
@@ -1258,6 +1274,15 @@ class BinResVal:
         INT_COLOR_RGB8 = 0x1d       # #rrggbb
         INT_COLOR_ARGB4 = 0x1e      # #argb
         INT_COLOR_RGB4 = 0x1f       # #rgb
+
+    @property
+    def float_value(self) -> float:
+        """Parse self.data as FLOAT."""
+        if self.type is not self.Type.FLOAT:
+            raise ValueError("Expected FLOAT")
+        value = struct.unpack("<f", struct.pack("<I", self.data))[0]
+        assert isinstance(value, float)
+        return value
 
     @classmethod
     def complex2pair(c, i: int, *, fraction: bool) -> Tuple[float, str]:
@@ -2005,7 +2030,7 @@ def brv_to_py(brv: BinResVal, raw_value: str) \
     if t is T.STRING:
         return repr, str, raw_value
     if t is T.FLOAT:
-        return f2s, f2s, struct.unpack("<f", struct.pack("<I", brv.data))[0]
+        return f2s, f2s, brv.float_value
     if t is T.DIMENSION:
         return c2s, c2s, BinResVal.complex2pair(brv.data, fraction=False)
     if t is T.FRACTION:
@@ -2024,11 +2049,13 @@ def brv_to_py(brv: BinResVal, raw_value: str) \
 
 
 def py_type_to_brv_type(typ: type) -> BinResVal.Type:
-    """Python type to BinResVal.Type (must be bool, int, str)."""
+    """Python type to BinResVal.Type (must be bool, int, float, str)."""
     if typ is bool:
         return BinResVal.Type.INT_BOOLEAN
     if typ is int:
         return BinResVal.Type.INT_DEC
+    if typ is float:
+        return BinResVal.Type.FLOAT
     if typ is str:
         return BinResVal.Type.STRING
     raise ValueError(f"Unsupported type {typ.__name__}")
