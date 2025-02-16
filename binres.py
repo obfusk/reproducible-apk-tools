@@ -516,10 +516,25 @@ class ResourceTableChunk(ParentChunk):
         >>> chunk = quick_get_resources("test/data/golden-aligned-in.apk")
         >>> entries = chunk.select_entries(0x7f020000, language=ALL, region=ALL)
         >>> for c, e in entries:
-        ...     (c.locale, e.str_value())
-        ('', 'Tiny App for CTS')
-        ('en-XA', '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]')
-        ('ar-XB', '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f')
+        ...     (e.parent().type_name, c.locale, e.str_value())
+        ('string', '', 'Tiny App for CTS')
+        ('string', 'en-XA', '[Ţîñý Åþþ ƒöŕ ÇŢŠ one two three]')
+        ('string', 'ar-XB', '\u200f\u202eTiny\u202c\u200f \u200f\u202eApp\u202c\u200f \u200f\u202efor\u202c\u200f \u200f\u202eCTS\u202c\u200f')
+
+        >>> with open("test/data/resources-catima.arsc", "rb") as fh:
+        ...     chunk = _quick_get_resources(fh.read())
+        >>> entries = chunk.select_entries(0x7f120036, language=ALL, region=ALL)
+        >>> [(e.parent().type_name, c.locale, e.str_value()) for c, e in entries]
+        [('string', '', 'Catima'), ('string', 'da', 'Catima'), ('string', 'ja', 'Catima'), ('string', 'de', 'Catima'), ('string', 'bg', 'Catima'), ('string', 'fi', 'Catima'), ('string', 'hi', 'कैटिमा'), ('string', 'vi', 'Catima'), ('string', 'sk', 'Catima'), ('string', 'uk', 'Catima'), ('string', 'nl', 'Catima'), ('string', 'pl', 'Catima'), ('string', 'bn', 'ক্যাটিমা'), ('string', 'eo', 'Catima'), ('string', 'ko', 'Catima'), ('string', 'ar', 'كاتيما'), ('string', 'fr', 'Catima'), ('string', 'hr', 'Catima'), ('string', 'tr', 'Catima'), ('string', 'cs', 'Catima'), ('string', 'es', 'Catima'), ('string', 'it', 'Catima'), ('string', 'hu', 'Catima'), ('string', 'ru', 'Catima'), ('string', 'sv', 'Catima'), ('string', 'in-ID', 'Catima'), ('string', 'zh-CN', 'Catima'), ('string', 'nb-NO', 'Catima'), ('string', 'ro-RO', 'Catima'), ('string', 'es-AR', 'Catima'), ('string', 'el-GR', 'Catima'), ('string', 'pt-PT', 'Catima'), ('string', 'zh-TW', 'Catima')]
+        >>> entries = chunk.select_entries(0x7f0f0000, density=ALL)
+        >>> for c, e in entries:
+        ...     (e.parent().type_name, c.density, e.str_value())
+        ('mipmap', 160, 'res/9w.png')
+        ('mipmap', 240, 'res/yn.png')
+        ('mipmap', 320, 'res/FS.png')
+        ('mipmap', 480, 'res/RJ.png')
+        ('mipmap', 640, 'res/o-.png')
+        ('mipmap', 65534, 'res/BW.xml')
 
         """
         entries = []
